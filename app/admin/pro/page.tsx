@@ -268,13 +268,13 @@ export default function AdminProPage() {
 
     const proUntil = getProUntil(finalPlan);
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await db
       .from("profiles")
       .update({
         plan: "pro",
         pro_until: proUntil,
         email: item.email,
-      })
+      } as any)
       .eq("id", item.user_id);
 
     if (profileError) {
