@@ -43,7 +43,7 @@ export default function AdminPage() {
   }, [requests, filter]);
 
   async function loadRequests() {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("payment_requests")
       .select("*")
       .order("created_at", { ascending: false });
@@ -118,7 +118,7 @@ export default function AdminPage() {
       return;
     }
 
-    const { error: requestError } = await supabase
+    const { error: requestError } = await (supabase as any)
       .from("payment_requests")
       .update({ status: "approved" })
       .eq("id", request.id);
@@ -145,7 +145,7 @@ export default function AdminPage() {
 
     setActionLoadingId(request.id);
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("payment_requests")
       .update({ status: "rejected" })
       .eq("id", request.id);
@@ -302,19 +302,21 @@ export default function AdminPage() {
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {(["pending", "approved", "rejected", "all"] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                style={{
-                  ...buttonStyle,
-                  background: filter === status ? "#22c55e" : "#111827",
-                  border: "1px solid #334155",
-                }}
-              >
-                {status.toUpperCase()}
-              </button>
-            ))}
+            {(["pending", "approved", "rejected", "all"] as const).map(
+              (status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilter(status)}
+                  style={{
+                    ...buttonStyle,
+                    background: filter === status ? "#22c55e" : "#111827",
+                    border: "1px solid #334155",
+                  }}
+                >
+                  {status.toUpperCase()}
+                </button>
+              )
+            )}
 
             <button
               onClick={loadRequests}
