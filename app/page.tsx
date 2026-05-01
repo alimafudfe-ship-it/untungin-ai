@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabaseClient";
 
+const db: any = supabase;
+
 type Product = {
   id: string;
   name: string;
@@ -490,44 +492,46 @@ AN: Ali Mafud
 No Rek: 091901036207538`;
   }
 
-  async function createPendingUpgradeRequest(plan: UpgradePlan, normalizedPhone: string) {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+async function createPendingUpgradeRequest(plan: UpgradePlan, normalizedPhone: string) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
 
-    if (userError || !userData.user) {
-      throw new Error("Login dulu sebelum mengirim request upgrade PRO.");
-    }
+  if (userError || !userData.user) {
+    throw new Error("Login dulu sebelum mengirim request upgrade PRO.");
+  }
 
-    const { data: existingPending, error: pendingError } = await supabase
+  const { data: existingPending, error: pendingError } = await db
+    .from("payment_requests")
+    .select("id, status, plan")
+    .eq("user_id", userData.user.id)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (pendingError) {
+    console.error(pendingError);
+    throw new Error("Gagal mengecek request pending. Coba lagi.");
+  }
+
+  if (!existingPending) {
+    const { error: insertError } = await db
       .from("payment_requests")
-      .select("id, status, plan")
-      .eq("user_id", userData.user.id)
-      .eq("status", "pending")
-      .maybeSingle();
-
-    if (pendingError) {
-      console.error(pendingError);
-      throw new Error("Gagal mengecek request pending. Coba lagi.");
-    }
-
-    if (!existingPending) {
-      const { error: insertError } = await supabase.from("payment_requests").insert([
+      .insert([
         {
           user_id: userData.user.id,
-          email: userData.user.email,
+          email: userData.user.email ?? "",
           plan,
           status: "pending",
           phone: normalizedPhone,
-        },
-      ]);
+        } as any,
+      ] as any);
 
-      if (insertError) {
-        console.error(insertError);
-        throw new Error("Gagal membuat request upgrade. Coba lagi.");
-      }
+    if (insertError) {
+      console.error(insertError);
+      throw new Error("Gagal membuat request upgrade. Coba lagi.");
     }
-
-    return userData.user.email ?? userEmail ?? "user";
   }
+
+  return userData.user.email ?? userEmail ?? "user";
+}
 
   async function requestUpgradeAndOpenWhatsApp(plan: UpgradePlan = selectedPlan) {
     if (!ensureLoggedIn()) return;
