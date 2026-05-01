@@ -104,14 +104,17 @@ export default function AdminPage() {
 
 const { error: profileError } = await supabase
   .from("profiles")
-  .upsert([
-    {
-      id: request.user_id,
-      email: request.email ?? "",
-      plan: "pro",
-      pro_until: proUntil,
-    } as any
-  ])
+  .upsert(
+    [
+      {
+        id: request.user_id,
+        email: request.email ?? "",
+        plan: "pro",
+        pro_until: proUntil,
+      } as any,
+    ],
+    { onConflict: "id" }
+  );
 
     if (profileError) {
       console.error(profileError);
