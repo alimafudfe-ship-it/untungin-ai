@@ -111,7 +111,7 @@ export default function AdminPage() {
 
     const { error: profileError } = await db
       .from("profiles")
-      .upsert([profilePayload], { onConflict: "id" });
+      .upsert([profilePayload as any], { onConflict: "id" });
 
     if (profileError) {
       console.error(profileError);
