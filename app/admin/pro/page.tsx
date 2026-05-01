@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-const db: any = supabase;
+const db = supabase as any;
 
 type PaymentStatus = "pending" | "approved" | "rejected" | string;
 type UpgradePlan = "monthly" | "lifetime" | string;
@@ -276,7 +276,7 @@ export default function AdminProPage() {
         plan: "pro",
         pro_until: proUntil,
         email: item.email,
-      } as any)
+      })
       .eq("id", item.user_id);
 
     if (profileError) {
@@ -291,7 +291,7 @@ export default function AdminProPage() {
       .update({
         status: "approved",
         plan: finalPlan,
-      } as any)
+      })
       .eq("id", item.id);
 
     if (requestError) {
@@ -314,7 +314,7 @@ export default function AdminProPage() {
 
     setActionLoading(item.id);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("payment_requests")
       .update({ status: "rejected" })
       .eq("id", item.id);
@@ -380,7 +380,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
 
     setActionLoading(profile.id);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("profiles")
       .update({
         plan: "free",
@@ -417,7 +417,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
 
     setActionLoading(profile.id);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("profiles")
       .update({
         plan: "pro",
@@ -444,7 +444,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
 
     setActionLoading(profile.id);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("profiles")
       .update({
         plan: "pro",
