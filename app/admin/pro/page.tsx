@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+const db: any = supabase;
+
 type PaymentStatus = "pending" | "approved" | "rejected" | string;
 type UpgradePlan = "monthly" | "lifetime" | string;
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
