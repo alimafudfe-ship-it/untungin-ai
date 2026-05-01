@@ -17,32 +17,37 @@ export default function UpgradePage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<UpgradePlan>("lifetime");
 
-  useEffect(() => {
-    async function loadUser() {
-      const { data } = await supabase.auth.getUser();
+useEffect(() => {
+  async function loadUser() {
+    const { data } = await supabase.auth.getUser();
 
-      if (!data.user) {
-        router.replace("/login");
-        return;
-      }
-
-      setUserEmail(data.user.email ?? null);
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("plan, pro_until")
-        .eq("id", data.user.id)
-        .maybeSingle();
-
-      const isPro =
-        profile?.plan === "pro" &&
-        (!profile?.pro_until || new Date(profile.pro_until) > new Date());
-
-      if (isPro) router.replace("/");
+    if (!data.user) {
+      router.replace("/login");
+      return;
     }
 
-    loadUser();
-  }, [router]);
+    setUserEmail(data.user.email ?? null);
+
+    const { data: profileData } = await (supabase as any)
+      .from("profiles")
+      .select("plan, pro_until")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    const profile = profileData as {
+      plan: string | null;
+      pro_until: string | null;
+    } | null;
+
+    const isPro =
+      profile?.plan === "pro" &&
+      (!profile?.pro_until || new Date(profile.pro_until) > new Date());
+
+    if (isPro) router.replace("/");
+  }
+
+  loadUser();
+}, [router]);
 
   function getPlanText(plan: UpgradePlan = selectedPlan) {
     return plan === "monthly" ? `PRO Bulanan ${MONTHLY_PRICE}` : `PRO Lifetime ${LIFETIME_PRICE}`;
