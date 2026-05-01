@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+const db = supabase as any;
+
 type PaymentStatus = "pending" | "approved" | "rejected";
 type UpgradePlan = "monthly" | "lifetime";
 
@@ -43,7 +45,7 @@ export default function AdminPage() {
   }, [requests, filter]);
 
   async function loadRequests() {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await db
       .from("payment_requests")
       .select("*")
       .order("created_at", { ascending: false });
@@ -107,7 +109,7 @@ export default function AdminPage() {
       pro_until: proUntil,
     };
 
-    const { error: profileError } = await (supabase as any)
+    const { error: profileError } = await db
       .from("profiles")
       .upsert([profilePayload], { onConflict: "id" });
 
@@ -118,7 +120,7 @@ export default function AdminPage() {
       return;
     }
 
-    const { error: requestError } = await (supabase as any)
+    const { error: requestError } = await db
       .from("payment_requests")
       .update({ status: "approved" })
       .eq("id", request.id);
@@ -145,7 +147,7 @@ export default function AdminPage() {
 
     setActionLoadingId(request.id);
 
-    const { error } = await (supabase as any)
+    const { error } = await db
       .from("payment_requests")
       .update({ status: "rejected" })
       .eq("id", request.id);
@@ -263,18 +265,21 @@ export default function AdminPage() {
             <p style={{ opacity: 0.7, margin: 0 }}>Total Request</p>
             <h2>{requests.length}</h2>
           </div>
+
           <div style={cardStyle}>
             <p style={{ opacity: 0.7, margin: 0 }}>Pending</p>
             <h2 style={{ color: "#fbbf24" }}>
               {requests.filter((item) => item.status === "pending").length}
             </h2>
           </div>
+
           <div style={cardStyle}>
             <p style={{ opacity: 0.7, margin: 0 }}>Approved</p>
             <h2 style={{ color: "#86efac" }}>
               {requests.filter((item) => item.status === "approved").length}
             </h2>
           </div>
+
           <div style={cardStyle}>
             <p style={{ opacity: 0.7, margin: 0 }}>Rejected</p>
             <h2 style={{ color: "#fca5a5" }}>
