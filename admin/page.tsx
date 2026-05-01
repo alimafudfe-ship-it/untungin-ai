@@ -102,12 +102,14 @@ export default function AdminPage() {
         ? addDays(new Date(), 30).toISOString()
         : "2099-01-01T00:00:00.000Z";
 
-    const { error: profileError } = await supabase.from("profiles").upsert({
-      id: request.user_id,
-      email: request.email,
-      plan: "pro",
-      pro_until: proUntil,
-    });
+const { error: profileError } = await supabase
+  .from("profiles")
+  .upsert([{
+    id: request.user_id,
+    email: request.email ?? "",
+    plan: "pro",
+    pro_until: proUntil,
+  }], { onConflict: "id" });
 
     if (profileError) {
       console.error(profileError);
