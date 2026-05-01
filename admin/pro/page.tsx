@@ -286,7 +286,7 @@ export default function AdminProPage() {
       return;
     }
 
-    const { error: requestError } = await supabase
+    const { error: requestError } = await db
       .from("payment_requests")
       .update({
         status: "approved",
@@ -314,7 +314,7 @@ export default function AdminProPage() {
 
     setActionLoading(item.id);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("payment_requests")
       .update({ status: "rejected" })
       .eq("id", item.id);
