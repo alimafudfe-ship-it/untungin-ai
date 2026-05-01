@@ -84,14 +84,16 @@ useEffect(() => {
     const planText = getPlanText(selectedPlan);
 
     if (!existingPending) {
-      const { error } = await supabase.from("payment_requests").insert([
-        {
-          user_id: userData.user.id,
-          email: userData.user.email,
-          plan: selectedPlan,
-          status: "pending",
-        },
-      ]);
+const { error } = await (supabase as any)
+  .from("payment_requests")
+  .insert([
+    {
+      user_id: userData.user.id,
+      email: userData.user.email ?? "",
+      plan: selectedPlan,
+      status: "pending",
+    } as any,
+  ] as any);
 
       if (error) {
         console.error(error);
