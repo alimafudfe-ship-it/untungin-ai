@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+const db = supabase as any;
+
 type PaymentStatus = "pending" | "approved" | "rejected" | string;
 type UpgradePlan = "monthly" | "lifetime" | string;
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
@@ -268,7 +270,7 @@ export default function AdminProPage() {
 
     const proUntil = getProUntil(finalPlan);
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await db
       .from("profiles")
       .update({
         plan: "pro",
