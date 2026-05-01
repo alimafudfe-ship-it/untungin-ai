@@ -286,12 +286,12 @@ export default function AdminProPage() {
       return;
     }
 
-    const { error: requestError } = await supabase
+    const { error: requestError } = await db
       .from("payment_requests")
       .update({
         status: "approved",
         plan: finalPlan,
-      })
+      } as any)
       .eq("id", item.id);
 
     if (requestError) {
