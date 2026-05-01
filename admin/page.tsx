@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-const db = supabase as any;
+const db: any = supabase;
 
 type PaymentStatus = "pending" | "approved" | "rejected";
 type UpgradePlan = "monthly" | "lifetime";
@@ -107,11 +107,11 @@ export default function AdminPage() {
       email: request.email ?? "",
       plan: "pro",
       pro_until: proUntil,
-    };
+    } as any;
 
     const { error: profileError } = await db
       .from("profiles")
-      .upsert([profilePayload as any], { onConflict: "id" });
+      .upsert(profilePayload, { onConflict: "id" });
 
     if (profileError) {
       console.error(profileError);
@@ -122,7 +122,7 @@ export default function AdminPage() {
 
     const { error: requestError } = await db
       .from("payment_requests")
-      .update({ status: "approved" })
+      .update({ status: "approved" } as any)
       .eq("id", request.id);
 
     if (requestError) {
@@ -149,7 +149,7 @@ export default function AdminPage() {
 
     const { error } = await db
       .from("payment_requests")
-      .update({ status: "rejected" })
+      .update({ status: "rejected" } as any)
       .eq("id", request.id);
 
     if (error) {
