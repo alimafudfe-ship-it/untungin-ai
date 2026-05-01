@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+const db: any = supabase;
+
 type PaymentStatus = "pending" | "approved" | "rejected";
 type UpgradePlan = "monthly" | "lifetime";
 
@@ -16,9 +18,7 @@ type PaymentRequest = {
   created_at: string;
 };
 
-const ADMIN_EMAILS = [
-  "alimafudfe@gmail.com",
-];
+const ADMIN_EMAILS = ["alimafudfe@gmail.com"];
 
 function addDays(date: Date, days: number) {
   const next = new Date(date);
@@ -45,7 +45,7 @@ export default function AdminPage() {
   }, [requests, filter]);
 
   async function loadRequests() {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("payment_requests")
       .select("*")
       .order("created_at", { ascending: false });
@@ -102,12 +102,16 @@ export default function AdminPage() {
         ? addDays(new Date(), 30).toISOString()
         : "2099-01-01T00:00:00.000Z";
 
-    const { error: profileError } = await supabase.from("profiles").upsert({
+    const profilePayload = {
       id: request.user_id,
-      email: request.email,
+      email: request.email ?? "",
       plan: "pro",
       pro_until: proUntil,
-    });
+    } as any;
+
+    const { error: profileError } = await db
+      .from("profiles")
+      .upsert(profilePayload, { onConflict: "id" });
 
     if (profileError) {
       console.error(profileError);
@@ -116,9 +120,9 @@ export default function AdminPage() {
       return;
     }
 
-    const { error: requestError } = await supabase
+    const { error: requestError } = await db
       .from("payment_requests")
-      .update({ status: "approved" })
+      .update({ status: "approved" } as any)
       .eq("id", request.id);
 
     if (requestError) {
@@ -143,9 +147,9 @@ export default function AdminPage() {
 
     setActionLoadingId(request.id);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("payment_requests")
-      .update({ status: "rejected" })
+      .update({ status: "rejected" } as any)
       .eq("id", request.id);
 
     if (error) {
@@ -300,19 +304,21 @@ export default function AdminPage() {
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {(["pending", "approved", "rejected", "all"] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                style={{
-                  ...buttonStyle,
-                  background: filter === status ? "#22c55e" : "#111827",
-                  border: "1px solid #334155",
-                }}
-              >
-                {status.toUpperCase()}
-              </button>
-            ))}
+            {(["pending", "approved", "rejected", "all"] as const).map(
+              (status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilter(status)}
+                  style={{
+                    ...buttonStyle,
+                    background: filter === status ? "#22c55e" : "#111827",
+                    border: "1px solid #334155",
+                  }}
+                >
+                  {status.toUpperCase()}
+                </button>
+              )
+            )}
 
             <button
               onClick={loadRequests}
@@ -392,6 +398,7 @@ export default function AdminPage() {
                   <a
                     href={request.proof_url}
                     target="_blank"
+                    rel="noreferrer"
                     style={{ color: "#86efac" }}
                   >
                     Buka bukti
@@ -409,13 +416,17 @@ export default function AdminPage() {
               >
                 <button
                   onClick={() => approveRequest(request)}
-                  disabled={actionLoadingId === request.id || request.status === "approved"}
+                  disabled={
+                    actionLoadingId === request.id ||
+                    request.status === "approved"
+                  }
                   style={{
                     ...buttonStyle,
                     background:
                       request.status === "approved" ? "#166534" : "#22c55e",
                     opacity:
-                      actionLoadingId === request.id || request.status === "approved"
+                      actionLoadingId === request.id ||
+                      request.status === "approved"
                         ? 0.65
                         : 1,
                   }}
@@ -429,13 +440,17 @@ export default function AdminPage() {
 
                 <button
                   onClick={() => rejectRequest(request)}
-                  disabled={actionLoadingId === request.id || request.status === "rejected"}
+                  disabled={
+                    actionLoadingId === request.id ||
+                    request.status === "rejected"
+                  }
                   style={{
                     ...buttonStyle,
                     background:
                       request.status === "rejected" ? "#7f1d1d" : "#991b1b",
                     opacity:
-                      actionLoadingId === request.id || request.status === "rejected"
+                      actionLoadingId === request.id ||
+                      request.status === "rejected"
                         ? 0.65
                         : 1,
                   }}
@@ -445,7 +460,8 @@ export default function AdminPage() {
 
                 <button
                   onClick={() => {
-                    const text = `Halo, pembayaran Untungin.ai PRO kamu sedang kami cek. Mohon tunggu sebentar ya.`;
+                    const text =
+                      "Halo, pembayaran Untungin.ai PRO kamu sedang kami cek. Mohon tunggu sebentar ya.";
                     window.open(
                       `https://wa.me/?text=${encodeURIComponent(text)}`,
                       "_blank"
@@ -487,28 +503,28 @@ create policy "Admin can view all payment requests"
 on public.payment_requests
 for select
 using (
-  auth.jwt() ->> 'email' = 'temanakun264@gmail.com'
+  auth.jwt() ->> 'email' = 'alimafudfe@gmail.com'
 );
 
 create policy "Admin can update all payment requests"
 on public.payment_requests
 for update
 using (
-  auth.jwt() ->> 'email' = 'temanakun264@gmail.com'
+  auth.jwt() ->> 'email' = 'alimafudfe@gmail.com'
 );
 
 create policy "Admin can upsert profiles"
 on public.profiles
 for insert
 with check (
-  auth.jwt() ->> 'email' = 'temanakun264@gmail.com'
+  auth.jwt() ->> 'email' = 'alimafudfe@gmail.com'
 );
 
 create policy "Admin can update profiles"
 on public.profiles
 for update
 using (
-  auth.jwt() ->> 'email' = 'temanakun264@gmail.com'
+  auth.jwt() ->> 'email' = 'alimafudfe@gmail.com'
 );`}</pre>
         </div>
       </section>
