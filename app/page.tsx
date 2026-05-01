@@ -802,42 +802,48 @@ const { data: insertedProduct, error } = await db
     }
   }
 
-  async function deleteProduct(id: string) {
-    if (!ensureLoggedIn()) return;
+async function deleteProduct(id: string) {
+  if (!ensureLoggedIn()) return;
+  if (!currentUserId) return;
 
-    const { error } = await supabase
-      .from("products")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", currentUserId);
+  const { error } = await db
+    .from("products")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", currentUserId as string);
 
-    if (error) {
-      console.error(error);
-      alert("Gagal menghapus produk.");
-      return;
-    }
-
-    setProducts((prev) => prev.filter((item) => item.id !== id));
+  if (error) {
+    console.error(error);
+    alert("Gagal menghapus produk.");
+    return;
   }
 
-  async function resetAll() {
-    if (!ensureLoggedIn()) return;
+  setProducts((prev) => prev.filter((item) => item.id !== id));
+}
 
-    const confirmed = window.confirm("Yakin hapus semua produk dari database?");
-    if (!confirmed) return;
+async function resetAll() {
+  if (!ensureLoggedIn()) return;
+  if (!currentUserId) return;
 
-    const { error } = await supabase.from("products").delete().eq("user_id", currentUserId);
-    if (error) {
-      console.error(error);
-      alert("Gagal reset data.");
-      return;
-    }
+  const confirmed = window.confirm("Yakin hapus semua produk dari database?");
+  if (!confirmed) return;
 
-    setProducts([]);
-    setHistory([]);
-    setResult("");
-    setProfit(null);
+  const { error } = await db
+    .from("products")
+    .delete()
+    .eq("user_id", currentUserId as string);
+
+  if (error) {
+    console.error(error);
+    alert("Gagal reset data.");
+    return;
   }
+
+  setProducts([]);
+  setHistory([]);
+  setResult("");
+  setProfit(null);
+}
 
   function generateFullBusinessInsight() {
     if (products.length === 0) {
