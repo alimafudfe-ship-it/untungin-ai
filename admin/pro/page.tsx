@@ -417,7 +417,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
 
     setActionLoading(profile.id);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("profiles")
       .update({
         plan: "pro",
@@ -444,7 +444,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
 
     setActionLoading(profile.id);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("profiles")
       .update({
         plan: "pro",
