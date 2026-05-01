@@ -16,9 +16,7 @@ type PaymentRequest = {
   created_at: string;
 };
 
-const ADMIN_EMAILS = [
-  "alimafudfe@gmail.com",
-];
+const ADMIN_EMAILS = ["alimafudfe@gmail.com"];
 
 function addDays(date: Date, days: number) {
   const next = new Date(date);
@@ -102,19 +100,16 @@ export default function AdminPage() {
         ? addDays(new Date(), 30).toISOString()
         : "2099-01-01T00:00:00.000Z";
 
-const { error: profileError } = await supabase
-  .from("profiles")
-  .upsert(
-    [
-      {
-        id: request.user_id,
-        email: request.email ?? "",
-        plan: "pro",
-        pro_until: proUntil,
-      } as any,
-    ],
-    { onConflict: "id" }
-  );
+    const profilePayload = {
+      id: request.user_id,
+      email: request.email ?? "",
+      plan: "pro",
+      pro_until: proUntil,
+    };
+
+    const { error: profileError } = await (supabase as any)
+      .from("profiles")
+      .upsert([profilePayload], { onConflict: "id" });
 
     if (profileError) {
       console.error(profileError);
@@ -399,6 +394,7 @@ const { error: profileError } = await supabase
                   <a
                     href={request.proof_url}
                     target="_blank"
+                    rel="noreferrer"
                     style={{ color: "#86efac" }}
                   >
                     Buka bukti
@@ -416,13 +412,17 @@ const { error: profileError } = await supabase
               >
                 <button
                   onClick={() => approveRequest(request)}
-                  disabled={actionLoadingId === request.id || request.status === "approved"}
+                  disabled={
+                    actionLoadingId === request.id ||
+                    request.status === "approved"
+                  }
                   style={{
                     ...buttonStyle,
                     background:
                       request.status === "approved" ? "#166534" : "#22c55e",
                     opacity:
-                      actionLoadingId === request.id || request.status === "approved"
+                      actionLoadingId === request.id ||
+                      request.status === "approved"
                         ? 0.65
                         : 1,
                   }}
@@ -436,13 +436,17 @@ const { error: profileError } = await supabase
 
                 <button
                   onClick={() => rejectRequest(request)}
-                  disabled={actionLoadingId === request.id || request.status === "rejected"}
+                  disabled={
+                    actionLoadingId === request.id ||
+                    request.status === "rejected"
+                  }
                   style={{
                     ...buttonStyle,
                     background:
                       request.status === "rejected" ? "#7f1d1d" : "#991b1b",
                     opacity:
-                      actionLoadingId === request.id || request.status === "rejected"
+                      actionLoadingId === request.id ||
+                      request.status === "rejected"
                         ? 0.65
                         : 1,
                   }}
@@ -452,7 +456,8 @@ const { error: profileError } = await supabase
 
                 <button
                   onClick={() => {
-                    const text = `Halo, pembayaran Untungin.ai PRO kamu sedang kami cek. Mohon tunggu sebentar ya.`;
+                    const text =
+                      "Halo, pembayaran Untungin.ai PRO kamu sedang kami cek. Mohon tunggu sebentar ya.";
                     window.open(
                       `https://wa.me/?text=${encodeURIComponent(text)}`,
                       "_blank"
@@ -494,28 +499,28 @@ create policy "Admin can view all payment requests"
 on public.payment_requests
 for select
 using (
-  auth.jwt() ->> 'email' = 'temanakun264@gmail.com'
+  auth.jwt() ->> 'email' = 'alimafudfe@gmail.com'
 );
 
 create policy "Admin can update all payment requests"
 on public.payment_requests
 for update
 using (
-  auth.jwt() ->> 'email' = 'temanakun264@gmail.com'
+  auth.jwt() ->> 'email' = 'alimafudfe@gmail.com'
 );
 
 create policy "Admin can upsert profiles"
 on public.profiles
 for insert
 with check (
-  auth.jwt() ->> 'email' = 'temanakun264@gmail.com'
+  auth.jwt() ->> 'email' = 'alimafudfe@gmail.com'
 );
 
 create policy "Admin can update profiles"
 on public.profiles
 for update
 using (
-  auth.jwt() ->> 'email' = 'temanakun264@gmail.com'
+  auth.jwt() ->> 'email' = 'alimafudfe@gmail.com'
 );`}</pre>
         </div>
       </section>
