@@ -690,10 +690,10 @@ async function createPendingUpgradeRequest(plan: UpgradePlan, normalizedPhone: s
           };
         });
 
-        const { data, error } = await supabase
-          .from("products")
-          .insert(importedProducts)
-          .select("*");
+const { data, error } = await db
+  .from("products")
+  .insert(importedProducts as any)
+  .select("*");
 
         if (error) {
           console.error(error);
