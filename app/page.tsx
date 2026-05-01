@@ -760,26 +760,22 @@ const { data, error } = await db
         body: JSON.stringify(form),
       });
 
-      const data = await res.json().catch(() => ({}));
-      setProfit(data.profit ?? profitValue);
-      setResult(data.result ?? "Produk berhasil dianalisa.");
-
-      const { data: insertedProduct, error } = await supabase
-        .from("products")
-        .insert([
-          {
-            user_id: currentUserId,
-            name: form.productName,
-            cost_price: costPrice,
-            selling_price: sellingPrice,
-            quantity_sold: quantitySold,
-            other_cost: otherCost,
-            profit: profitValue,
-            margin,
-          },
-        ])
-        .select("*")
-        .single();
+const { data: insertedProduct, error } = await db
+  .from("products")
+  .insert([
+    {
+      user_id: currentUserId,
+      name: form.productName,
+      cost_price: costPrice,
+      selling_price: sellingPrice,
+      quantity_sold: quantitySold,
+      other_cost: otherCost,
+      profit: profitValue,
+      margin,
+    } as any,
+  ] as any)
+  .select("*")
+  .single();
 
       if (error) {
         console.error(error);
