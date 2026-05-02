@@ -391,22 +391,20 @@ useEffect(() => {
   async function loadUserAndProducts() {
     setPageLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
 
-const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session?.user) {
+      setCurrentUserId(null);
+      setUserEmail(null);
+      setProducts([]);
+      setProfile(null);
+      setPageLoading(false);
+      router.replace("/login");
+      return;
+    }
 
-if (!sessionData.session?.user) {
-  setCurrentUserId(null);
-  setUserEmail(null);
-  setProducts([]);
-  setProfile(null);
-  setPageLoading(false);
-  router.replace("/login");
-  return;
-}
-
-const user = sessionData.session.user;
-const user = sessionData.session.user;
+    const user = sessionData.session.user;
 
     setCurrentUserId(user.id);
     setUserEmail(user.email ?? null);
@@ -417,7 +415,10 @@ const user = sessionData.session.user;
       .eq("id", user.id)
       .maybeSingle();
 
-    if (profileError) console.error("Gagal mengambil profile:", profileError);
+    if (profileError) {
+      console.error("Gagal mengambil profile:", profileError);
+    }
+
     setProfile((profileData as Profile | null) ?? null);
 
     const { data: productData, error: productError } = await db
@@ -429,14 +430,31 @@ const user = sessionData.session.user;
     if (productError) {
       console.error(productError);
       alert("Gagal mengambil data produk dari database.");
-    } else if (productData) {
-      setProducts((productData as ProductRow[]).map(mapProductRow));
+    } else {
+      setProducts(((productData || []) as ProductRow[]).map(mapProductRow));
     }
 
     setPageLoading(false);
   }
 
   loadUserAndProducts();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+    if (!session?.user) {
+      setCurrentUserId(null);
+      setUserEmail(null);
+      setProducts([]);
+      setProfile(null);
+      setPageLoading(false);
+      router.replace("/login");
+    }
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
 }, [router]);
   
   useEffect(() => {
