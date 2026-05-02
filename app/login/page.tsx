@@ -15,14 +15,11 @@ export default function LoginPage() {
 async function handleGoogleLogin() {
   setLoadingGoogle(true);
 
-  const redirectTo =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/auth/callback`
-      : undefined;
-
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo },
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    },
   });
 
   if (error) {
@@ -31,7 +28,6 @@ async function handleGoogleLogin() {
     setLoadingGoogle(false);
   }
 }
-
   async function handleEmailLogin() {
     const normalizedEmail = email.trim().toLowerCase();
 
