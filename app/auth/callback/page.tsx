@@ -10,16 +10,22 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     async function finishLogin() {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const { data } = await supabase.auth.getSession();
 
         if (data.session) {
           router.replace("/");
-          return;
+        } else {
+          router.replace("/login");
         }
-
-        router.replace("/login");
       } catch (error) {
         console.error(error);
         router.replace("/login");
