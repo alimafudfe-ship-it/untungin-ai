@@ -1,195 +1,223 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-export default function LoginPage() {
+function LoginContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [loadingEmail, setLoadingEmail] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const lastSentRef = useRef(0);
+  const [loadingEmail, setLoadingEmail] = useState(false);
+  const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-async function handleGoogleLogin() {
-  setLoadingGoogle(true);
+  const nextPath = searchParams.get("next") || "/";
+  const urlError = searchParams.get("error") || "";
 
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    },
-  });
+  useEffect(() => {
+    if (urlError) setErrorMessage(urlError);
+  }, [urlError]);
 
-  if (error) {
-    console.error(error);
-    alert(error.message);
-    setLoadingGoogle(false);
-  }
-}
-  async function handleEmailLogin() {
-    const normalizedEmail = email.trim().toLowerCase();
+  useEffect(() => {
+    let mounted = true;
 
-    if (!normalizedEmail || !normalizedEmail.includes("@")) {
-      alert("Masukkan email yang valid.");
-      return;
+    async function redirectIfLoggedIn() {
+      const { data } = await supabase.auth.getSession();
+      if (mounted && data.session?.user) router.replace(nextPath);
     }
 
-    const now = Date.now();
-    if (now - lastSentRef.current < 30000) {
-      const remaining = Math.ceil((30000 - (now - lastSentRef.current)) / 1000);
-      alert(`Tunggu ${remaining} detik sebelum kirim lagi.`);
-      return;
-    }
+    redirectIfLoggedIn();
 
-    lastSentRef.current = now;
-    setLoadingEmail(true);
-    setCooldown(30);
-
-    const interval = window.setInterval(() => {
-      setCooldown((prev) => {
-        if (prev <= 1) {
-          window.clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+        router.replace(nextPath);
+      }
     });
 
-    setLoadingEmail(false);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [nextPath, router]);
+
+  async function loginWithGoogle() {
+    setErrorMessage("");
+    setMessage("");
+    setLoadingGoogle(true);
+
+    const origin = window.location.origin;
+    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: "offline",
+          prompt: "select_account",
+        },
+      },
+    });
 
     if (error) {
-      console.error(error);
-      alert(
-        error.message.toLowerCase().includes("rate limit")
-          ? "⚠️ Terlalu sering kirim email. Tunggu sebentar lalu coba lagi."
-          : error.message
-      );
+      setErrorMessage(error.message);
+      setLoadingGoogle(false);
+    }
+  }
+
+  async function sendMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    setErrorMessage("");
+    setMessage("");
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setErrorMessage("Masukkan email dulu.");
       return;
     }
 
-    alert("✅ Link login sudah dikirim. Cek email kamu.");
+    setLoadingEmail(true);
+
+    const origin = window.location.origin;
+    const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: cleanEmail,
+      options: {
+        emailRedirectTo,
+        shouldCreateUser: true,
+      },
+    });
+
+    if (error) {
+      setErrorMessage(error.message);
+    } else {
+      setMessage("Link login sudah dikirim. Cek email kamu.");
+    }
+
+    setLoadingEmail(false);
   }
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "radial-gradient(circle at top, #0f5132 0%, #020617 45%, #000 100%)",
+        background:
+          "radial-gradient(circle at 20% 10%, rgba(34,197,94,0.28), transparent 35%), linear-gradient(135deg, #020617 0%, #030712 60%, #000 100%)",
         color: "white",
-        fontFamily: "Arial",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
+        fontFamily: "Inter, Arial, sans-serif",
+        display: "grid",
+        placeItems: "center",
+        padding: 20,
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: 390,
-          padding: 30,
-          borderRadius: 24,
-          background: "rgba(15,23,42,0.94)",
-          border: "1px solid #1f2937",
-          boxShadow: "0 25px 80px rgba(0,0,0,0.45)",
+          maxWidth: 420,
+          background: "rgba(15,23,42,0.92)",
+          border: "1px solid rgba(148,163,184,0.16)",
+          borderRadius: 28,
+          padding: 28,
+          boxShadow: "0 30px 100px rgba(0,0,0,0.45)",
         }}
       >
         <div
           style={{
-            display: "inline-block",
-            background: "rgba(34,197,94,0.15)",
-            color: "#22c55e",
-            padding: "7px 12px",
+            display: "inline-flex",
+            padding: "8px 12px",
             borderRadius: 999,
-            fontSize: 13,
-            marginBottom: 16,
+            background: "rgba(34,197,94,0.14)",
+            color: "#22c55e",
+            fontWeight: 900,
+            marginBottom: 20,
           }}
         >
           Untungin.ai
         </div>
 
-        <h1 style={{ marginTop: 0, marginBottom: 8 }}>Masuk ke Dashboard</h1>
-        <p style={{ opacity: 0.7, fontSize: 14, lineHeight: 1.6 }}>
+        <h1 style={{ margin: "0 0 8px", fontSize: 24 }}>Masuk ke Dashboard</h1>
+        <p style={{ margin: "0 0 22px", color: "#cbd5e1", lineHeight: 1.6 }}>
           Login untuk menyimpan data produk, cek profit, dan aktivasi PRO.
         </p>
 
         <button
-          onClick={handleGoogleLogin}
+          onClick={loginWithGoogle}
           disabled={loadingGoogle}
           style={{
             width: "100%",
-            padding: 13,
+            padding: "15px 16px",
+            borderRadius: 16,
+            border: "none",
             background: "white",
             color: "#111827",
-            border: "none",
-            borderRadius: 12,
-            cursor: loadingGoogle ? "not-allowed" : "pointer",
-            opacity: loadingGoogle ? 0.7 : 1,
-            fontWeight: "bold",
-            fontSize: 15,
-            marginTop: 14,
+            fontWeight: 900,
+            cursor: "pointer",
           }}
         >
           {loadingGoogle ? "Membuka Google..." : "🔐 Login dengan Google"}
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0", opacity: 0.5, fontSize: 12 }}>
-          <div style={{ height: 1, background: "#334155", flex: 1 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0", color: "#64748b", fontSize: 13 }}>
+          <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
           atau login via email
-          <div style={{ height: 1, background: "#334155", flex: 1 }} />
+          <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
         </div>
 
-        <input
-          type="email"
-          placeholder="Email kamu"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleEmailLogin();
-          }}
-          style={{
-            padding: 13,
-            width: "100%",
-            marginBottom: 12,
-            borderRadius: 12,
-            border: "1px solid #334155",
-            background: "#020617",
-            color: "white",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
+        <form onSubmit={sendMagicLink} style={{ display: "grid", gap: 12 }}>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email kamu"
+            style={{
+              width: "100%",
+              padding: "15px 16px",
+              borderRadius: 16,
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.74)",
+              color: "white",
+              fontSize: 15,
+              outline: "none",
+            }}
+          />
+          <button
+            type="submit"
+            disabled={loadingEmail}
+            style={{
+              width: "100%",
+              padding: "15px 16px",
+              borderRadius: 16,
+              border: "none",
+              background: "linear-gradient(135deg, #22c55e, #14b8a6)",
+              color: "white",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            {loadingEmail ? "Mengirim..." : "Kirim Link Login"}
+          </button>
+        </form>
 
-        <button
-          onClick={handleEmailLogin}
-          disabled={loadingEmail || cooldown > 0}
-          style={{
-            width: "100%",
-            padding: 13,
-            background: "linear-gradient(135deg, #22c55e, #16a34a)",
-            color: "white",
-            border: "none",
-            borderRadius: 12,
-            cursor: loadingEmail || cooldown > 0 ? "not-allowed" : "pointer",
-            opacity: loadingEmail || cooldown > 0 ? 0.6 : 1,
-            fontWeight: "bold",
-            fontSize: 15,
-          }}
-        >
-          {loadingEmail ? "Mengirim..." : cooldown > 0 ? `Tunggu ${cooldown}s` : "Kirim Link Login"}
-        </button>
+        {message && <p style={{ color: "#86efac", fontSize: 13 }}>{message}</p>}
+        {errorMessage && <p style={{ color: "#fca5a5", fontSize: 13 }}>{errorMessage}</p>}
 
-        <p style={{ marginTop: 14, fontSize: 12, opacity: 0.55 }}>
+        <p style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.6, marginBottom: 0 }}>
           Disarankan pakai Google Login agar tidak perlu buka email dan tidak kena limit OTP.
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }
