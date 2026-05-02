@@ -109,9 +109,9 @@ export default function AdminPage() {
       pro_until: proUntil,
     } as any;
 
-    const { error: profileError } = await db
-      .from("profiles")
-      .upsert(profilePayload, { onConflict: "id" });
+const { error: profileError } = await db
+  .from("profiles")
+  .upsert([profilePayload] as any, { onConflict: "id" } as any);
 
     if (profileError) {
       console.error(profileError);
