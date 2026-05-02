@@ -12,20 +12,25 @@ export default function LoginPage() {
   const [cooldown, setCooldown] = useState(0);
   const lastSentRef = useRef(0);
 
-  async function handleGoogleLogin() {
-    setLoadingGoogle(true);
+async function handleGoogleLogin() {
+  setLoadingGoogle(true);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${SITE_URL}/auth/callback` },
-    });
+  const redirectTo =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/auth/callback`
+      : undefined;
 
-    if (error) {
-      console.error(error);
-      alert(error.message);
-      setLoadingGoogle(false);
-    }
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo },
+  });
+
+  if (error) {
+    console.error(error);
+    alert(error.message);
+    setLoadingGoogle(false);
   }
+}
 
   async function handleEmailLogin() {
     const normalizedEmail = email.trim().toLowerCase();
