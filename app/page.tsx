@@ -387,52 +387,57 @@ export default function DashboardPage() {
     fontWeight: 700,
   };
 
-  useEffect(() => {
-    async function loadUserAndProducts() {
-      setPageLoading(true);
+useEffect(() => {
+  async function loadUserAndProducts() {
+    setPageLoading(true);
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) {
-        setCurrentUserId(null);
-        setUserEmail(null);
-        setProducts([]);
-        setProfile(null);
-        setPageLoading(false);
-        router.replace("/login");
-        return;
-      }
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
-      setCurrentUserId(userData.user.id);
-      setUserEmail(userData.user.email ?? null);
+    const { data: sessionData } = await supabase.auth.getSession();
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("role, plan, pro_until, email")
-        .eq("id", userData.user.id)
-        .maybeSingle();
-
-      if (profileError) console.error("Gagal mengambil profile:", profileError);
-      setProfile((profileData as Profile | null) ?? null);
-
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select("*")
-        .eq("user_id", userData.user.id)
-        .order("created_at", { ascending: false });
-
-      if (productError) {
-        console.error(productError);
-        alert("Gagal mengambil data produk dari database.");
-      } else if (productData) {
-        setProducts((productData as ProductRow[]).map(mapProductRow));
-      }
-
+    if (!sessionData.session?.user) {
+      setCurrentUserId(null);
+      setUserEmail(null);
+      setProducts([]);
+      setProfile(null);
       setPageLoading(false);
+      router.replace("/login");
+      return;
     }
 
-    loadUserAndProducts();
-  }, [router]);
+    const user = sessionData.session.user;
 
+    setCurrentUserId(user.id);
+    setUserEmail(user.email ?? null);
+
+    const { data: profileData, error: profileError } = await db
+      .from("profiles")
+      .select("role, plan, pro_until, email")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) console.error("Gagal mengambil profile:", profileError);
+    setProfile((profileData as Profile | null) ?? null);
+
+    const { data: productData, error: productError } = await db
+      .from("products")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (productError) {
+      console.error(productError);
+      alert("Gagal mengambil data produk dari database.");
+    } else if (productData) {
+      setProducts((productData as ProductRow[]).map(mapProductRow));
+    }
+
+    setPageLoading(false);
+  }
+
+  loadUserAndProducts();
+}, [router]);
+  
   useEffect(() => {
     if (products.length === 0) {
       setHistory([]);
