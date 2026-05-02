@@ -388,23 +388,28 @@ export default function DashboardPage() {
   };
 
 useEffect(() => {
-  async function loadUserAndProducts() {
-    setPageLoading(true);
+  let isMounted = true;
+
+  async function loadUserAndProducts(redirectIfMissing = true) {
+    if (isMounted) setPageLoading(true);
 
     const { data: sessionData, error: sessionError } =
       await supabase.auth.getSession();
 
-    if (sessionError || !sessionData.session?.user) {
+    const user = sessionData.session?.user ?? null;
+
+    if (sessionError || !user) {
+      if (!isMounted) return;
       setCurrentUserId(null);
       setUserEmail(null);
       setProducts([]);
       setProfile(null);
       setPageLoading(false);
-      router.replace("/login");
+      if (redirectIfMissing) router.replace("/login");
       return;
     }
 
-    const user = sessionData.session.user;
+    if (!isMounted) return;
 
     setCurrentUserId(user.id);
     setUserEmail(user.email ?? null);
@@ -419,6 +424,7 @@ useEffect(() => {
       console.error("Gagal mengambil profile:", profileError);
     }
 
+    if (!isMounted) return;
     setProfile((profileData as Profile | null) ?? null);
 
     const { data: productData, error: productError } = await db
@@ -426,6 +432,8 @@ useEffect(() => {
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
+
+    if (!isMounted) return;
 
     if (productError) {
       console.error(productError);
@@ -441,8 +449,13 @@ useEffect(() => {
 
   const {
     data: { subscription },
-  } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-    if (!session?.user) {
+  } = supabase.auth.onAuthStateChange((event: any, session: any) => {
+    if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+      loadUserAndProducts(false);
+      return;
+    }
+
+    if (event === "SIGNED_OUT" || !session?.user) {
       setCurrentUserId(null);
       setUserEmail(null);
       setProducts([]);
@@ -453,6 +466,7 @@ useEffect(() => {
   });
 
   return () => {
+    isMounted = false;
     subscription.unsubscribe();
   };
 }, [router]);
