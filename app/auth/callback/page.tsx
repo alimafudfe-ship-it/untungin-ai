@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -15,6 +15,8 @@ export default function AuthCallbackPage() {
       const next = searchParams.get("next") || "/";
 
       const { data: sessionData } = await supabase.auth.getSession();
+      if (!active) return;
+
       if (sessionData.session?.user) {
         router.replace(next);
         return;
@@ -26,7 +28,6 @@ export default function AuthCallbackPage() {
         if (!active) return;
 
         if (error) {
-          console.error("OAuth callback gagal:", error);
           router.replace(`/login?error=${encodeURIComponent(error.message)}`);
           return;
         }
@@ -67,5 +68,13 @@ export default function AuthCallbackPage() {
         <p>Menyelesaikan login...</p>
       </div>
     </main>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
