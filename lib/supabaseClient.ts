@@ -7,12 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("Supabase ENV belum lengkap.");
 }
 
-declare global {
-  var supabaseClient: ReturnType<typeof createClient> | undefined;
-}
-
-export const supabase =
-  globalThis.supabaseClient ??
+const createSupabaseClient = () =>
   createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
@@ -21,6 +16,16 @@ export const supabase =
     },
   });
 
-if (process.env.NODE_ENV !== "production") {
-  globalThis.supabaseClient = supabase;
+declare global {
+  // eslint-disable-next-line no-var
+  var supabaseClient: ReturnType<typeof createSupabaseClient> | undefined;
 }
+
+const supabaseClient =
+  globalThis.supabaseClient ?? createSupabaseClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalThis.supabaseClient = supabaseClient;
+}
+
+export const supabase: any = supabaseClient;
