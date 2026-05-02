@@ -393,19 +393,19 @@ useEffect(() => {
 
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    const { data: sessionData } = await supabase.auth.getSession();
+const { data: sessionData } = await supabase.auth.getSession();
 
-    if (!sessionData.session?.user) {
-      setCurrentUserId(null);
-      setUserEmail(null);
-      setProducts([]);
-      setProfile(null);
-      setPageLoading(false);
-      router.replace("/login");
-      return;
-    }
+if (!sessionData.session?.user) {
+  setCurrentUserId(null);
+  setUserEmail(null);
+  setProducts([]);
+  setProfile(null);
+  setPageLoading(false);
+  router.replace("/login");
+  return;
+}
 
-    const user = sessionData.session.user;
+const user = sessionData.session.user;
 
     setCurrentUserId(user.id);
     setUserEmail(user.email ?? null);
