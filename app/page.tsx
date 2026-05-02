@@ -406,6 +406,7 @@ if (!sessionData.session?.user) {
 }
 
 const user = sessionData.session.user;
+const user = sessionData.session.user;
 
     setCurrentUserId(user.id);
     setUserEmail(user.email ?? null);
