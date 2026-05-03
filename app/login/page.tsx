@@ -53,30 +53,26 @@ function LoginContent() {
     };
   }, [nextPath, router]);
 
-  async function loginWithGoogle() {
-    setErrorMessage("");
-    setMessage("");
-    setLoadingGoogle(true);
+async function loginWithGoogle() {
+  setErrorMessage("");
+  setMessage("");
+  setLoadingGoogle(true);
 
-    const origin = window.location.origin;
-    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+  const origin = window.location.origin;
+  const redirectTo = `${origin}/auth/callback`;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        queryParams: {
-          access_type: "offline",
-          prompt: "select_account",
-        },
-      },
-    });
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+    },
+  });
 
-    if (error) {
-      setErrorMessage(error.message);
-      setLoadingGoogle(false);
-    }
+  if (error) {
+    setErrorMessage(error.message);
+    setLoadingGoogle(false);
   }
+}
 
   async function sendMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
