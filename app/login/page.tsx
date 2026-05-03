@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 function LoginContent() {
   const router = useRouter();
@@ -32,7 +32,7 @@ function LoginContent() {
       }
     }
 
-    redirectIfLoggedIn();
+    void redirectIfLoggedIn();
 
     const {
       data: { subscription },
@@ -136,26 +136,100 @@ function LoginContent() {
           boxShadow: "0 30px 100px rgba(0,0,0,0.45)",
         }}
       >
-        <h1>Login</h1>
+        <div
+          style={{
+            display: "inline-flex",
+            padding: "8px 12px",
+            borderRadius: 999,
+            background: "rgba(34,197,94,0.14)",
+            color: "#22c55e",
+            fontWeight: 900,
+            marginBottom: 20,
+          }}
+        >
+          Untungin.ai
+        </div>
 
-        <button onClick={loginWithGoogle} disabled={loadingGoogle}>
-          {loadingGoogle ? "Loading..." : "Login Google"}
+        <h1 style={{ margin: "0 0 8px", fontSize: 24 }}>Masuk ke Dashboard</h1>
+        <p style={{ margin: "0 0 22px", color: "#cbd5e1", lineHeight: 1.6 }}>
+          Login untuk menyimpan data produk, cek profit, dan aktivasi PRO.
+        </p>
+
+        <button
+          onClick={loginWithGoogle}
+          disabled={loadingGoogle}
+          style={{
+            width: "100%",
+            padding: "15px 16px",
+            borderRadius: 16,
+            border: "none",
+            background: "white",
+            color: "#111827",
+            fontWeight: 900,
+            cursor: loadingGoogle ? "not-allowed" : "pointer",
+            opacity: loadingGoogle ? 0.75 : 1,
+          }}
+        >
+          {loadingGoogle ? "Membuka Google..." : "🔐 Login dengan Google"}
         </button>
 
-        <form onSubmit={sendMagicLink}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            margin: "22px 0",
+            color: "#64748b",
+            fontSize: 13,
+          }}
+        >
+          <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
+          atau login via email
+          <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
+        </div>
+
+        <form onSubmit={sendMagicLink} style={{ display: "grid", gap: 12 }}>
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+            placeholder="Email kamu"
+            style={{
+              width: "100%",
+              padding: "15px 16px",
+              borderRadius: 16,
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.74)",
+              color: "white",
+              fontSize: 15,
+              outline: "none",
+            }}
           />
-          <button type="submit">
-            {loadingEmail ? "Loading..." : "Login Email"}
+          <button
+            type="submit"
+            disabled={loadingEmail}
+            style={{
+              width: "100%",
+              padding: "15px 16px",
+              borderRadius: 16,
+              border: "none",
+              background: "linear-gradient(135deg, #22c55e, #14b8a6)",
+              color: "white",
+              fontWeight: 900,
+              cursor: loadingEmail ? "not-allowed" : "pointer",
+              opacity: loadingEmail ? 0.75 : 1,
+            }}
+          >
+            {loadingEmail ? "Mengirim..." : "Kirim Link Login"}
           </button>
         </form>
 
-        {message && <p>{message}</p>}
-        {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+        {message && <p style={{ color: "#86efac", fontSize: 13 }}>{message}</p>}
+        {errorMessage && <p style={{ color: "#fca5a5", fontSize: 13 }}>{errorMessage}</p>}
+
+        <p style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.6, marginBottom: 0 }}>
+          Disarankan pakai Google Login agar tidak perlu buka email dan tidak kena limit OTP.
+        </p>
       </div>
     </main>
   );
