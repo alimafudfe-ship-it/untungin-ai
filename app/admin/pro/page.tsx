@@ -17,7 +17,12 @@ type PaymentRequest = {
   phone?: string | null;
   plan: UpgradePlan | null;
   status: PaymentStatus | null;
+  proof_url?: string | null;
+  admin_note?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
   created_at: string;
+  updated_at?: string | null;
 };
 
 type Profile = {
@@ -29,6 +34,12 @@ type Profile = {
 };
 
 const WHATSAPP_NUMBER = "6285697834766";
+const MONTHLY_PRICE = 29000;
+const LIFETIME_PRICE = 99000;
+
+function money(value: number) {
+  return `Rp${Math.round(value || 0).toLocaleString("id-ID")}`;
+}
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
@@ -64,6 +75,12 @@ function getPlanPrice(plan: UpgradePlan | null) {
   if (plan === "monthly") return "Rp29.000/bulan";
   if (plan === "lifetime") return "Rp99.000 sekali bayar";
   return "-";
+}
+
+function getPlanAmount(plan: UpgradePlan | null) {
+  if (plan === "monthly") return MONTHLY_PRICE;
+  if (plan === "lifetime") return LIFETIME_PRICE;
+  return 0;
 }
 
 function isActivePro(profile: Profile) {
@@ -106,7 +123,28 @@ export default function AdminProPage() {
     const activePro = profiles.filter(isActivePro).length;
     const expiredPro = profiles.filter(isExpiredPro).length;
 
-    return { pending, approved, rejected, activePro, expiredPro, totalRequests: requests.length };
+    const approvedRequests = requests.filter((r) => r.status === "approved");
+    const approvedMonthly = approvedRequests.filter((r) => r.plan === "monthly").length;
+    const approvedLifetime = approvedRequests.filter((r) => r.plan === "lifetime").length;
+    const totalRevenue = approvedRequests.reduce((acc, item) => acc + getPlanAmount(item.plan), 0);
+    const mrr = approvedMonthly * MONTHLY_PRICE;
+    const pendingPotential = requests
+      .filter((r) => r.status === "pending")
+      .reduce((acc, item) => acc + getPlanAmount(item.plan), 0);
+
+    return {
+      pending,
+      approved,
+      rejected,
+      activePro,
+      expiredPro,
+      totalRequests: requests.length,
+      approvedMonthly,
+      approvedLifetime,
+      totalRevenue,
+      mrr,
+      pendingPotential,
+    };
   }, [requests, profiles]);
 
   const filteredRequests = useMemo(() => {
@@ -131,7 +169,7 @@ export default function AdminProPage() {
     if (!keyword) return profiles;
 
     return profiles.filter((profile) =>
-      [profile.email, profile.id, profile.plan, profile.pro_until]
+      [profile.email, profile.id, profile.role, profile.plan, profile.pro_until]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -268,6 +306,22 @@ export default function AdminProPage() {
 
     setActionLoading(item.id);
 
+    // Utama: pakai RPC dari SQL schema agar update PRO lebih aman lewat security definer.
+    const { error: rpcError } = await supabase.rpc("approve_payment_request", {
+      request_id: item.id,
+      forced_plan: finalPlan,
+    });
+
+    if (!rpcError) {
+      alert(`${planText} berhasil diaktifkan untuk ${item.email || item.user_id}.`);
+      await loadAdminData();
+      setActionLoading(null);
+      return;
+    }
+
+    console.warn("RPC approve_payment_request gagal, fallback update langsung:", rpcError);
+
+    // Fallback kalau RPC belum dibuat di Supabase.
     const proUntil = getProUntil(finalPlan);
 
     const { error: profileError } = await db
@@ -281,7 +335,7 @@ export default function AdminProPage() {
 
     if (profileError) {
       console.error(profileError);
-      alert("Gagal update profile ke PRO. Cek RLS policy profiles.");
+      alert("Gagal update profile ke PRO. Cek RLS policy profiles/RPC approve_payment_request.");
       setActionLoading(null);
       return;
     }
@@ -291,6 +345,7 @@ export default function AdminProPage() {
       .update({
         status: "approved",
         plan: finalPlan,
+        reviewed_at: new Date().toISOString(),
       })
       .eq("id", item.id);
 
@@ -309,14 +364,36 @@ export default function AdminProPage() {
   async function rejectRequest(item: PaymentRequest) {
     if (!assertAdmin()) return;
 
-    const confirmed = window.confirm(`Tolak request dari ${item.email || item.user_id}?`);
-    if (!confirmed) return;
+    const note = window.prompt(
+      `Tolak request dari ${item.email || item.user_id}?\nCatatan admin opsional:`,
+      "Bukti pembayaran belum valid."
+    );
+
+    if (note === null) return;
 
     setActionLoading(item.id);
 
+    const { error: rpcError } = await supabase.rpc("reject_payment_request", {
+      request_id: item.id,
+      note,
+    });
+
+    if (!rpcError) {
+      alert("Request ditandai rejected.");
+      await loadAdminData();
+      setActionLoading(null);
+      return;
+    }
+
+    console.warn("RPC reject_payment_request gagal, fallback update langsung:", rpcError);
+
     const { error } = await db
       .from("payment_requests")
-      .update({ status: "rejected" })
+      .update({
+        status: "rejected",
+        admin_note: note,
+        reviewed_at: new Date().toISOString(),
+      })
       .eq("id", item.id);
 
     if (error) {
@@ -379,6 +456,19 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
     if (!confirmed) return;
 
     setActionLoading(profile.id);
+
+    const { error: rpcError } = await supabase.rpc("revoke_user_pro", {
+      target_user_id: profile.id,
+    });
+
+    if (!rpcError) {
+      alert("PRO berhasil dicabut.");
+      await loadAdminData();
+      setActionLoading(null);
+      return;
+    }
+
+    console.warn("RPC revoke_user_pro gagal, fallback update langsung:", rpcError);
 
     const { error } = await db
       .from("profiles")
@@ -518,7 +608,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
         button { transition: 160ms ease; }
         input::placeholder { color: rgba(203,213,225,0.45); }
         @media (max-width: 980px) {
-          .admin-grid, .request-row, .profile-row, .ops-grid { grid-template-columns: 1fr !important; }
+          .admin-grid, .request-row, .profile-row, .ops-grid, .revenue-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -543,10 +633,28 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
           </div>
         </header>
 
+        <section
+          className="revenue-grid"
+          style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}
+        >
+          {[
+            ["Total Revenue", money(stats.totalRevenue), "#86efac", "Dari request approved"],
+            ["MRR Estimasi", money(stats.mrr), "#22c55e", "Approved bulanan"],
+            ["Pending Potential", money(stats.pendingPotential), "#fbbf24", "Potensi dari pending"],
+            ["Lifetime Sold", stats.approvedLifetime, "#38bdf8", "Total lifetime approved"],
+          ].map(([title, value, color, desc]) => (
+            <div key={title} style={{ ...cardStyle, border: "1px solid rgba(34,197,94,0.22)" }}>
+              <p style={{ color: "#94a3b8", margin: 0 }}>{title}</p>
+              <h2 style={{ color: String(color), margin: "8px 0" }}>{value}</h2>
+              <small style={{ color: "#64748b" }}>{desc}</small>
+            </div>
+          ))}
+        </section>
+
         <section style={{ ...cardStyle, marginBottom: 18, border: "1px solid rgba(245,158,11,0.3)" }}>
           <p style={{ color: "#fbbf24", fontWeight: 900, marginTop: 0 }}>🔐 Catatan keamanan penting</p>
           <p style={{ color: "#cbd5e1", lineHeight: 1.7, marginBottom: 0 }}>
-            Panel ini sudah membatasi UI berdasarkan email admin. Untuk produksi, wajib tambah RLS Supabase agar hanya admin yang bisa membaca/mengubah payment_requests dan profiles. Jangan izinkan user biasa update kolom plan/pro_until.
+            Panel ini memakai role admin dari tabel profiles. Untuk produksi, pastikan RLS dan RPC Supabase aktif agar hanya admin yang bisa membaca/mengubah payment_requests dan profiles. User biasa tidak boleh update kolom plan/pro_until.
           </p>
         </section>
 
@@ -623,7 +731,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
         <div key={item.id} style={{ marginBottom: 6 }}>
           📧 {item.email || "-"} &nbsp; | &nbsp;
           📱 {item.phone || "-"} &nbsp; | &nbsp;
-          🧾 {item.status}
+          🧾 {item.status} &nbsp; | &nbsp; 💰 {getPlanPrice(item.plan)}
         </div>
       ))}
     </div>
@@ -747,6 +855,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
               const busy = actionLoading === profile.id;
               const expired = isExpiredPro(profile);
               const lifetime = profile.pro_until?.startsWith("2099");
+              const active = isActivePro(profile);
 
               return (
                 <div
