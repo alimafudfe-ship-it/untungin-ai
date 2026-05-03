@@ -9,50 +9,35 @@ function AuthCallbackContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    let active = true;
-
     async function finishLogin() {
-      const next = searchParams.get("next") || "/";
       const code = searchParams.get("code");
-
-      if (!code) {
-        router.replace("/login?error=Kode login Google tidak ditemukan");
-        return;
-      }
-
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-      if (!active) return;
+      const error = searchParams.get("error_description") || searchParams.get("error");
 
       if (error) {
-        router.replace(`/login?error=${encodeURIComponent(error.message)}`);
+        router.replace(`/login?error=${encodeURIComponent(error)}`);
         return;
       }
 
-      router.replace(next);
+      if (!code) {
+        router.replace("/login?error=Callback tidak menerima kode dari Google");
+        return;
+      }
+
+      const { error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(code);
+
+      if (exchangeError) {
+        router.replace(`/login?error=${encodeURIComponent(exchangeError.message)}`);
+        return;
+      }
+
+      router.replace("/");
     }
 
     void finishLogin();
-
-    return () => {
-      active = false;
-    };
   }, [router, searchParams]);
 
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        background: "#020617",
-        color: "white",
-        fontFamily: "Inter, Arial, sans-serif",
-      }}
-    >
-      <p>Menyelesaikan login...</p>
-    </main>
-  );
+  return <p style={{ color: "white" }}>Menyelesaikan login...</p>;
 }
 
 export default function AuthCallbackPage() {
