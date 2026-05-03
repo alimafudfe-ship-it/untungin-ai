@@ -53,7 +53,6 @@ type ProductRow = {
 const FREE_PRODUCT_LIMIT = 3;
 const MONTHLY_PRICE = "Rp29.000/bulan";
 const LIFETIME_PRICE = "Rp99.000 sekali bayar";
-const WHATSAPP_NUMBER = "6285697834766";
 const ADMIN_PRO_PATH = "/admin/pro";
 
 const money = (value: number) =>
@@ -98,18 +97,14 @@ function mapProductRow(row: ProductRow): Product {
   };
 }
 
-function normalizePhone(value: string) {
-  const digits = value.replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
-  if (digits.startsWith("62")) return digits;
-  return digits;
-}
-
 function getPlanLabel(plan: UpgradePlan) {
   return plan === "monthly"
     ? `PRO Bulanan ${MONTHLY_PRICE}`
     : `PRO Lifetime ${LIFETIME_PRICE}`;
+}
+
+function getPlanAmount(plan: UpgradePlan) {
+  return plan === "monthly" ? 29000 : 99000;
 }
 
 function isProfilePro(profile: Profile | null) {
@@ -228,9 +223,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<UpgradePlan>("lifetime");
-  const [waPhone, setWaPhone] = useState("");
   const [upgradeLoading, setUpgradeLoading] = useState(false);
-  const [upgradeStatus, setUpgradeStatus] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [aiQuestion, setAiQuestion] = useState("");
@@ -388,6 +381,28 @@ export default function DashboardPage() {
   };
 
 useEffect(() => {
+  const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
+
+  if (!clientKey) {
+    console.warn("NEXT_PUBLIC_MIDTRANS_CLIENT_KEY belum di-set.");
+    return;
+  }
+
+  const existingScript = document.querySelector<HTMLScriptElement>(
+    'script[src="https://app.sandbox.midtrans.com/snap/snap.js"]'
+  );
+
+  if (existingScript) return;
+
+  const script = document.createElement("script");
+  script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+  script.setAttribute("data-client-key", clientKey);
+  script.async = true;
+
+  document.body.appendChild(script);
+}, []);
+  
+useEffect(() => {
   let isMounted = true;
 
   async function loadUserAndProducts(redirectIfMissing = true) {
@@ -513,97 +528,64 @@ useEffect(() => {
   function openUpgradeModal(plan: UpgradePlan = "lifetime") {
     setSelectedPlan(plan);
     setShowUpgradeModal(true);
-    setUpgradeStatus("");
   }
 
-  function buildProofWhatsAppMessage(plan: UpgradePlan, email?: string) {
-    return `Halo admin Untungin.ai, saya ingin upgrade ${getPlanLabel(
-      plan
-    )} untuk akun ${
-      email || userEmail || "saya"
-    }.
-
-Saya akan kirim bukti transfer di chat ini.
-
-Bank BRI
-AN: Ali Mafud
-No Rek: 091901036207538`;
-  }
-
-async function createPendingUpgradeRequest(plan: UpgradePlan, normalizedPhone: string) {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !userData.user) {
-    throw new Error("Login dulu sebelum mengirim request upgrade PRO.");
-  }
-
-  const { data: existingPending, error: pendingError } = await db
-    .from("payment_requests")
-    .select("id, status, plan")
-    .eq("user_id", userData.user.id)
-    .eq("status", "pending")
-    .maybeSingle();
-
-  if (pendingError) {
-    console.error(pendingError);
-    throw new Error("Gagal mengecek request pending. Coba lagi.");
-  }
-
-  if (!existingPending) {
-    const { error: insertError } = await db
-      .from("payment_requests")
-      .insert([
-        {
-          user_id: userData.user.id,
-          email: userData.user.email ?? "",
-          plan,
-          status: "pending",
-          phone: normalizedPhone,
-        } as any,
-      ] as any);
-
-    if (insertError) {
-      console.error(insertError);
-      throw new Error("Gagal membuat request upgrade. Coba lagi.");
-    }
-  }
-
-  return userData.user.email ?? userEmail ?? "user";
-}
-
-  async function requestUpgradeAndOpenWhatsApp(plan: UpgradePlan = selectedPlan) {
+  async function handleUpgradeMidtrans(plan: UpgradePlan = selectedPlan) {
     if (!ensureLoggedIn()) return;
 
-    const normalizedPhone = normalizePhone(waPhone);
-    if (!normalizedPhone || normalizedPhone.length < 10) {
-      alert("Masukkan nomor WhatsApp aktif. Contoh: 085697834766.");
+    if (!userEmail) {
+      alert("Email user tidak ditemukan. Coba logout lalu login ulang.");
+      return;
+    }
+
+    const snap = (window as any).snap;
+
+    if (!snap?.pay) {
+      alert("Payment belum siap. Refresh halaman lalu coba lagi.");
       return;
     }
 
     setUpgradeLoading(true);
-    setUpgradeStatus("Membuat request upgrade sebelum membuka WhatsApp...");
 
     try {
-      const email = await createPendingUpgradeRequest(plan, normalizedPhone);
-      setUpgradeStatus("✅ Request upgrade masuk. WhatsApp admin dibuka untuk kirim bukti transfer.");
+      const res = await fetch("/api/create-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          plan,
+          amount: getPlanAmount(plan),
+        }),
+      });
 
-      const message = buildProofWhatsAppMessage(plan, email);
-      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank");
-    } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "Gagal membuat request upgrade.");
-      setUpgradeStatus("");
-    } finally {
+      const data = await res.json();
+
+      if (!res.ok || !data.token) {
+        throw new Error(data?.error || "Gagal membuat payment Midtrans.");
+      }
+
+      snap.pay(data.token, {
+        onSuccess: function () {
+          alert("Pembayaran berhasil. PRO akan aktif otomatis setelah webhook Midtrans diproses.");
+          window.location.reload();
+        },
+        onPending: function () {
+          alert("Pembayaran masih pending. Selesaikan pembayaran, lalu refresh dashboard.");
+        },
+        onError: function () {
+          alert("Pembayaran gagal. Silakan coba lagi.");
+        },
+        onClose: function () {
+          setUpgradeLoading(false);
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Terjadi error saat pembayaran.");
       setUpgradeLoading(false);
     }
-  }
-
-  async function submitUpgradeRequest(plan: UpgradePlan = selectedPlan) {
-    await requestUpgradeAndOpenWhatsApp(plan);
-  }
-
-  async function openProofWhatsApp(plan: UpgradePlan, email?: string) {
-    await requestUpgradeAndOpenWhatsApp(plan);
   }
 
   function exportReportCSV() {
@@ -1481,10 +1463,10 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               💸 AI CFO menemukan potensi profit tersembunyi {money(lockedPotentialProfit)}
             </p>
             <h2 style={{ marginBottom: 8, fontSize: 32 }}>
-              Upgrade PRO lewat verifikasi admin
+              Upgrade PRO Otomatis
             </h2>
             <p style={{ opacity: 0.76, lineHeight: 1.7 }}>
-              Flow aman: user membuat request, kirim bukti transfer via WhatsApp, lalu admin approve dari panel PRO. Tidak ada aktivasi PRO otomatis dari sisi user.
+              Pilih paket PRO, bayar lewat Midtrans, lalu PRO aktif otomatis setelah pembayaran berhasil.
             </p>
 
             <div
@@ -1527,7 +1509,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               }}
             >
               <p style={{ margin: "0 0 8px", color: "#86efac", fontWeight: 800 }}>
-                Yang terbuka setelah admin approve:
+                Yang terbuka setelah pembayaran berhasil:
               </p>
               <div style={{ display: "grid", gap: 8, color: "#cbd5e1" }}>
                 <span>✅ AI CFO membaca semua produk dan memberi action plan</span>
@@ -1547,17 +1529,14 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               }}
             >
               <p style={{ marginTop: 0, color: "#86efac", fontWeight: 900 }}>
-                📲 Request upgrade aman
+                💳 Bayar otomatis via Midtrans
               </p>
-              <input
-                placeholder="Nomor WhatsApp aktif, contoh: 085697834766"
-                value={waPhone}
-                onChange={(e) => setWaPhone(e.target.value)}
-                style={{ ...inputStyle, width: "100%" }}
-              />
+              <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.6 }}>
+                Paket terpilih: <b>{getPlanLabel(selectedPlan)}</b>. Setelah pembayaran sukses, akun kamu akan otomatis menjadi PRO.
+              </p>
 
               <button
-                onClick={() => submitUpgradeRequest(selectedPlan)}
+                onClick={() => handleUpgradeMidtrans(selectedPlan)}
                 disabled={upgradeLoading}
                 style={{
                   ...ctaButtonStyle,
@@ -1566,25 +1545,12 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   opacity: upgradeLoading ? 0.7 : 1,
                 }}
               >
-                {upgradeLoading ? "Membuat request..." : "📩 Auto Request + Kirim Bukti via WhatsApp"}
+                {upgradeLoading ? "Membuka pembayaran..." : `💳 Bayar ${getPlanLabel(selectedPlan)}`}
               </button>
-
-              <button
-                onClick={() => openProofWhatsApp(selectedPlan)}
-                style={{ ...ghostButtonStyle, width: "100%", marginTop: 10 }}
-              >
-                📎 Auto Request + Buka WhatsApp Admin
-              </button>
-
-              {upgradeStatus && (
-                <p style={{ color: "#86efac", fontSize: 13, marginBottom: 0 }}>
-                  {upgradeStatus}
-                </p>
-              )}
             </div>
 
             <p style={{ fontSize: 12, opacity: 0.58, textAlign: "center" }}>
-              Catatan keamanan: aktivasi PRO hanya dilakukan dari panel admin setelah pembayaran diverifikasi.
+              Catatan: pembayaran diproses oleh Midtrans. PRO aktif otomatis lewat webhook setelah transaksi sukses.
             </p>
           </div>
         </div>
@@ -2099,29 +2065,44 @@ Rule CFO: tambah produk karena data, bukan feeling.`
           <p style={{ color: "#cbd5e1" }}>
             {isPro
               ? "Gunakan AI CFO dan export laporan untuk mengambil keputusan harian."
-              : "Request upgrade, kirim bukti transfer, lalu admin approve dari panel PRO."}
+              : "Bayar otomatis via Midtrans, lalu PRO aktif setelah pembayaran berhasil."}
           </p>
 
           {!isPro && (
             <div style={{ marginTop: 18, padding: 20, borderRadius: 20, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(34,197,94,0.26)", textAlign: "left" }}>
-              <h3>💳 Pembayaran Upgrade PRO</h3>
-              <div style={{ padding: 16, borderRadius: 16, border: "1px solid rgba(34,197,94,0.28)", background: "rgba(2,6,23,0.7)" }}>
-                <p style={{ margin: 0 }}>🏦 Bank BRI</p>
-                <p style={{ margin: 0 }}>👤 AN: Ali Mafud</p>
-                <p style={{ margin: 0, fontWeight: 900, fontSize: 17 }}>🔢 091901036207538</p>
+              <h3>💳 Pembayaran Upgrade PRO Otomatis</h3>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>
+                Bayar lewat Midtrans. Setelah transaksi sukses, webhook akan mengaktifkan PRO otomatis.
+              </p>
+              <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {(["monthly", "lifetime"] as UpgradePlan[]).map((plan) => (
+                  <button
+                    key={plan}
+                    onClick={() => setSelectedPlan(plan)}
+                    style={{
+                      padding: 16,
+                      borderRadius: 18,
+                      border: selectedPlan === plan ? "2px solid #22c55e" : "1px solid rgba(148,163,184,0.22)",
+                      background: selectedPlan === plan ? "rgba(34,197,94,0.14)" : "rgba(2,6,23,0.72)",
+                      color: "white",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <strong>{plan === "monthly" ? "PRO Bulanan" : "PRO Lifetime"}</strong>
+                    <br />
+                    <span style={{ color: "#86efac", fontWeight: 900 }}>
+                      {plan === "monthly" ? MONTHLY_PRICE : LIFETIME_PRICE}
+                    </span>
+                  </button>
+                ))}
               </div>
-              <input
-                placeholder="Nomor WhatsApp aktif"
-                value={waPhone}
-                onChange={(e) => setWaPhone(e.target.value)}
-                style={{ ...inputStyle, width: "100%", marginTop: 14 }}
-              />
               <button
-                onClick={() => submitUpgradeRequest(selectedPlan)}
+                onClick={() => handleUpgradeMidtrans(selectedPlan)}
                 disabled={upgradeLoading}
                 style={{ ...ctaButtonStyle, width: "100%", marginTop: 14, opacity: upgradeLoading ? 0.72 : 1 }}
               >
-                {upgradeLoading ? "Membuat request..." : "📩 Auto Request + WhatsApp Admin"}
+                {upgradeLoading ? "Membuka pembayaran..." : `💳 Bayar ${getPlanLabel(selectedPlan)}`}
               </button>
             </div>
           )}
