@@ -432,7 +432,7 @@ useEffect(() => {
     const { data: profileData, error: profileError } = await db
       .from("profiles")
       .select("role, plan, pro_until, email")
-      .eq("id", user.id)
+      .eq("email", user.email)
       .maybeSingle();
 
     if (profileError) {
