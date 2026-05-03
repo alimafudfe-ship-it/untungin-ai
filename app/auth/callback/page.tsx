@@ -36,7 +36,7 @@ function AuthCallbackContent() {
       router.replace(next);
     }
 
-    finishLogin();
+    void finishLogin();
 
     return () => {
       active = false;
