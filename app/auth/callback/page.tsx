@@ -13,24 +13,20 @@ function AuthCallbackContent() {
 
     async function finishLogin() {
       const next = searchParams.get("next") || "/";
+      const code = searchParams.get("code");
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!active) return;
-
-      if (sessionData.session?.user) {
-        router.replace(next);
+      if (!code) {
+        router.replace("/login?error=Kode login Google tidak ditemukan");
         return;
       }
 
-      const hasCode = window.location.search.includes("code=");
-      if (hasCode) {
-        const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
-        if (!active) return;
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-        if (error) {
-          router.replace(`/login?error=${encodeURIComponent(error.message)}`);
-          return;
-        }
+      if (!active) return;
+
+      if (error) {
+        router.replace(`/login?error=${encodeURIComponent(error.message)}`);
+        return;
       }
 
       router.replace(next);
@@ -54,19 +50,7 @@ function AuthCallbackContent() {
         fontFamily: "Inter, Arial, sans-serif",
       }}
     >
-      <div style={{ textAlign: "center" }}>
-        <div
-          style={{
-            width: 54,
-            height: 54,
-            borderRadius: 999,
-            border: "4px solid #064e3b",
-            borderTopColor: "#22c55e",
-            margin: "0 auto 16px",
-          }}
-        />
-        <p>Menyelesaikan login...</p>
-      </div>
+      <p>Menyelesaikan login...</p>
     </main>
   );
 }
