@@ -1,7 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
 function LoginContent() {
@@ -24,19 +26,32 @@ function LoginContent() {
     let mounted = true;
 
     async function redirectIfLoggedIn() {
-      const { data } = await supabase.auth.getSession();
-      if (mounted && data.session?.user) router.replace(nextPath);
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error("Gagal cek session:", error);
+        return;
+      }
+
+      if (mounted && data.session?.user) {
+        router.replace(nextPath);
+      }
     }
 
     redirectIfLoggedIn();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
-        router.replace(nextPath);
+    } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        if (
+          (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+          session?.user
+        ) {
+          router.replace(nextPath);
+        }
       }
-    });
+    );
 
     return () => {
       mounted = false;
@@ -49,27 +64,35 @@ function LoginContent() {
     setMessage("");
     setLoadingGoogle(true);
 
-    const origin = window.location.origin;
-    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+    try {
+      const origin = window.location.origin;
+      const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(
+        nextPath
+      )}`;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        queryParams: {
-          access_type: "offline",
-          prompt: "select_account",
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: "offline",
+            prompt: "select_account",
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      setErrorMessage(error.message);
+      if (error) {
+        setErrorMessage(error.message);
+        setLoadingGoogle(false);
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Gagal membuka login Google. Coba lagi.");
       setLoadingGoogle(false);
     }
   }
 
-  async function sendMagicLink(e: React.FormEvent) {
+  async function sendMagicLink(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrorMessage("");
     setMessage("");
@@ -82,24 +105,31 @@ function LoginContent() {
 
     setLoadingEmail(true);
 
-    const origin = window.location.origin;
-    const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+    try {
+      const origin = window.location.origin;
+      const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent(
+        nextPath
+      )}`;
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: cleanEmail,
-      options: {
-        emailRedirectTo,
-        shouldCreateUser: true,
-      },
-    });
+      const { error } = await supabase.auth.signInWithOtp({
+        email: cleanEmail,
+        options: {
+          emailRedirectTo,
+          shouldCreateUser: true,
+        },
+      });
 
-    if (error) {
-      setErrorMessage(error.message);
-    } else {
-      setMessage("Link login sudah dikirim. Cek email kamu.");
+      if (error) {
+        setErrorMessage(error.message);
+      } else {
+        setMessage("Link login sudah dikirim. Cek email kamu.");
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Gagal mengirim link login. Coba lagi.");
+    } finally {
+      setLoadingEmail(false);
     }
-
-    setLoadingEmail(false);
   }
 
   return (
@@ -148,6 +178,7 @@ function LoginContent() {
         <button
           onClick={loginWithGoogle}
           disabled={loadingGoogle}
+          type="button"
           style={{
             width: "100%",
             padding: "15px 16px",
@@ -156,13 +187,23 @@ function LoginContent() {
             background: "white",
             color: "#111827",
             fontWeight: 900,
-            cursor: "pointer",
+            cursor: loadingGoogle ? "not-allowed" : "pointer",
+            opacity: loadingGoogle ? 0.75 : 1,
           }}
         >
           {loadingGoogle ? "Membuka Google..." : "🔐 Login dengan Google"}
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0", color: "#64748b", fontSize: 13 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            margin: "22px 0",
+            color: "#64748b",
+            fontSize: 13,
+          }}
+        >
           <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
           atau login via email
           <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
@@ -174,6 +215,7 @@ function LoginContent() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email kamu"
+            autoComplete="email"
             style={{
               width: "100%",
               padding: "15px 16px",
@@ -196,7 +238,8 @@ function LoginContent() {
               background: "linear-gradient(135deg, #22c55e, #14b8a6)",
               color: "white",
               fontWeight: 900,
-              cursor: "pointer",
+              cursor: loadingEmail ? "not-allowed" : "pointer",
+              opacity: loadingEmail ? 0.75 : 1,
             }}
           >
             {loadingEmail ? "Mengirim..." : "Kirim Link Login"}
