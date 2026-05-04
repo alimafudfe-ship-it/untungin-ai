@@ -443,7 +443,7 @@ useEffect(() => {
     setProfile((profileData as Profile | null) ?? null);
 
     const { data: productData, error: productError } = await db
-      .from("products")
+      .from("products"
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
