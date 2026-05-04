@@ -388,14 +388,16 @@ useEffect(() => {
     return;
   }
 
+  const snapScriptSrc = "https://app.midtrans.com/snap/snap.js";
+
   const existingScript = document.querySelector<HTMLScriptElement>(
-    'script[src="https://app.sandbox.midtrans.com/snap/snap.js"]'
+    `script[src="${snapScriptSrc}"]`
   );
 
   if (existingScript) return;
 
   const script = document.createElement("script");
-  script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+  script.src = snapScriptSrc;
   script.setAttribute("data-client-key", clientKey);
   script.async = true;
 
@@ -710,10 +712,13 @@ const { data: productData, error: productError } = await db
           };
         });
 
-const { data, error } = await db
-  .from("products")
-  .insert(importedProducts as any)
-  .select("*");
+        const importResult = await db
+          .from("products")
+          .insert(importedProducts as any)
+          .select("*");
+
+        const data = importResult.data;
+        const error = importResult.error;
 
         if (error) {
           console.error(error);
@@ -774,28 +779,31 @@ const { data, error } = await db
     const margin = sellingPrice > 0 ? ((sellingPrice - costPrice) / sellingPrice) * 100 : 0;
 
     try {
-      const res = await fetch("/api/analyze", {
+      await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
-const { data: insertedProduct, error } = await db
-  .from("products")
-  .insert([
-    {
-      user_id: currentUserId,
-      name: form.productName,
-      cost_price: costPrice,
-      selling_price: sellingPrice,
-      quantity_sold: quantitySold,
-      other_cost: otherCost,
-      profit: profitValue,
-      margin,
-    } as any,
-  ] as any)
-  .select("*")
-  .single();
+      const insertResult = await db
+        .from("products")
+        .insert([
+          {
+            user_id: currentUserId,
+            name: form.productName,
+            cost_price: costPrice,
+            selling_price: sellingPrice,
+            quantity_sold: quantitySold,
+            other_cost: otherCost,
+            profit: profitValue,
+            margin,
+          } as any,
+        ] as any)
+        .select("*")
+        .single();
+
+      const insertedProduct = insertResult.data;
+      const error = insertResult.error;
 
       if (error) {
         console.error(error);
