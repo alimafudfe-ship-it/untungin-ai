@@ -442,12 +442,12 @@ useEffect(() => {
     if (!isMounted) return;
     setProfile((profileData as Profile | null) ?? null);
 
-    const { data: productData, error: productError } = await db
-      .from("products")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
+const { data: productData, error: productError } = await db
+  .from("products")   // WAJIB ADA )
+  .select("*")
+  .eq("user_id", user.id)
+  .order("created_at", { ascending: false });
+    
     if (!isMounted) return;
 
     if (productError) {
