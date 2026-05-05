@@ -60,21 +60,35 @@ export async function POST(req: Request) {
       });
     }
 
-    const proUntil = plan === "monthly" ? addDays(30) : "2099-12-31";
+    const proUntil =
+      plan === "monthly"
+        ? addDays(30)
+        : "2099-12-31T23:59:59.000Z";
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .update({
         plan: "pro",
         pro_until: proUntil,
+        updated_at: new Date().toISOString(),
       })
-      .eq("email", email);
+      .eq("email", email)
+      .select("email, plan, pro_until")
+      .maybeSingle();
 
     if (error) {
       console.error("Supabase update error:", error);
       return NextResponse.json(
         { error: "Gagal update profile" },
         { status: 500 }
+      );
+    }
+
+    if (!data) {
+      console.error("Profile tidak ditemukan:", email);
+      return NextResponse.json(
+        { error: "Profile tidak ditemukan" },
+        { status: 404 }
       );
     }
 
