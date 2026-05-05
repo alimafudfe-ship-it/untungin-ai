@@ -884,7 +884,13 @@ const { data: productData, error: productError } = await db
         otherCost: "",
       });
 
-      if (!isPro && products.length === 1) setTimeout(() => openUpgradeModal("lifetime"), 800);
+      if (!isPro && products.length === 0) {
+        setTimeout(() => openUpgradeModal("lifetime"), 900);
+      }
+
+      if (!isPro && products.length >= 1) {
+        setTimeout(() => openUpgradeModal("lifetime"), 500);
+      }
     } catch (error) {
       console.error(error);
       setResult("Terjadi error. Coba lagi.");
@@ -1422,6 +1428,19 @@ Rule CFO: tambah produk karena data, bukan feeling.`
       return;
     }
 
+    if (!isPro && products.length >= 2) {
+      setAiAnswer(`🚨 AI sudah menemukan pola profit bocor dari data kamu.
+
+Ada indikasi:
+- Produk margin tipis
+- Harga belum aman
+- Keputusan scale/stop belum terbuka
+
+🔒 Upgrade PRO untuk melihat diagnosis lengkap dan action plan.`);
+      openUpgradeModal("lifetime");
+      return;
+    }
+
     setAiLoading(true);
     setAiAnswer("🧠 AI CFO sedang membaca omzet, margin, harga, biaya bocor, dan peluang scale...");
 
@@ -1429,16 +1448,16 @@ Rule CFO: tambah produk karena data, bukan feeling.`
       const aiResult = smartAiCfo(question || "Buat ringkasan bisnis dan action plan hari ini.");
 
       if (!isPro) {
-        const previewLines = aiResult.split("\n").slice(0, 18).join("\n");
+        const previewLines = aiResult.split("\n").slice(0, 8).join("\n");
         setAiAnswer(`${previewLines}
 
-🚨 AI sudah menemukan potensi keputusan yang bisa menyelamatkan profit kamu.
+🚨 AI menemukan masalah serius yang bisa menggerus profit kamu.
 
-🔒 Buka PRO untuk melihat:
+🔒 Upgrade untuk melihat:
+- produk mana yang rugi
+- harga mana yang salah
 - produk mana yang harus distop
-- harga aman tiap produk
-- estimasi uang bocor
-- action plan 24 jam untuk menaikkan profit`);
+- action plan fix 24 jam`);
       } else {
         setAiAnswer(aiResult);
       }
@@ -1537,13 +1556,13 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </button>
 
             <p style={{ color: "#86efac", fontWeight: 900, marginTop: 0 }}>
-              🚨 Profit Rescue Alert: potensi uang bocor {money(estimatedMonthlyLoss)}/bulan
+              🚨 Kamu hampir kehilangan {money(estimatedMonthlyLoss)}/bulan
             </p>
             <h2 style={{ marginBottom: 8, fontSize: 32 }}>
-              Buka Profit Rescue Mode
+              Selamatkan Profit Saya
             </h2>
             <p style={{ opacity: 0.76, lineHeight: 1.7 }}>
-              AI sudah menemukan sinyal produk rugi, margin kritis, dan harga yang perlu diselamatkan. Buka PRO untuk melihat produk penyebabnya dan action plan lengkap.
+              AI sudah menemukan produk rugi, margin bocor, dan harga salah. Tapi detail produk penyebabnya masih dikunci untuk akun Free.
             </p>
 
             <div
@@ -1586,7 +1605,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               }}
             >
               <p style={{ margin: "0 0 8px", color: "#86efac", fontWeight: 800 }}>
-                Yang langsung terbuka setelah pembayaran berhasil:
+                Yang kamu lihat setelah upgrade:
               </p>
               <div style={{ display: "grid", gap: 8, color: "#cbd5e1" }}>
                 <span>✅ Produk mana yang rugi dan harus dihentikan</span>
@@ -1606,7 +1625,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               }}
             >
               <p style={{ marginTop: 0, color: "#86efac", fontWeight: 900 }}>
-                🔓 Selamatkan profit via Midtrans
+                🔓 Buka diagnosis profit yang dikunci
               </p>
               <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.6 }}>
                 Paket terpilih: <b>{getPlanLabel(selectedPlan)}</b>. Setelah pembayaran sukses, akun kamu akan otomatis menjadi PRO.
@@ -1776,14 +1795,14 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 ✨ AI CFO Dashboard {isPro ? "• Full Access" : "• Preview Mode"}
               </div>
               <h1 className="hero-title" style={{ fontSize: 58, lineHeight: 1.02, margin: 0, letterSpacing: -2 }}>
-                Jangan biarkan produk rugi diam-diam menghabiskan profit.
+                Kamu kemungkinan sedang kehilangan uang setiap hari.
               </h1>
               <p style={{ color: "#cbd5e1", fontSize: 18, lineHeight: 1.75, maxWidth: 720 }}>
-                AI CFO membaca produk yang rugi, margin kritis, harga salah, dan keputusan scale/stop sebelum uang bocor makin besar.
+                AI sudah mendeteksi profit bocor dari produk kamu. Lihat produk penyebab rugi, harga aman, dan action plan sebelum uang makin bocor.
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
                 <button onClick={() => document.getElementById("profit-form")?.scrollIntoView({ behavior: "smooth" })} style={ctaButtonStyle}>
-                  🔴 Selamatkan Profit Saya
+                  🔴 Cek Uang Bocor Saya
                 </button>
                 <button onClick={() => document.getElementById("ai-cfo")?.scrollIntoView({ behavior: "smooth" })} style={ghostButtonStyle}>
                   🧠 Tanya AI CFO
@@ -1796,6 +1815,24 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               <h2 style={{ fontSize: 42, margin: "8px 0", color: totalProfit >= 0 ? "#86efac" : "#fca5a5" }}>
                 {money(totalProfit)}
               </h2>
+              {!isPro && (
+                <div
+                  style={{
+                    margin: "10px 0 14px",
+                    padding: "12px 14px",
+                    borderRadius: 16,
+                    background: "rgba(127,29,29,0.34)",
+                    border: "1px solid rgba(248,113,113,0.28)",
+                  }}
+                >
+                  <small style={{ color: "#fca5a5", fontWeight: 900 }}>
+                    ⏱️ Estimasi uang bocor hari ini
+                  </small>
+                  <div style={{ fontSize: 24, fontWeight: 950, color: "#fca5a5", marginTop: 4 }}>
+                    {money(dailyLeakEstimate)}
+                  </div>
+                </div>
+              )}
               <Sparkline data={sparklineData} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
                 <div>
@@ -1867,9 +1904,9 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 <p style={{ margin: 0, color: "#fbbf24", fontWeight: 900 }}>
                   🚨 Potensi uang bocor: {money(estimatedMonthlyLoss)}/bulan
                 </p>
-                <h2 style={{ margin: "6px 0" }}>Free hanya menunjukkan alarm awal</h2>
+                <h2 style={{ margin: "6px 0" }}>Akun Free hanya membuka alarm, bukan solusinya</h2>
                 <p style={{ margin: 0, color: "#cbd5e1" }}>
-                  Buka PRO untuk melihat produk penyebab bocor, harga aman, dan action plan penyelamatan profit.
+                  Buka PRO untuk melihat produk penyebab bocor, harga aman, dan langkah fix 24 jam.
                 </p>
               </div>
               <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
@@ -2122,7 +2159,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             <EmptyState title="Data masih kosong" description="Produk yang kamu input akan muncul di sini." />
           ) : (
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-              {sortedProducts.map((item, index) => (
+              {sortedProducts.slice(0, isPro ? sortedProducts.length : 2).map((item, index) => (
                 <div
                   className="product-row"
                   key={item.id}
@@ -2178,6 +2215,26 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   </button>
                 </div>
               ))}
+
+              {!isPro && sortedProducts.length > 2 && (
+                <div
+                  style={{
+                    padding: 22,
+                    borderRadius: 22,
+                    background: "linear-gradient(135deg, rgba(127,29,29,0.48), rgba(2,6,23,0.88))",
+                    border: "1px solid rgba(248,113,113,0.34)",
+                    textAlign: "center",
+                  }}
+                >
+                  <h3 style={{ marginTop: 0 }}>🔒 {sortedProducts.length - 2} produk lainnya dikunci</h3>
+                  <p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>
+                    AI sudah melihat pola risiko dari produk lain. Buka PRO untuk melihat harga aman, keputusan stop/scale, dan action plan lengkap.
+                  </p>
+                  <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
+                    🔓 Buka Semua Data Profit
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -2192,7 +2249,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             textAlign: "center",
           }}
         >
-          <h2 style={{ marginTop: 0 }}>{isPro ? "✅ PRO kamu sudah aktif" : "🚨 Buka Profit Rescue Mode"}</h2>
+          <h2 style={{ marginTop: 0 }}>{isPro ? "✅ PRO kamu sudah aktif" : "🚨 Selamatkan Profit Saya"}</h2>
           <p style={{ color: "#cbd5e1" }}>
             {isPro
               ? "Gunakan AI CFO dan export laporan untuk mengambil keputusan harian."
@@ -2201,7 +2258,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
 
           {!isPro && (
             <div style={{ marginTop: 18, padding: 20, borderRadius: 20, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(34,197,94,0.26)", textAlign: "left" }}>
-              <h3>💳 Pembayaran Buka Profit Rescue Mode</h3>
+              <h3>💳 Pembayaran Selamatkan Profit Saya</h3>
               <p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>
                 Bayar lewat Midtrans untuk membuka diagnosis lengkap dan menyelamatkan profit yang bocor.
               </p>
