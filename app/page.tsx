@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabaseClient";
 
+declare global {
+  interface Window {
+    snap?: {
+      pay: (token: string, callbacks?: Record<string, unknown>) => void;
+    };
+  }
+}
+
 const db: any = supabase;
 
 type Product = {
@@ -199,6 +207,19 @@ function EmptyState({
       <p style={{ margin: 0 }}>{description}</p>
     </div>
   );
+}
+
+
+function getErrorMessage(error: unknown) {
+  if (!error) return "Terjadi error.";
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+
+  try {
+    return JSON.stringify(error, null, 2);
+  } catch {
+    return "Terjadi error tidak dikenal.";
+  }
 }
 
 export default function DashboardPage() {
@@ -540,13 +561,6 @@ const { data: productData, error: productError } = await db
       return;
     }
 
-    const snap = (window as any).snap;
-
-    if (!snap?.pay) {
-      alert("Payment belum siap. Refresh halaman lalu coba lagi.");
-      return;
-    }
-
     setUpgradeLoading(true);
 
     try {
@@ -562,22 +576,34 @@ const { data: productData, error: productError } = await db
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
-      if (!res.ok || !data.token) {
-        throw new Error(data?.error || "Gagal membuat payment Midtrans.");
+      if (!res.ok) {
+        throw new Error(getErrorMessage(data?.error || data));
+      }
+
+      if (!data?.token) {
+        throw new Error("Token pembayaran Midtrans tidak ditemukan dari server.");
+      }
+
+      const snap = window.snap;
+
+      if (!snap?.pay) {
+        throw new Error("Midtrans Snap belum siap. Refresh halaman lalu coba lagi.");
       }
 
       snap.pay(data.token, {
         onSuccess: function () {
-          alert("Pembayaran berhasil. PRO akan aktif otomatis setelah webhook Midtrans diproses.");
+          alert("Pembayaran berhasil. PRO akan aktif otomatis setelah webhook diproses.");
           window.location.reload();
         },
         onPending: function () {
-          alert("Pembayaran masih pending. Selesaikan pembayaran, lalu refresh dashboard.");
+          alert("Pembayaran masih pending. Selesaikan pembayaran lalu refresh dashboard.");
+          setUpgradeLoading(false);
         },
-        onError: function () {
-          alert("Pembayaran gagal. Silakan coba lagi.");
+        onError: function (error: unknown) {
+          alert(`Pembayaran gagal: ${getErrorMessage(error)}`);
+          setUpgradeLoading(false);
         },
         onClose: function () {
           setUpgradeLoading(false);
@@ -585,7 +611,7 @@ const { data: productData, error: productError } = await db
       });
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : "Terjadi error saat pembayaran.");
+      alert(getErrorMessage(err));
       setUpgradeLoading(false);
     }
   }
