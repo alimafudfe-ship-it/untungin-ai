@@ -344,6 +344,33 @@ function getChecklistSeed(item: Product & { recommendedPrice: number; decision: 
   return { title: `Scale aman: ${item.name}`, detail: `Tambah stok/traffic bertahap tanpa diskon besar.` };
 }
 
+function formatCountdown(seconds: number) {
+  const safe = Math.max(seconds, 0);
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = safe % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function getPremiumPainHeadline(productCount: number, dailyLeak: number, totalProfit: number) {
+  if (productCount === 0) return "Belum ada data. Masukkan 1 produk untuk memunculkan momen ‘oh ternyata bocor’.";
+  if (totalProfit < 0) return `Bisnis kamu sedang kebakar ${money(Math.abs(totalProfit))}. Jangan scale sebelum diselamatkan.`;
+  return `Kamu bisa kehilangan ${money(dailyLeak)} hari ini tanpa sadar.`;
+}
+
+function getObjectionAnswer(type: "mahal" | "nanti" | "percaya", dailyLeak: number, selectedAmount: number) {
+  if (type === "mahal") return `Kalau potensi bocor harian ${money(dailyLeak)}, biaya PRO bisa balik modal sekitar ${Math.max(1, Math.ceil(selectedAmount / Math.max(dailyLeak, 1)))} hari.`;
+  if (type === "nanti") return `Menunda 7 hari bisa berarti membiarkan sekitar ${money(dailyLeak * 7)} tetap bocor tanpa keputusan.`;
+  return "Data dihitung dari modal, harga jual, terjual, stok, dan biaya lain yang user input sendiri. AI CFO memberi keputusan berbasis angka itu.";
+}
+
+function getCfoCommandLabel(score: number) {
+  if (score >= 75) return "MODE DARURAT: stop produk bocor dulu";
+  if (score >= 50) return "MODE WASPADA: fix harga sebelum scale";
+  if (score >= 25) return "MODE OPTIMASI: cari profit tambahan";
+  return "MODE SCALE: dorong produk sehat";
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -387,6 +414,9 @@ export default function DashboardPage() {
   const [competitorPrices, setCompetitorPrices] = useState<Record<string, string>>({});
   const [checkedActions, setCheckedActions] = useState<Record<string, boolean>>({});
   const [showBeforeAfter, setShowBeforeAfter] = useState(true);
+  const [conversionCountdown, setConversionCountdown] = useState(CONVERSION_DEADLINE_HOURS * 60 * 60);
+  const [selectedObjection, setSelectedObjection] = useState<"mahal" | "nanti" | "percaya">("mahal");
+  const [showStickyOffer, setShowStickyOffer] = useState(true);
 
   const isAdmin = profile?.role === "admin";
   const isPro = isProfilePro(profile);
@@ -589,6 +619,24 @@ export default function DashboardPage() {
     : avgMargin < 20
     ? `Profit masih bisa naik. Margin rata-rata ${percent(avgMargin)} belum aman untuk scale agresif.`
     : `Bisnis terlihat sehat. Jaga margin dan scale produk terbaik secara bertahap.`;
+  const premiumPainHeadline = getPremiumPainHeadline(products.length, dailyLeakEstimate, totalProfit);
+  const selectedPlanAmount = getPlanAmount(selectedPlan);
+  const paybackDays = Math.max(1, Math.ceil(selectedPlanAmount / Math.max(dailyLeakEstimate, 1)));
+  const roiMultiple = Math.max(1, Math.round(estimatedMonthlyLoss / Math.max(selectedPlanAmount, 1)));
+  const cfoCommandLabel = getCfoCommandLabel(riskScore);
+  const leakMap = proActionPlan
+    .map((item) => {
+      const safeProfit = (item.recommendedPrice - item.costPrice) * item.quantitySold - item.otherCost;
+      const leak = Math.max(0, safeProfit - item.profit, item.profit < 0 ? Math.abs(item.profit) : 0);
+      return { ...item, leak };
+    })
+    .sort((a, b) => b.leak - a.leak)
+    .slice(0, 5);
+  const maxLeakMapValue = Math.max(...leakMap.map((item) => item.leak), 1);
+  const lockedWorstProduct = worstProduct?.name || "Produk penyebab bocor";
+  const lockedSafePrice = worstProduct
+    ? proActionPlan.find((item) => item.id === worstProduct.id)?.recommendedPrice || worstProduct.sellingPrice
+    : 0;
 
   const inputStyle: React.CSSProperties = {
     padding: "16px 18px",
@@ -785,6 +833,14 @@ const { data: productData, error: productError } = await db
       window.localStorage.setItem("untungin_profit_goal", profitGoal);
     } catch {}
   }, [profitGoal]);
+
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setConversionCountdown((prev) => (prev <= 1 ? CONVERSION_DEADLINE_HOURS * 60 * 60 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   function ensureLoggedIn() {
     if (!currentUserId) {
@@ -1910,6 +1966,18 @@ Rule CFO: tambah produk karena data, bukan feeling.`
           0%, 100% { transform: translateY(0); opacity: 0.88; }
           50% { transform: translateY(-4px); opacity: 1; }
         }
+        @keyframes conversionPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.20), 0 24px 70px rgba(0,0,0,0.32); }
+          50% { box-shadow: 0 0 0 10px rgba(248,113,113,0.06), 0 28px 90px rgba(248,113,113,0.10); }
+        }
+        .premium-lock {
+          filter: blur(5px);
+          user-select: none;
+          opacity: .72;
+        }
+        .conversion-pulse {
+          animation: conversionPulse 2.8s ease-in-out infinite;
+        }
         @media (max-width: 980px) {
           .premium-grid, .main-grid, .three-grid, .two-grid { grid-template-columns: 1fr !important; }
           .hero-title { font-size: 40px !important; letter-spacing: -1.3px !important; }
@@ -1918,6 +1986,42 @@ Rule CFO: tambah produk karena data, bukan feeling.`
       `}</style>
       <div className="media-grid-bg" />
       <div className="media-orb" />
+
+
+      {showStickyOffer && !isPro && products.length > 0 && (
+        <div
+          className="conversion-pulse"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 18,
+            transform: "translateX(-50%)",
+            width: "min(980px, calc(100vw - 32px))",
+            zIndex: 997,
+            padding: 12,
+            borderRadius: 22,
+            background: "linear-gradient(135deg, rgba(127,29,29,0.94), rgba(2,6,23,0.96))",
+            border: "1px solid rgba(248,113,113,0.42)",
+            display: "grid",
+            gridTemplateColumns: "1fr auto auto",
+            gap: 12,
+            alignItems: "center",
+            boxShadow: "0 24px 70px rgba(0,0,0,0.38)",
+          }}
+        >
+          <div>
+            <strong style={{ color: "#fecaca" }}>🚨 {premiumPainHeadline}</strong>
+            <br />
+            <small style={{ color: "#cbd5e1" }}>PRO bisa balik modal ±{paybackDays} hari jika leak ini benar terjadi.</small>
+          </div>
+          <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, padding: "11px 14px" }}>
+            Buka Solusi
+          </button>
+          <button onClick={() => setShowStickyOffer(false)} style={{ background: "transparent", color: "white", border: "none", fontSize: 20, cursor: "pointer" }}>
+            ×
+          </button>
+        </div>
+      )}
 
       {showOnboarding && (
         <div
@@ -2324,10 +2428,10 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 ✦ Multimedia Profit Command Center {isPro ? "• Full Access" : "• Preview Mode"}
               </div>
               <h1 className="hero-title" style={{ fontSize: 64, lineHeight: 0.98, margin: 0, letterSpacing: -2.8, maxWidth: 820 }}>
-                STOP RUGI DIAM-DIAM. Lihat Profit Bocor Secara Visual.
+                {premiumPainHeadline}
               </h1>
               <p style={{ color: "#cbd5e1", fontSize: 18, lineHeight: 1.78, maxWidth: 760 }}>
-                Dashboard dibuat seperti control room multimedia: profit, stok, risiko, dan keputusan AI CFO tampil dramatis, jelas, dan mendorong user untuk upgrade.
+                SaaS premium conversion mode: user langsung melihat rasa sakit finansial, estimasi uang bocor, payback PRO, dan keputusan AI CFO yang harus dilakukan hari ini.
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
                 <button onClick={() => document.getElementById("profit-form")?.scrollIntoView({ behavior: "smooth" })} style={ctaButtonStyle}>
@@ -2407,6 +2511,104 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               🔓 Unlock Full CFO View
             </button>
           )}
+        </section>
+
+        <section
+          className="conversion-pulse"
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            border: "1px solid rgba(248,113,113,0.38)",
+            background: "radial-gradient(circle at 8% 0%, rgba(248,113,113,0.24), transparent 32%), linear-gradient(135deg, rgba(69,10,10,0.72), rgba(2,6,23,0.94))",
+          }}
+        >
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 18, alignItems: "center" }}>
+            <div>
+              <p style={{ margin: 0, color: "#fecaca", fontWeight: 950 }}>💣 SaaS Premium Conversion Engine</p>
+              <h2 style={{ margin: "8px 0", fontSize: 34 }}>{premiumPainHeadline}</h2>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.75 }}>
+                Ini bagian yang bikin user merasa “kalau saya tutup sekarang, saya rugi”. Sistem menampilkan loss, ROI, urgency, dan preview terkunci dalam satu layar.
+              </p>
+              <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 14 }}>
+                <div style={{ padding: 14, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(248,113,113,0.22)" }}>
+                  <small style={{ color: "#fca5a5" }}>Leak hari ini</small><br />
+                  <strong style={{ fontSize: 22, color: "#fecaca" }}>{money(dailyLeakEstimate)}</strong>
+                </div>
+                <div style={{ padding: 14, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(34,197,94,0.20)" }}>
+                  <small style={{ color: "#86efac" }}>Estimasi ROI</small><br />
+                  <strong style={{ fontSize: 22, color: "#86efac" }}>{roiMultiple}x</strong>
+                </div>
+                <div style={{ padding: 14, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(245,158,11,0.22)" }}>
+                  <small style={{ color: "#fbbf24" }}>Offer reset dalam</small><br />
+                  <strong style={{ fontSize: 22, color: "#fde68a" }}>{formatCountdown(conversionCountdown)}</strong>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: 18, borderRadius: 24, background: "rgba(2,6,23,0.78)", border: "1px solid rgba(248,113,113,0.24)" }}>
+              <p style={{ marginTop: 0, color: "#fca5a5", fontWeight: 950 }}>🔒 Locked CFO Preview</p>
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ padding: 12, borderRadius: 14, background: "rgba(15,23,42,0.86)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                  <small style={{ color: "#94a3b8" }}>Produk paling berbahaya</small><br />
+                  <strong className={isPro ? "" : "premium-lock"}>{isPro ? lockedWorstProduct : "████████████"}</strong>
+                </div>
+                <div style={{ padding: 12, borderRadius: 14, background: "rgba(15,23,42,0.86)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                  <small style={{ color: "#94a3b8" }}>Harga aman yang disarankan</small><br />
+                  <strong className={isPro ? "" : "premium-lock"}>{isPro ? money(lockedSafePrice) : "Rp██.███"}</strong>
+                </div>
+                <div style={{ padding: 12, borderRadius: 14, background: "rgba(15,23,42,0.86)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                  <small style={{ color: "#94a3b8" }}>Command CFO</small><br />
+                  <strong style={{ color: riskScore >= 50 ? "#fca5a5" : "#86efac" }}>{cfoCommandLabel}</strong>
+                </div>
+              </div>
+              {!isPro && <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%", marginTop: 14 }}>🔓 Buka Data yang Dikunci</button>}
+            </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            border: "1px solid rgba(34,197,94,0.24)",
+            background: "linear-gradient(135deg, rgba(2,6,23,0.92), rgba(6,78,59,0.32))",
+          }}
+        >
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
+            <div>
+              <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>📊 Visual Leak Map</p>
+              <h2 style={{ margin: "8px 0" }}>Produk mana yang paling banyak membakar profit?</h2>
+              <div style={{ display: "grid", gap: 10 }}>
+                {leakMap.length === 0 ? (
+                  <p style={{ color: "#94a3b8" }}>Tambahkan produk untuk memunculkan leak map.</p>
+                ) : leakMap.map((item, index) => (
+                  <div key={item.id} style={{ display: "grid", gap: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                      <strong>{index + 1}. {isPro || index === 0 ? item.name : "Produk terkunci PRO"}</strong>
+                      <span style={{ color: item.leak > 0 ? "#fca5a5" : "#86efac", fontWeight: 900 }}>{isPro || index === 0 ? money(item.leak) : "Rp███"}</span>
+                    </div>
+                    <div style={{ height: 10, borderRadius: 99, background: "rgba(15,23,42,0.9)", overflow: "hidden", border: "1px solid rgba(148,163,184,0.12)" }}>
+                      <div style={{ width: `${Math.max(8, (item.leak / maxLeakMapValue) * 100)}%`, height: "100%", borderRadius: 99, background: item.leak > 0 ? "linear-gradient(90deg,#ef4444,#f59e0b)" : "linear-gradient(90deg,#22c55e,#14b8a6)" }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>🧠 Objection Crusher</p>
+              <h2 style={{ margin: "8px 0" }}>Jawab alasan user sebelum mereka pergi</h2>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                {(["mahal", "nanti", "percaya"] as const).map((item) => (
+                  <button key={item} onClick={() => setSelectedObjection(item)} style={{ ...ghostButtonStyle, borderColor: selectedObjection === item ? "rgba(34,197,94,0.48)" : "rgba(148,163,184,0.16)", color: selectedObjection === item ? "#86efac" : "white" }}>
+                    {item === "mahal" ? "Terlalu mahal" : item === "nanti" ? "Nanti saja" : "Bisa dipercaya?"}
+                  </button>
+                ))}
+              </div>
+              <div style={{ padding: 16, borderRadius: 18, background: "rgba(2,6,23,0.78)", border: "1px solid rgba(245,158,11,0.20)", color: "#e5e7eb", lineHeight: 1.7 }}>
+                {getObjectionAnswer(selectedObjection, dailyLeakEstimate, selectedPlanAmount)}
+              </div>
+              {!isPro && <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%", marginTop: 12 }}>Saya Mau Selamatkan Profit</button>}
+            </div>
+          </div>
         </section>
 
         <section
