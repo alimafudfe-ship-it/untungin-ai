@@ -47,6 +47,8 @@ type Profile = {
   email?: string | null;
 };
 
+type ProductFilter = "all" | "loss" | "fix" | "scale" | "stock";
+
 type ProductRow = {
   id: string;
   user_id: string;
@@ -66,6 +68,8 @@ const FREE_PRODUCT_LIMIT = 3;
 const MONTHLY_PRICE = "Rp29.000/bulan";
 const LIFETIME_PRICE = "Rp99.000 sekali bayar";
 const ADMIN_PRO_PATH = "/admin/pro";
+const CONVERSION_DEADLINE_HOURS = 24;
+const FOMO_BASE_SLOT = 37;
 
 const money = (value: number) =>
   `Rp${Math.round(value || 0).toLocaleString("id-ID")}`;
@@ -272,6 +276,36 @@ function getRescueTone(score: number) {
   return "CUKUP AMAN";
 }
 
+
+function getConversionHeadline(riskScore: number, dailyLeak: number, productCount: number) {
+  if (productCount === 0) return "Tambahkan produk pertama untuk melihat uang bocor.";
+  if (riskScore >= 75) return `DARURAT: estimasi bocor ${money(dailyLeak)} hari ini`;
+  if (riskScore >= 50) return `WASPADA: potensi bocor ${money(dailyLeak)} hari ini`;
+  if (riskScore >= 25) return `Ada profit yang bisa diselamatkan hari ini`;
+  return "Bisnis cukup aman, tapi masih bisa dioptimasi";
+}
+
+function getOneThingAction(
+  stopProducts: Array<Product & { recommendedPrice: number; decision: string; reason: string; priceGap: number }>,
+  fixProducts: Array<Product & { recommendedPrice: number; decision: string; reason: string; priceGap: number }>,
+  scaleProducts: Array<Product & { recommendedPrice: number; decision: string; reason: string; priceGap: number }>,
+  bestProduct: Product | null
+) {
+  if (stopProducts[0]) return `Stop dulu ${stopProducts[0].name}. Jangan tambah stok/iklan sebelum harga aman di ${money(stopProducts[0].recommendedPrice)}.`;
+  if (fixProducts[0]) return `Naikkan harga ${fixProducts[0].name} ke sekitar ${money(fixProducts[0].recommendedPrice)} atau potong biaya per transaksi.`;
+  if (scaleProducts[0]) return `Scale bertahap ${scaleProducts[0].name}. Produk ini paling siap didorong.`;
+  if (bestProduct) return `Pantau ${bestProduct.name} sebagai kandidat hero product.`;
+  return "Tambahkan minimal 1 produk agar AI CFO bisa memberi keputusan.";
+}
+
+function getFilterLabel(filter: ProductFilter) {
+  if (filter === "loss") return "Produk Rugi";
+  if (filter === "fix") return "Perlu Optimasi";
+  if (filter === "scale") return "Siap Scale";
+  if (filter === "stock") return "Stok Menipis";
+  return "Semua Produk";
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -304,6 +338,8 @@ export default function DashboardPage() {
     "AI CFO siap membaca profit, margin, biaya bocor, dan produk yang layak di-scale."
   );
   const [showLeakAlert, setShowLeakAlert] = useState(false);
+  const [showLossPopup, setShowLossPopup] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<ProductFilter>("all");
 
   const isAdmin = profile?.role === "admin";
   const isPro = isProfilePro(profile);
@@ -383,7 +419,7 @@ export default function DashboardPage() {
 
   const lockedPotentialProfit = Math.max(extraProfit, profitLeak, products.length * 15000);
   const estimatedMonthlyLoss = Math.max(lockedPotentialProfit * 4, products.length * 50000);
-  const earlyUserSlotLeft = 37;
+  const earlyUserSlotLeft = Math.max(8, FOMO_BASE_SLOT - products.length - (isPro ? 0 : 3));
 
   const criticalProducts = products.filter((item) => item.profit < 0 || item.margin < 10);
   const productsNeedingFix = products.filter((item) => item.profit >= 0 && item.margin < 20);
@@ -456,8 +492,24 @@ export default function DashboardPage() {
     (item) => item.margin < 20 && item.profit >= 0
   );
   const proStopProducts = proActionPlan.filter((item) => item.profit < 0);
+  const filteredProducts = useMemo(() => {
+    if (selectedFilter === "loss") return sortedProducts.filter((item) => item.profit < 0);
+    if (selectedFilter === "fix") return sortedProducts.filter((item) => item.profit >= 0 && item.margin < 20);
+    if (selectedFilter === "scale") return sortedProducts.filter((item) => item.profit > 0 && item.margin >= 20);
+    if (selectedFilter === "stock") {
+      return sortedProducts.filter(
+        (item) =>
+          item.stockInitial > 0 &&
+          (item.stockRemaining <= 0 || item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15)
+      );
+    }
+    return sortedProducts;
+  }, [selectedFilter, sortedProducts]);
   const sparklineData =
     history.length > 0 ? history.map((item) => item.totalProfit) : [0, totalProfit];
+  const conversionHeadline = getConversionHeadline(riskScore, dailyLeakEstimate, products.length);
+  const oneThingAction = getOneThingAction(proStopProducts, proFixProducts, proScaleProducts, bestProduct);
+  const urgencyDeadlineText = `${CONVERSION_DEADLINE_HOURS} jam`;
 
   const inputStyle: React.CSSProperties = {
     padding: "15px 16px",
@@ -625,6 +677,13 @@ const { data: productData, error: productError } = await db
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products.length, isPro]);
+
+  useEffect(() => {
+    if (!isPro && products.length > 0 && riskScore >= 35) {
+      const timer = window.setTimeout(() => setShowLossPopup(true), 950);
+      return () => window.clearTimeout(timer);
+    }
+  }, [isPro, products.length, riskScore]);
 
   function ensureLoggedIn() {
     if (!currentUserId) {
@@ -965,6 +1024,17 @@ const { data: productData, error: productError } = await db
       }
 
       if (insertedProduct) setProducts((prev) => [mapProductRow(insertedProduct as ProductRow), ...prev]);
+
+      setProfit(profitValue);
+      setResult(
+        profitValue < 0
+          ? `🚨 Produk ini rugi ${money(Math.abs(profitValue))}. Jangan tambah stok sebelum harga dan biaya diperbaiki.`
+          : margin < 10
+          ? `⚠️ Profit positif, tapi margin hanya ${percent(margin)}. Produk ini rawan habis oleh diskon/admin/iklan.`
+          : margin < 20
+          ? `🟡 Produk masih perlu optimasi. Targetkan margin minimal 20%-25% sebelum scale.`
+          : `✅ Produk sehat. Profit ${money(profitValue)} dengan margin ${percent(margin)}. Layak dipantau untuk scale.`
+      );
 
       setForm({
         productName: "",
@@ -1740,6 +1810,45 @@ Rule CFO: tambah produk karena data, bukan feeling.`
         </div>
       )}
 
+      {showLossPopup && !isPro && products.length > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            right: 18,
+            bottom: 18,
+            width: "min(420px, calc(100vw - 36px))",
+            zIndex: 998,
+            ...cardStyle,
+            padding: 20,
+            border: "1px solid rgba(248,113,113,0.5)",
+            background: "linear-gradient(135deg, rgba(127,29,29,0.92), rgba(2,6,23,0.96))",
+          }}
+        >
+          <button
+            onClick={() => setShowLossPopup(false)}
+            style={{ float: "right", background: "transparent", border: "none", color: "white", fontSize: 22, cursor: "pointer" }}
+          >
+            ×
+          </button>
+          <p style={{ margin: 0, color: "#fca5a5", fontWeight: 950 }}>⚠️ Profit Loss Alert</p>
+          <h3 style={{ margin: "8px 0", fontSize: 24 }}>{conversionHeadline}</h3>
+          <p style={{ color: "#cbd5e1", lineHeight: 1.65, marginBottom: 14 }}>
+            AI sudah tahu langkah pertama yang harus kamu lakukan: <b>{oneThingAction}</b>
+          </p>
+          <div style={{ padding: 13, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(248,113,113,0.22)", marginBottom: 12 }}>
+            <small style={{ color: "#fca5a5", fontWeight: 900 }}>Unlocked di PRO:</small>
+            <div style={{ display: "grid", gap: 5, color: "#cbd5e1", marginTop: 8, fontSize: 13 }}>
+              <span>• Produk penyebab bocor</span>
+              <span>• Harga aman per produk</span>
+              <span>• Action plan {urgencyDeadlineText}</span>
+            </div>
+          </div>
+          <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%" }}>
+            🔓 Buka Solusi Profit Bocor
+          </button>
+        </div>
+      )}
+
       <section style={{ maxWidth: 1240, margin: "0 auto", paddingTop: 22 }}>
         <nav
           style={{
@@ -1938,6 +2047,34 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </div>
           </div>
         </header>
+
+        {products.length > 0 && (
+          <section
+            style={{
+              ...cardStyle,
+              marginBottom: 24,
+              border: "1px solid rgba(34,197,94,0.28)",
+              background: "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(2,6,23,0.94))",
+            }}
+          >
+            <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 18, alignItems: "center" }}>
+              <div>
+                <p style={{ margin: 0, color: riskScore >= 50 ? "#fca5a5" : "#86efac", fontWeight: 950 }}>
+                  🎯 Next Best Action dari AI CFO
+                </p>
+                <h2 style={{ margin: "7px 0" }}>{oneThingAction}</h2>
+                <p style={{ margin: 0, color: "#94a3b8" }}>
+                  Fokus satu keputusan dulu supaya seller tidak bingung: stop, fix harga, atau scale.
+                </p>
+              </div>
+              {!isPro && (
+                <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
+                  Buka Detail Action Plan
+                </button>
+              )}
+            </div>
+          </section>
+        )}
 
         {showLeakAlert && !isPro && products.length > 0 && (
           <section
@@ -2413,8 +2550,27 @@ Rule CFO: tambah produk karena data, bukan feeling.`
           {products.length === 0 ? (
             <EmptyState title="Data masih kosong" description="Produk yang kamu input akan muncul di sini." />
           ) : (
-            <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-              {sortedProducts.map((item, index) => (
+            <>
+              <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 16 }}>
+                {(["all", "loss", "fix", "scale", "stock"] as ProductFilter[]).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setSelectedFilter(filter)}
+                    style={{
+                      ...ghostButtonStyle,
+                      padding: "9px 12px",
+                      borderRadius: 999,
+                      background: selectedFilter === filter ? "rgba(34,197,94,0.18)" : "rgba(2,6,23,0.72)",
+                      borderColor: selectedFilter === filter ? "rgba(34,197,94,0.42)" : "rgba(148,163,184,0.22)",
+                      color: selectedFilter === filter ? "#86efac" : "white",
+                    }}
+                  >
+                    {getFilterLabel(filter)}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+              {filteredProducts.map((item, index) => (
                 <div
                   className="product-row"
                   key={item.id}
@@ -2480,6 +2636,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 </div>
               ))}
             </div>
+            </>
           )}
         </section>
 
