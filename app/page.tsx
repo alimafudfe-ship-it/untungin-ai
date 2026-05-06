@@ -239,7 +239,6 @@ function getRiskBadge(item: Product) {
   return { label: "🟢 AMAN SCALE", color: "#86efac", bg: "rgba(20,83,45,0.34)" };
 }
 
-
 function getStockStatus(item: Product) {
   if (item.stockInitial <= 0) {
     return { label: "⚪ Stok belum diisi", color: "#cbd5e1", bg: "rgba(148,163,184,0.12)" };
@@ -259,9 +258,7 @@ function getStockStatus(item: Product) {
 }
 
 function getRestockRecommendation(item: Product) {
-  if (item.profit < 0 || item.margin < 10) {
-    return "🔴 Jangan restock dulu";
-  }
+  if (item.profit < 0 || item.margin < 10) return "🔴 Jangan restock dulu";
 
   if (item.stockRemaining <= 0 && item.profit > 0 && item.margin >= 20) {
     return "🟢 Restock segera";
@@ -459,6 +456,8 @@ export default function DashboardPage() {
           decision,
           reason,
           priceGap: Math.max(0, recommendedPrice - item.sellingPrice),
+          stockStatus: getStockStatus(item).label,
+          restockRecommendation: getRestockRecommendation(item),
         };
       }),
     [products]
@@ -1117,7 +1116,6 @@ Rekomendasi utama:
     }
 3. Naikkan harga produk margin rendah minimal Rp1.000-Rp2.000 atau tekan biaya admin/iklan.
 4. Jangan tambah stok untuk produk rugi sebelum profit per transaksi aman.
-5. Restock hanya produk margin sehat, profit positif, dan stok menipis.
 
 Prioritas hari ini:
 ${
@@ -1205,8 +1203,6 @@ ${
         promoFloor: promoFloor(item),
         unitOtherCost: unitOtherCost(item),
         netProfitPerUnit: item.profit / unitSafe(item),
-        stockStatus: getStockStatus(item).label,
-        restockRecommendation: getRestockRecommendation(item),
       };
     });
 
@@ -1312,9 +1308,6 @@ Kamu bukan cuma butuh omzet. Kamu butuh keputusan yang menyelamatkan profit. Jik
 - Profit bersih: ${money(totalProfit)}
 - Margin rata-rata: ${percent(avgMargin)}
 - Unit terjual: ${totalUnits.toLocaleString("id-ID")}
-- Stok tersisa: ${totalRemainingStock.toLocaleString("id-ID")} dari ${totalInitialStock.toLocaleString("id-ID")}
-- Produk stok menipis: ${lowStockProducts.length}
-- Produk stok habis: ${outOfStockProducts.length}
 - Estimasi profit bocor: ${money(cashLeakTotal)}
 
 Opini CFO:
@@ -1330,7 +1323,6 @@ ${ranking
    - AI Score: ${item.score}/100
    - Segment: ${item.segment}
    - Profit: ${money(item.profit)} | Margin: ${percent(item.margin)}
-   - Stok: ${item.stockRemaining}/${item.stockInitial} | ${item.restockRecommendation}
    - Kontribusi omzet: ${percent(item.revenueShare)}
    - Keputusan: ${item.decision}`
   )
@@ -1346,7 +1338,6 @@ ${
           (item, index) => `${index + 1}. ${item.name}
    - Alasan: profit positif, margin ${percent(item.margin)}, score ${item.score}/100.
    - Cara scale: tambah stok kecil dulu, naikkan traffic bertahap, jangan diskon besar.
-   - Rekomendasi stok: ${item.restockRecommendation}. Stok tersisa ${item.stockRemaining}/${item.stockInitial}.
    - Batas aman promo: jangan jual di bawah ${money(item.promoFloor)}.`
         )
         .join("\n")
@@ -1433,8 +1424,7 @@ ${
           (item, index) => `${index + 1}. ${item.name}
    - Rugi: ${money(item.profit)}
    - Margin: ${percent(item.margin)}
-   - Keputusan: stop iklan/stok baru sampai harga minimal ${money(item.safe25)} atau biaya turun.
-   - Rekomendasi stok: jangan restock sampai profit aman.`
+   - Keputusan: stop iklan/stok baru sampai harga minimal ${money(item.safe25)} atau biaya turun.`
         )
         .join("\n")
     : weakest
@@ -1476,7 +1466,6 @@ Hari ini:
     }
 2. Cek biaya admin, voucher, iklan, packing, dan retur.
 3. Jangan tambah stok ke produk margin di bawah 10%.
-4. ${restockNowProducts[0] ? `Restock ${restockNowProducts[0].name} secara bertahap karena stok menipis dan profit sehat.` : "Pantau stok produk sehat, jangan restock produk rugi."}
 
 7 hari:
 1. Naikkan harga produk margin tipis secara bertahap.
