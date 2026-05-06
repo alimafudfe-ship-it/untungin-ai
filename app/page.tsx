@@ -356,6 +356,10 @@ export default function DashboardPage() {
     profitLeak,
     products.length * 25000
   );
+  const dailyAiLeakAlertAmount = Math.max(
+    Math.round(aiLeakAlertAmount / 30),
+    products.length * 1500
+  );
 
   const proActionPlan = useMemo(
     () =>
@@ -802,7 +806,10 @@ const { data: productData, error: productError } = await db
         }
 
         if (data) setProducts((prev) => [...(data as ProductRow[]).map(mapProductRow), ...prev]);
-        if (!isPro) setTimeout(() => setShowLeakAlert(true), 650);
+        if (!isPro) {
+          setShowLeakAlert(true);
+          setTimeout(() => openUpgradeModal("lifetime"), 2400);
+        }
         if (!isPro && rows.length > remainingSlot) setTimeout(() => openUpgradeModal("lifetime"), 500);
 
         setLastSync(new Date().toLocaleString("id-ID"));
@@ -896,7 +903,8 @@ const { data: productData, error: productError } = await db
       });
 
       if (!isPro) {
-        setTimeout(() => setShowLeakAlert(true), 650);
+        setShowLeakAlert(true);
+        setTimeout(() => openUpgradeModal("lifetime"), 2400);
       }
     } catch (error) {
       console.error(error);
@@ -1563,13 +1571,13 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </button>
 
             <p style={{ color: "#86efac", fontWeight: 900, marginTop: 0 }}>
-              🚨 Profit Rescue Alert: potensi uang bocor {money(estimatedMonthlyLoss)}/bulan
+              🚨 Kamu hampir kehilangan {money(estimatedMonthlyLoss)}/bulan TANPA sadar
             </p>
             <h2 style={{ marginBottom: 8, fontSize: 32 }}>
-              Selamatkan Profit Saya
+              Buka Produk Penyebab Rugi
             </h2>
             <p style={{ opacity: 0.76, lineHeight: 1.7 }}>
-              AI sudah menemukan produk rugi, margin bocor, dan harga salah. Detail produk penyebabnya dikunci untuk akun Free.
+              AI sudah menemukan produk rugi, margin bocor, dan harga salah. Detail produk penyebab dan harga aman dikunci untuk akun Free.
             </p>
 
             <div
@@ -1632,7 +1640,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               }}
             >
               <p style={{ marginTop: 0, color: "#86efac", fontWeight: 900 }}>
-                🔓 Selamatkan profit via Midtrans
+                🔓 Buka diagnosis profit via Midtrans
               </p>
               <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.6 }}>
                 Paket terpilih: <b>{getPlanLabel(selectedPlan)}</b>. Setelah pembayaran sukses, akun kamu akan otomatis menjadi PRO.
@@ -1648,7 +1656,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   opacity: upgradeLoading ? 0.7 : 1,
                 }}
               >
-                {upgradeLoading ? "Membuka pembayaran..." : `💳 Bayar ${getPlanLabel(selectedPlan)}`}
+                {upgradeLoading ? "Membuka pembayaran..." : `🔓 Buka Data Produk Penyebab Rugi`}
               </button>
             </div>
 
@@ -1863,9 +1871,9 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             style={{
               ...cardStyle,
               marginBottom: 24,
-              border: "1px solid rgba(248,113,113,0.48)",
+              border: "1px solid rgba(248,113,113,0.5)",
               background:
-                "linear-gradient(135deg, rgba(127,29,29,0.68), rgba(69,26,3,0.42), rgba(2,6,23,0.94))",
+                "linear-gradient(135deg, rgba(127,29,29,0.72), rgba(69,26,3,0.5), rgba(2,6,23,0.94))",
             }}
           >
             <div
@@ -1879,15 +1887,34 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             >
               <div>
                 <p style={{ margin: 0, color: "#fca5a5", fontWeight: 950 }}>
-                  🚨 AI Profit Leak Detector
+                  🚨 AI Profit Leak Detector sedang membaca data kamu
                 </p>
                 <h2 style={{ margin: "8px 0", fontSize: 32 }}>
-                  AI menemukan potensi uang bocor {money(aiLeakAlertAmount)}/bulan
+                  Ditemukan potensi uang bocor {money(aiLeakAlertAmount)}/bulan
                 </h2>
                 <p style={{ margin: 0, color: "#cbd5e1", lineHeight: 1.7 }}>
-                  Terdeteksi {criticalProducts.length} produk berisiko dan {productsNeedingFix.length} produk yang perlu diperbaiki harga/marginnya.
-                  Detail produk penyebab masih dikunci untuk akun Free.
+                  Estimasi bocor per hari sekitar <b>{money(dailyAiLeakAlertAmount)}</b>.
+                  AI mendeteksi {criticalProducts.length} produk berisiko tinggi dan {productsNeedingFix.length} produk yang perlu optimasi harga.
                 </p>
+
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: 14,
+                    borderRadius: 16,
+                    background: "rgba(2,6,23,0.72)",
+                    border: "1px solid rgba(248,113,113,0.22)",
+                  }}
+                >
+                  <strong style={{ color: "#fca5a5" }}>
+                    Masalah terdeteksi:
+                  </strong>
+                  <div style={{ display: "grid", gap: 6, marginTop: 8, color: "#cbd5e1" }}>
+                    <span>• Ada produk yang margin/profitnya berbahaya</span>
+                    <span>• Harga aman dan produk penyebab masih dikunci</span>
+                    <span>• Popup PRO akan membuka diagnosis lengkap</span>
+                  </div>
+                </div>
               </div>
 
               <div
@@ -1900,18 +1927,18 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   border: "1px solid rgba(248,113,113,0.24)",
                 }}
               >
-                <small style={{ color: "#94a3b8" }}>Yang dikunci di PRO</small>
+                <small style={{ color: "#94a3b8" }}>Yang dibuka di PRO</small>
                 <strong style={{ color: "#fca5a5" }}>Produk penyebab profit bocor</strong>
                 <strong style={{ color: "#fbbf24" }}>Harga aman per produk</strong>
                 <strong style={{ color: "#86efac" }}>Action plan fix 24 jam</strong>
                 <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
-                  🔓 Lihat Produk Penyebabnya
+                  🔓 Buka Diagnosis Lengkap
                 </button>
                 <button
                   onClick={() => setShowLeakAlert(false)}
                   style={{ ...ghostButtonStyle, padding: "10px 12px" }}
                 >
-                  Nanti dulu
+                  Lihat dashboard dulu
                 </button>
               </div>
             </div>
@@ -2297,7 +2324,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             textAlign: "center",
           }}
         >
-          <h2 style={{ marginTop: 0 }}>{isPro ? "✅ PRO kamu sudah aktif" : "🚨 Selamatkan Profit Saya"}</h2>
+          <h2 style={{ marginTop: 0 }}>{isPro ? "✅ PRO kamu sudah aktif" : "🚨 Buka Produk Penyebab Rugi"}</h2>
           <p style={{ color: "#cbd5e1" }}>
             {isPro
               ? "Gunakan AI CFO dan export laporan untuk mengambil keputusan harian."
@@ -2306,7 +2333,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
 
           {!isPro && (
             <div style={{ marginTop: 18, padding: 20, borderRadius: 20, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(34,197,94,0.26)", textAlign: "left" }}>
-              <h3>💳 Pembayaran Selamatkan Profit Saya</h3>
+              <h3>💳 Pembayaran Buka Produk Penyebab Rugi</h3>
               <p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>
                 Bayar lewat Midtrans untuk membuka diagnosis lengkap dan menyelamatkan profit yang bocor.
               </p>
@@ -2338,7 +2365,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 disabled={upgradeLoading}
                 style={{ ...ctaButtonStyle, width: "100%", marginTop: 14, opacity: upgradeLoading ? 0.72 : 1 }}
               >
-                {upgradeLoading ? "Membuka pembayaran..." : `💳 Bayar ${getPlanLabel(selectedPlan)}`}
+                {upgradeLoading ? "Membuka pembayaran..." : `🔓 Buka Data Produk Penyebab Rugi`}
               </button>
             </div>
           )}
