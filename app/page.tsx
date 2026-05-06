@@ -267,6 +267,7 @@ export default function DashboardPage() {
   const [aiAnswer, setAiAnswer] = useState(
     "AI CFO siap membaca profit, margin, biaya bocor, dan produk yang layak di-scale."
   );
+  const [showLeakAlert, setShowLeakAlert] = useState(false);
 
   const isAdmin = profile?.role === "admin";
   const isPro = isProfilePro(profile);
@@ -346,6 +347,15 @@ export default function DashboardPage() {
   );
   const rescueTone = getRescueTone(riskScore);
   const hasRescueInsight = products.length > 0;
+  const totalLossFromLossProducts = lossProducts.reduce(
+    (acc, item) => acc + Math.abs(item.profit),
+    0
+  );
+  const aiLeakAlertAmount = Math.max(
+    totalLossFromLossProducts * 4,
+    profitLeak,
+    products.length * 25000
+  );
 
   const proActionPlan = useMemo(
     () =>
@@ -792,6 +802,7 @@ const { data: productData, error: productError } = await db
         }
 
         if (data) setProducts((prev) => [...(data as ProductRow[]).map(mapProductRow), ...prev]);
+        if (!isPro) setTimeout(() => setShowLeakAlert(true), 650);
         if (!isPro && rows.length > remainingSlot) setTimeout(() => openUpgradeModal("lifetime"), 500);
 
         setLastSync(new Date().toLocaleString("id-ID"));
@@ -885,7 +896,7 @@ const { data: productData, error: productError } = await db
       });
 
       if (!isPro) {
-        setTimeout(() => openUpgradeModal("lifetime"), 700);
+        setTimeout(() => setShowLeakAlert(true), 650);
       }
     } catch (error) {
       console.error(error);
@@ -936,6 +947,7 @@ async function resetAll() {
   setHistory([]);
   setResult("");
   setProfit(null);
+  setShowLeakAlert(false);
 }
 
   function generateFullBusinessInsight() {
@@ -1845,6 +1857,66 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </div>
           </div>
         </header>
+
+        {showLeakAlert && !isPro && products.length > 0 && (
+          <section
+            style={{
+              ...cardStyle,
+              marginBottom: 24,
+              border: "1px solid rgba(248,113,113,0.48)",
+              background:
+                "linear-gradient(135deg, rgba(127,29,29,0.68), rgba(69,26,3,0.42), rgba(2,6,23,0.94))",
+            }}
+          >
+            <div
+              className="main-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.1fr 0.9fr",
+                gap: 18,
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <p style={{ margin: 0, color: "#fca5a5", fontWeight: 950 }}>
+                  🚨 AI Profit Leak Detector
+                </p>
+                <h2 style={{ margin: "8px 0", fontSize: 32 }}>
+                  AI menemukan potensi uang bocor {money(aiLeakAlertAmount)}/bulan
+                </h2>
+                <p style={{ margin: 0, color: "#cbd5e1", lineHeight: 1.7 }}>
+                  Terdeteksi {criticalProducts.length} produk berisiko dan {productsNeedingFix.length} produk yang perlu diperbaiki harga/marginnya.
+                  Detail produk penyebab masih dikunci untuk akun Free.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  padding: 16,
+                  borderRadius: 20,
+                  background: "rgba(2,6,23,0.72)",
+                  border: "1px solid rgba(248,113,113,0.24)",
+                }}
+              >
+                <small style={{ color: "#94a3b8" }}>Yang dikunci di PRO</small>
+                <strong style={{ color: "#fca5a5" }}>Produk penyebab profit bocor</strong>
+                <strong style={{ color: "#fbbf24" }}>Harga aman per produk</strong>
+                <strong style={{ color: "#86efac" }}>Action plan fix 24 jam</strong>
+                <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
+                  🔓 Lihat Produk Penyebabnya
+                </button>
+                <button
+                  onClick={() => setShowLeakAlert(false)}
+                  style={{ ...ghostButtonStyle, padding: "10px 12px" }}
+                >
+                  Nanti dulu
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
 
         {hasRescueInsight && (
           <section
