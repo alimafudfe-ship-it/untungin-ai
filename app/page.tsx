@@ -306,6 +306,44 @@ function getFilterLabel(filter: ProductFilter) {
   return "Semua Produk";
 }
 
+function getDiagnosisText(item: Product, recommendedPrice: number) {
+  const unitSold = Math.max(item.quantitySold, 1);
+  const profitPerUnit = item.profit / unitSold;
+  const unitOtherCost = item.otherCost / unitSold;
+  const priceGap = Math.max(0, recommendedPrice - item.sellingPrice);
+
+  if (item.profit < 0) {
+    return `Produk ini rugi karena profit total ${money(item.profit)} dan profit/unit ${money(profitPerUnit)}. Penyebab paling mungkin: harga jual terlalu rendah, modal terlalu tinggi, atau biaya lain/unit ${money(unitOtherCost)} terlalu besar. Minimal revisi harga ke ${money(recommendedPrice)} sebelum restock atau iklan.`;
+  }
+
+  if (item.margin < 10) {
+    return `Produk ini belum rugi, tapi margin ${percent(item.margin)} terlalu tipis. Diskon kecil, biaya admin, retur, atau iklan bisa langsung menghapus profit. Naikkan harga sekitar ${money(priceGap)} atau tekan biaya per unit.`;
+  }
+
+  if (item.margin < 20) {
+    return `Produk ini masih bisa dijual, tapi belum aman untuk scale besar. Margin ${percent(item.margin)} sebaiknya dinaikkan ke minimal 20%-25% agar promosi dan biaya operasional tetap aman.`;
+  }
+
+  return `Produk ini sehat. Profit ${money(item.profit)} dengan margin ${percent(item.margin)}. Fokus berikutnya: jaga harga minimum, hindari diskon agresif, dan scale stok/traffic bertahap.`;
+}
+
+function getCompetitorDecision(item: Product, competitorPrice: number) {
+  if (!competitorPrice || competitorPrice <= 0) return "Isi harga kompetitor untuk membaca posisi harga.";
+
+  const gap = item.sellingPrice - competitorPrice;
+  if (gap > 0 && item.margin >= 25) return `Harga kamu ${money(gap)} lebih mahal. Bisa tetap premium jika value kuat; jangan perang harga kalau margin sehat.`;
+  if (gap > 0 && item.margin < 20) return `Harga kamu lebih mahal, tapi margin belum aman. Audit modal/biaya sebelum menaikkan traffic.`;
+  if (gap < 0 && item.margin >= 20) return `Harga kamu ${money(Math.abs(gap))} lebih murah. Ada peluang naik harga bertahap tanpa langsung kalah saing.`;
+  if (gap < 0 && item.margin < 20) return `Harga kamu lebih murah tetapi margin tipis. Ini rawan perang harga. Naikkan value atau bundling.`;
+  return "Harga kamu sejajar kompetitor. Menang lewat bundle, bonus, kecepatan, dan trust.";
+}
+
+function getChecklistSeed(item: Product & { recommendedPrice: number; decision: string; reason: string; priceGap: number }) {
+  if (item.profit < 0) return { title: `Stop rugi: ${item.name}`, detail: `Tahan iklan/restock dan revisi harga minimal ke ${money(item.recommendedPrice)}.` };
+  if (item.margin < 20) return { title: `Fix margin: ${item.name}`, detail: `Naikkan harga atau kurangi biaya agar margin mendekati 25%.` };
+  return { title: `Scale aman: ${item.name}`, detail: `Tambah stok/traffic bertahap tanpa diskon besar.` };
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -340,6 +378,15 @@ export default function DashboardPage() {
   const [showLeakAlert, setShowLeakAlert] = useState(false);
   const [showLossPopup, setShowLossPopup] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<ProductFilter>("all");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [profitGoal, setProfitGoal] = useState("10000000");
+  const [selectedDiagnosis, setSelectedDiagnosis] = useState<Product | null>(null);
+  const [selectedSimulatorId, setSelectedSimulatorId] = useState("");
+  const [simulatedPrice, setSimulatedPrice] = useState("");
+  const [competitorPrices, setCompetitorPrices] = useState<Record<string, string>>({});
+  const [checkedActions, setCheckedActions] = useState<Record<string, boolean>>({});
+  const [showBeforeAfter, setShowBeforeAfter] = useState(true);
 
   const isAdmin = profile?.role === "admin";
   const isPro = isProfilePro(profile);
@@ -510,6 +557,38 @@ export default function DashboardPage() {
   const conversionHeadline = getConversionHeadline(riskScore, dailyLeakEstimate, products.length);
   const oneThingAction = getOneThingAction(proStopProducts, proFixProducts, proScaleProducts, bestProduct);
   const urgencyDeadlineText = `${CONVERSION_DEADLINE_HOURS} jam`;
+  const profitGoalValue = Math.max(parseNumber(profitGoal), 1);
+  const goalProgress = clamp(Math.round((totalProfit / profitGoalValue) * 100), 0, 100);
+  const remainingGoalProfit = Math.max(profitGoalValue - totalProfit, 0);
+  const simulatorProduct = products.find((item) => item.id === selectedSimulatorId) || bestProduct || null;
+  const simulatorPriceValue = simulatorProduct ? parseNumber(simulatedPrice) || simulatorProduct.sellingPrice : 0;
+  const simulatorProfit = simulatorProduct
+    ? (simulatorPriceValue - simulatorProduct.costPrice) * simulatorProduct.quantitySold - simulatorProduct.otherCost
+    : 0;
+  const simulatorMargin = simulatorPriceValue > 0 && simulatorProduct
+    ? ((simulatorPriceValue - simulatorProduct.costPrice) / simulatorPriceValue) * 100
+    : 0;
+  const simulatorDelta = simulatorProduct ? simulatorProfit - simulatorProduct.profit : 0;
+  const actionChecklist = useMemo(() => {
+    const seeds = [
+      ...proStopProducts.slice(0, 2),
+      ...proFixProducts.slice(0, 3),
+      ...proScaleProducts.slice(0, 2),
+    ];
+
+    if (seeds.length === 0 && bestProduct) seeds.push(proActionPlan.find((item) => item.id === bestProduct.id) || proActionPlan[0]);
+
+    return seeds.filter(Boolean).slice(0, 6).map((item) => {
+      const seed = getChecklistSeed(item);
+      return { id: item.id, ...seed, locked: !isPro && item !== seeds[0] };
+    });
+  }, [proStopProducts, proFixProducts, proScaleProducts, bestProduct, proActionPlan, isPro]);
+  const completedActions = actionChecklist.filter((item) => checkedActions[item.id]).length;
+  const retentionSummary = totalProfit < 0
+    ? `Profit sedang minus ${money(Math.abs(totalProfit))}. Prioritas retensi minggu ini: hentikan produk rugi.`
+    : avgMargin < 20
+    ? `Profit masih bisa naik. Margin rata-rata ${percent(avgMargin)} belum aman untuk scale agresif.`
+    : `Bisnis terlihat sehat. Jaga margin dan scale produk terbaik secara bertahap.`;
 
   const inputStyle: React.CSSProperties = {
     padding: "16px 18px",
@@ -690,6 +769,23 @@ const { data: productData, error: productError } = await db
     }
   }, [isPro, products.length, riskScore]);
 
+  useEffect(() => {
+    try {
+      const alreadySeen = window.localStorage.getItem("untungin_onboarding_seen");
+      if (!alreadySeen) setShowOnboarding(true);
+      const savedGoal = window.localStorage.getItem("untungin_profit_goal");
+      if (savedGoal) setProfitGoal(savedGoal);
+    } catch {
+      setShowOnboarding(products.length === 0);
+    }
+  }, [products.length]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("untungin_profit_goal", profitGoal);
+    } catch {}
+  }, [profitGoal]);
+
   function ensureLoggedIn() {
     if (!currentUserId) {
       alert("Harus login dulu supaya data tersimpan di cloud.");
@@ -699,6 +795,11 @@ const { data: productData, error: productError } = await db
   }
 
   async function handleLogout() {
+    if (!isPro && products.length > 0 && dailyLeakEstimate > 0) {
+      const confirmed = window.confirm(`Sebelum logout: AI masih melihat potensi bocor ${money(dailyLeakEstimate)} hari ini. Tetap logout?`);
+      if (!confirmed) return;
+    }
+
     await supabase.auth.signOut();
     setCurrentUserId(null);
     setUserEmail(null);
@@ -1629,6 +1730,81 @@ Rule CFO: tambah produk karena data, bukan feeling.`
     }, 700);
   }
 
+  function exportPremiumPDFReport() {
+    if (!isPro) {
+      openUpgradeModal("lifetime");
+      return;
+    }
+
+    if (products.length === 0) {
+      alert("Belum ada produk untuk dibuat laporan PDF.");
+      return;
+    }
+
+    const reportWindow = window.open("", "_blank");
+    if (!reportWindow) {
+      alert("Popup browser diblokir. Izinkan popup untuk export PDF.");
+      return;
+    }
+
+    const rows = proActionPlan
+      .map(
+        (item) => `
+          <tr>
+            <td>${item.name}</td>
+            <td>${money(item.profit)}</td>
+            <td>${percent(item.margin)}</td>
+            <td>${item.decision}</td>
+            <td>${money(item.recommendedPrice)}</td>
+          </tr>`
+      )
+      .join("");
+
+    reportWindow.document.write(`
+      <html>
+        <head>
+          <title>Untungin.ai Premium CFO Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 32px; color: #0f172a; }
+            h1 { margin-bottom: 4px; }
+            .grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin: 22px 0; }
+            .card { border: 1px solid #d1d5db; border-radius: 14px; padding: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+            th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
+            th { background: #ecfdf5; }
+            .action { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 14px; margin-top: 18px; }
+          </style>
+        </head>
+        <body>
+          <h1>Untungin.ai Premium CFO Report</h1>
+          <p>Laporan otomatis profit, margin, risiko, dan action plan.</p>
+          <div class="grid">
+            <div class="card"><b>Profit</b><br/>${money(totalProfit)}</div>
+            <div class="card"><b>Omzet</b><br/>${money(totalRevenue)}</div>
+            <div class="card"><b>Margin</b><br/>${percent(avgMargin)}</div>
+            <div class="card"><b>Risk Score</b><br/>${riskScore}/100</div>
+          </div>
+          <div class="action">
+            <b>Next Best Action:</b><br/>${oneThingAction}
+          </div>
+          <table>
+            <thead><tr><th>Produk</th><th>Profit</th><th>Margin</th><th>Keputusan</th><th>Harga Aman</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <script>window.print()</script>
+        </body>
+      </html>
+    `);
+    reportWindow.document.close();
+  }
+
+  function completeOnboarding() {
+    try {
+      window.localStorage.setItem("untungin_onboarding_seen", "1");
+    } catch {}
+    setShowOnboarding(false);
+  }
+
   if (pageLoading) {
     return (
       <main
@@ -1742,6 +1918,92 @@ Rule CFO: tambah produk karena data, bukan feeling.`
       `}</style>
       <div className="media-grid-bg" />
       <div className="media-orb" />
+
+      {showOnboarding && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.82)",
+            zIndex: 1000,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              ...cardStyle,
+              maxWidth: 720,
+              width: "100%",
+              border: "1px solid rgba(34,197,94,0.48)",
+              background: "linear-gradient(135deg, rgba(6,78,59,0.94), rgba(2,6,23,0.98))",
+            }}
+          >
+            <p style={{ marginTop: 0, color: "#86efac", fontWeight: 950 }}>🚀 Onboarding Profit Rescue</p>
+            <h2 style={{ margin: "8px 0", fontSize: 34 }}>3 langkah bikin seller paham value aplikasi</h2>
+            <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
+              {[
+                ["1", "Masukkan produk", "User cukup isi modal, harga jual, stok, terjual, dan biaya lain."],
+                ["2", "Lihat uang bocor", "Dashboard langsung menunjukkan profit, margin, risiko, dan alert produk bermasalah."],
+                ["3", "Upgrade untuk solusi", "Free melihat alarm. PRO membuka produk penyebab, harga aman, checklist, PDF, dan AI CFO lengkap."],
+              ].map(([num, title, desc], index) => (
+                <button
+                  key={num}
+                  onClick={() => setOnboardingStep(index)}
+                  style={{
+                    textAlign: "left",
+                    padding: 16,
+                    borderRadius: 18,
+                    border: onboardingStep === index ? "2px solid #22c55e" : "1px solid rgba(148,163,184,0.18)",
+                    background: onboardingStep === index ? "rgba(34,197,94,0.14)" : "rgba(2,6,23,0.72)",
+                    color: "white",
+                  }}
+                >
+                  <strong>{num}. {title}</strong>
+                  <br />
+                  <small style={{ color: "#cbd5e1" }}>{desc}</small>
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+              <button onClick={completeOnboarding} style={ctaButtonStyle}>Mulai pakai dashboard</button>
+              <button onClick={() => setShowOnboarding(false)} style={ghostButtonStyle}>Lewati dulu</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedDiagnosis && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.76)",
+            zIndex: 999,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+          }}
+        >
+          <div style={{ ...cardStyle, maxWidth: 640, width: "100%", border: "1px solid rgba(34,197,94,0.42)" }}>
+            <button onClick={() => setSelectedDiagnosis(null)} style={{ float: "right", background: "transparent", color: "white", border: "none", fontSize: 26, cursor: "pointer" }}>×</button>
+            <p style={{ marginTop: 0, color: "#86efac", fontWeight: 950 }}>🔍 Auto Diagnosis Produk</p>
+            <h2>{selectedDiagnosis.name}</h2>
+            <p style={{ color: "#cbd5e1", lineHeight: 1.75 }}>
+              {getDiagnosisText(
+                selectedDiagnosis,
+                proActionPlan.find((item) => item.id === selectedDiagnosis.id)?.recommendedPrice || selectedDiagnosis.sellingPrice
+              )}
+            </p>
+            {!isPro && (
+              <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%" }}>
+                🔓 Buka diagnosis lengkap semua produk
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {showUpgradeModal && (
         <div
@@ -2145,6 +2407,200 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               🔓 Unlock Full CFO View
             </button>
           )}
+        </section>
+
+        <section
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            border: "1px solid rgba(34,197,94,0.24)",
+          }}
+        >
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.15fr", gap: 18, alignItems: "start" }}>
+            <div>
+              <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>🎯 Goal Profit Bulanan</p>
+              <h2 style={{ margin: "8px 0" }}>{money(totalProfit)} / {money(profitGoalValue)}</h2>
+              <div style={{ height: 12, borderRadius: 999, background: "rgba(15,23,42,0.9)", overflow: "hidden", border: "1px solid rgba(148,163,184,0.16)" }}>
+                <div style={{ width: `${goalProgress}%`, height: "100%", background: "linear-gradient(90deg,#22c55e,#14b8a6)", borderRadius: 999 }} />
+              </div>
+              <p style={{ color: "#94a3b8", lineHeight: 1.7 }}>
+                Progress {goalProgress}%. Sisa target profit: <b style={{ color: "#e5e7eb" }}>{money(remainingGoalProfit)}</b>.
+              </p>
+              <input
+                value={profitGoal}
+                onChange={(e) => setProfitGoal(e.target.value)}
+                type="number"
+                min="1"
+                placeholder="Target profit bulanan"
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>✅ AI Action Checklist</p>
+              <h2 style={{ margin: "8px 0" }}>{completedActions}/{actionChecklist.length || 1} aksi selesai</h2>
+              <div style={{ display: "grid", gap: 10 }}>
+                {actionChecklist.length === 0 ? (
+                  <p style={{ color: "#94a3b8" }}>Tambahkan produk untuk membuat checklist otomatis.</p>
+                ) : actionChecklist.map((item) => (
+                  <label
+                    key={item.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "auto 1fr auto",
+                      gap: 12,
+                      alignItems: "center",
+                      padding: 14,
+                      borderRadius: 16,
+                      background: item.locked ? "rgba(15,23,42,0.54)" : "rgba(2,6,23,0.72)",
+                      border: "1px solid rgba(148,163,184,0.14)",
+                      filter: item.locked ? "blur(0.2px)" : "none",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!checkedActions[item.id]}
+                      disabled={item.locked}
+                      onChange={(e) => setCheckedActions((prev) => ({ ...prev, [item.id]: e.target.checked }))}
+                    />
+                    <span>
+                      <strong>{item.locked ? "🔒 Action PRO terkunci" : item.title}</strong>
+                      <br />
+                      <small style={{ color: "#94a3b8" }}>{item.locked ? "Upgrade untuk membuka checklist lengkap." : item.detail}</small>
+                    </span>
+                    {item.locked && <button type="button" onClick={() => openUpgradeModal("lifetime")} style={{ ...ghostButtonStyle, padding: "8px 10px" }}>Buka</button>}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            border: "1px solid rgba(59,130,246,0.28)",
+          }}
+        >
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
+            <div>
+              <p style={{ margin: 0, color: "#93c5fd", fontWeight: 950 }}>🧪 Price Simulator Interaktif</p>
+              <h2 style={{ margin: "8px 0" }}>Simulasikan harga sebelum rugi</h2>
+              {products.length === 0 ? (
+                <p style={{ color: "#94a3b8" }}>Tambahkan produk dulu untuk memakai simulator.</p>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  <select
+                    value={simulatorProduct?.id || ""}
+                    onChange={(e) => {
+                      const found = products.find((item) => item.id === e.target.value);
+                      setSelectedSimulatorId(e.target.value);
+                      setSimulatedPrice(found ? String(found.sellingPrice) : "");
+                    }}
+                    style={{ ...inputStyle, width: "100%" }}
+                  >
+                    {products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                  <input
+                    value={simulatedPrice || String(simulatorProduct?.sellingPrice || "")}
+                    onChange={(e) => setSimulatedPrice(e.target.value)}
+                    type="number"
+                    min="1"
+                    placeholder="Harga simulasi"
+                    style={{ ...inputStyle, width: "100%" }}
+                  />
+                  <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+                    <div style={{ padding: 14, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                      <small>Profit baru</small><br /><strong style={{ color: simulatorProfit >= 0 ? "#86efac" : "#fca5a5" }}>{money(simulatorProfit)}</strong>
+                    </div>
+                    <div style={{ padding: 14, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                      <small>Margin baru</small><br /><strong>{percent(simulatorMargin)}</strong>
+                    </div>
+                    <div style={{ padding: 14, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                      <small>Selisih</small><br /><strong style={{ color: simulatorDelta >= 0 ? "#86efac" : "#fca5a5" }}>{money(simulatorDelta)}</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>🥊 Competitor-style Pricing</p>
+              <h2 style={{ margin: "8px 0" }}>Bandingkan dengan harga kompetitor</h2>
+              <div style={{ display: "grid", gap: 10, maxHeight: 330, overflowY: "auto", paddingRight: 4 }}>
+                {proActionPlan.slice(0, 6).map((item) => {
+                  const comp = parseNumber(competitorPrices[item.id]);
+                  return (
+                    <div key={item.id} style={{ padding: 14, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                      <strong>{item.name}</strong>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+                        <small style={{ color: "#94a3b8" }}>Harga kamu: {money(item.sellingPrice)}</small>
+                        <input
+                          value={competitorPrices[item.id] || ""}
+                          onChange={(e) => setCompetitorPrices((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                          type="number"
+                          min="0"
+                          placeholder="Harga kompetitor"
+                          style={{ ...inputStyle, padding: "10px 12px", borderRadius: 12 }}
+                        />
+                      </div>
+                      <small style={{ display: "block", color: "#cbd5e1", marginTop: 8 }}>
+                        {getCompetitorDecision(item, comp)}
+                      </small>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {showBeforeAfter && !isPro && (
+          <section
+            style={{
+              ...cardStyle,
+              marginBottom: 24,
+              border: "1px solid rgba(245,158,11,0.34)",
+              background: "linear-gradient(135deg, rgba(69,26,3,0.66), rgba(2,6,23,0.92))",
+            }}
+          >
+            <button onClick={() => setShowBeforeAfter(false)} style={{ float: "right", background: "transparent", color: "white", border: "none", fontSize: 22, cursor: "pointer" }}>×</button>
+            <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>🔐 Before / After PRO Preview</p>
+            <h2 style={{ margin: "8px 0" }}>Free kasih alarm. PRO kasih keputusan.</h2>
+            <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
+              <div style={{ padding: 16, borderRadius: 18, background: "rgba(2,6,23,0.74)", border: "1px solid rgba(148,163,184,0.16)" }}>
+                <strong>Free</strong>
+                <p style={{ color: "#94a3b8", lineHeight: 1.6 }}>Melihat estimasi bocor, jumlah produk berisiko, dan preview AI.</p>
+              </div>
+              <div style={{ padding: 16, borderRadius: 18, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.28)" }}>
+                <strong style={{ color: "#86efac" }}>PRO</strong>
+                <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>Membuka harga aman, diagnosis tiap produk, checklist, PDF report, simulator, dan action plan CFO.</p>
+              </div>
+            </div>
+            <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, marginTop: 14 }}>🔓 Unlock PRO View</button>
+          </section>
+        )}
+
+        <section
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            border: "1px solid rgba(34,197,94,0.22)",
+          }}
+        >
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 18, alignItems: "center" }}>
+            <div>
+              <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>📩 Retention Profit Report</p>
+              <h2 style={{ margin: "8px 0" }}>Laporan harian/mingguan yang bikin user balik lagi</h2>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>{retentionSummary}</p>
+              <small style={{ color: "#94a3b8" }}>Versi produk: tampilkan ringkasan ini di email/WhatsApp/push notification untuk retention.</small>
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              <button onClick={exportPremiumPDFReport} style={ctaButtonStyle}>{isPro ? "📄 Export PDF Premium" : "🔒 Export PDF PRO"}</button>
+              <button onClick={() => setShowOnboarding(true)} style={ghostButtonStyle}>🚀 Lihat Onboarding Wizard</button>
+            </div>
+          </div>
         </section>
 
         {products.length > 0 && (
@@ -2729,9 +3185,14 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                     <br />
                     <small style={{ color: getStockStatus(item).color }}>{getRestockRecommendation(item)}</small>
                   </div>
-                  <button onClick={() => deleteProduct(item.id)} style={{ ...ghostButtonStyle, background: "rgba(127,29,29,0.52)" }}>
-                    Hapus
-                  </button>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <button onClick={() => setSelectedDiagnosis(item)} style={{ ...ghostButtonStyle, background: "rgba(34,197,94,0.12)", color: "#86efac" }}>
+                      Diagnosis
+                    </button>
+                    <button onClick={() => deleteProduct(item.id)} style={{ ...ghostButtonStyle, background: "rgba(127,29,29,0.52)" }}>
+                      Hapus
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
