@@ -259,19 +259,9 @@ function getStockStatus(item: Product) {
 
 function getRestockRecommendation(item: Product) {
   if (item.profit < 0 || item.margin < 10) return "🔴 Jangan restock dulu";
-
-  if (item.stockRemaining <= 0 && item.profit > 0 && item.margin >= 20) {
-    return "🟢 Restock segera";
-  }
-
-  if ((item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15) && item.profit > 0 && item.margin >= 20) {
-    return "🟢 Restock";
-  }
-
-  if (item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15) {
-    return "🟡 Optimasi dulu";
-  }
-
+  if (item.stockRemaining <= 0 && item.profit > 0 && item.margin >= 20) return "🟢 Restock segera";
+  if ((item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15) && item.profit > 0 && item.margin >= 20) return "🟢 Restock";
+  if (item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15) return "🟡 Optimasi dulu";
   return "✅ Pantau stok";
 }
 
@@ -456,8 +446,6 @@ export default function DashboardPage() {
           decision,
           reason,
           priceGap: Math.max(0, recommendedPrice - item.sellingPrice),
-          stockStatus: getStockStatus(item).label,
-          restockRecommendation: getRestockRecommendation(item),
         };
       }),
     [products]
@@ -748,8 +736,6 @@ const { data: productData, error: productError } = await db
       "Nama Produk",
       "Modal",
       "Harga Jual",
-      "Stok Awal",
-      "Stok Tersisa",
       "Terjual",
       "Biaya Lain",
       "Profit",
@@ -762,8 +748,6 @@ const { data: productData, error: productError } = await db
       item.name,
       item.costPrice,
       item.sellingPrice,
-      item.stockInitial,
-      item.stockRemaining,
       item.quantitySold,
       item.otherCost,
       item.profit,
@@ -1088,9 +1072,6 @@ Omzet: ${money(totalRevenue)}
 Profit bersih: ${money(totalProfit)}
 Margin rata-rata: ${percent(avgMargin)}
 Unit terjual: ${totalUnits.toLocaleString("id-ID")}
-Stok tersisa: ${totalRemainingStock.toLocaleString("id-ID")} dari ${totalInitialStock.toLocaleString("id-ID")}
-Stok menipis: ${lowStockProducts.length}
-Stok habis: ${outOfStockProducts.length}
 
 Deteksi risiko:
 - Produk rugi: ${lossProducts.length}
@@ -2142,12 +2123,51 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </div>
 
             <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-              <input name="productName" placeholder="Nama produk" value={form.productName} onChange={handleChange} style={inputStyle} required />
-              <input name="costPrice" type="number" min="0" placeholder="Modal per produk" value={form.costPrice} onChange={handleChange} style={inputStyle} required />
-              <input name="sellingPrice" type="number" min="1" placeholder="Harga jual" value={form.sellingPrice} onChange={handleChange} style={inputStyle} required />
-              <input name="stockInitial" type="number" min="0" placeholder="Stok awal produk" value={form.stockInitial} onChange={handleChange} style={inputStyle} required />
-              <input name="quantitySold" type="number" min="1" placeholder="Jumlah terjual" value={form.quantitySold} onChange={handleChange} style={inputStyle} required />
-              <input name="otherCost" type="number" min="0" placeholder="Biaya admin, iklan, packing, operasional" value={form.otherCost} onChange={handleChange} style={inputStyle} required />
+              <label style={{ display: "grid", gap: 6 }}>
+                <small style={{ color: "#86efac", fontWeight: 800 }}>Nama Produk</small>
+                <input name="productName" placeholder="Contoh: Kopi Susu 250ml" value={form.productName} onChange={handleChange} style={inputStyle} required />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <small style={{ color: "#86efac", fontWeight: 800 }}>Modal per Produk</small>
+                <input name="costPrice" type="number" min="0" placeholder="Contoh: 100000" value={form.costPrice} onChange={handleChange} style={inputStyle} required />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <small style={{ color: "#86efac", fontWeight: 800 }}>Harga Jual</small>
+                <input name="sellingPrice" type="number" min="1" placeholder="Contoh: 200000" value={form.sellingPrice} onChange={handleChange} style={inputStyle} required />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <small style={{ color: "#fbbf24", fontWeight: 900 }}>📦 Stok Awal Produk</small>
+                <input name="stockInitial" type="number" min="0" placeholder="Contoh: 100 stok awal" value={form.stockInitial} onChange={handleChange} style={{ ...inputStyle, border: "1px solid rgba(245,158,11,0.42)" }} required />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <small style={{ color: "#86efac", fontWeight: 800 }}>Jumlah Terjual</small>
+                <input name="quantitySold" type="number" min="1" placeholder="Contoh: 50 terjual" value={form.quantitySold} onChange={handleChange} style={inputStyle} required />
+              </label>
+
+              {form.stockInitial && form.quantitySold && (
+                <div
+                  style={{
+                    padding: 13,
+                    borderRadius: 14,
+                    background: "rgba(15,23,42,0.78)",
+                    border: "1px solid rgba(245,158,11,0.28)",
+                    color: "#fbbf24",
+                    fontWeight: 900,
+                  }}
+                >
+                  📦 Stok tersisa otomatis: {Math.max(Number(form.stockInitial || 0) - Number(form.quantitySold || 0), 0)} pcs
+                </div>
+              )}
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <small style={{ color: "#86efac", fontWeight: 800 }}>Biaya Lain</small>
+                <input name="otherCost" type="number" min="0" placeholder="Biaya admin, iklan, packing, operasional" value={form.otherCost} onChange={handleChange} style={inputStyle} required />
+              </label>
+
               <button type="submit" disabled={loading || !currentUserId} style={{ ...ctaButtonStyle, opacity: loading ? 0.7 : 1 }}>
                 {loading ? "⏳ Menganalisa..." : "🔍 Cek Profit Produk Ini"}
               </button>
@@ -2351,44 +2371,6 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   🔓 Buka AI Restock Plan
                 </button>
               )}
-            </div>
-
-            <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-              {[...outOfStockProducts, ...lowStockProducts].slice(0, isPro ? 8 : 2).map((item) => (
-                <div
-                  key={`stock-${item.id}`}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1.2fr 0.8fr 1fr",
-                    gap: 12,
-                    alignItems: "center",
-                    padding: 14,
-                    borderRadius: 16,
-                    background: "rgba(2,6,23,0.68)",
-                    border: "1px solid rgba(148,163,184,0.14)",
-                  }}
-                >
-                  <div>
-                    <strong>{item.name}</strong>
-                    <br />
-                    <small style={{ color: getStockStatus(item).color }}>{getStockStatus(item).label}</small>
-                  </div>
-                  <div>
-                    <strong>{item.stockRemaining}/{item.stockInitial}</strong>
-                    <br />
-                    <small style={{ color: "#94a3b8" }}>stok tersisa</small>
-                  </div>
-                  <div>
-                    <strong style={{ color: item.profit > 0 && item.margin >= 20 ? "#86efac" : "#fca5a5" }}>
-                      {isPro ? getRestockRecommendation(item) : "🔒 AI Restock PRO"}
-                    </strong>
-                    <br />
-                    <small style={{ color: "#94a3b8" }}>
-                      {isPro ? "Berdasarkan profit, margin, dan stok." : "Upgrade untuk keputusan restock/stop."}
-                    </small>
-                  </div>
-                </div>
-              ))}
             </div>
           </section>
         )}
