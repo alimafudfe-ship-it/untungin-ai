@@ -733,7 +733,7 @@ const { data: productData, error: productError } = await db
     }
 
     const headers = [
-      "Nama Produk",
+      "Nama Barang",
       "Modal",
       "Harga Jual",
       "Terjual",
@@ -798,8 +798,8 @@ const { data: productData, error: productError } = await db
         const importedProducts = rows.slice(0, remainingSlot).map((row, index) => {
           const name =
             String(
-              row["Nama Produk"] ||
-                row["Nama Produk / Nama Variasi"] ||
+              row["Nama Barang"] ||
+                row["Nama Barang / Nama Variasi"] ||
                 row["Product Name"] ||
                 `Produk Shopee ${index + 1}`
             );
@@ -921,7 +921,7 @@ const { data: productData, error: productError } = await db
       quantitySold > stockInitial ||
       otherCost < 0
     ) {
-      alert("Cek lagi input kamu. Harga jual, stok awal, dan jumlah terjual harus valid. Jumlah terjual tidak boleh melebihi stok awal.");
+      alert("Cek lagi input kamu. Harga jual, jumlah stok barang, dan jumlah terjual harus valid. Jumlah terjual tidak boleh melebihi jumlah stok barang.");
       setLoading(false);
       return;
     }
@@ -2090,7 +2090,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             ["Omzet", money(totalRevenue), "white", `${totalUnits.toLocaleString("id-ID")} unit terjual`],
             ["Margin Rata-rata", percent(avgMargin), avgMargin < 10 ? "#fca5a5" : avgMargin < 20 ? "#fbbf24" : "#86efac", "Target aman >= 20%"],
             ["Produk Rugi", `${lossProducts.length}`, lossProducts.length ? "#fca5a5" : "#86efac", "Stop sebelum scale"],
-            ["Stok Menipis", `${lowStockProducts.length + outOfStockProducts.length}`, lowStockProducts.length + outOfStockProducts.length ? "#fbbf24" : "#86efac", `${totalRemainingStock.toLocaleString("id-ID")} stok tersisa`],
+            ["Stok Barang Menipis", `${lowStockProducts.length + outOfStockProducts.length}`, lowStockProducts.length + outOfStockProducts.length ? "#fbbf24" : "#86efac", `${totalRemainingStock.toLocaleString("id-ID")} stok barang tersisa`],
           ].map(([title, value, color, desc]) => (
             <div key={title} style={cardStyle}>
               <p style={{ margin: 0, color: "#94a3b8" }}>{title}</p>
@@ -2124,8 +2124,8 @@ Rule CFO: tambah produk karena data, bukan feeling.`
 
             <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
               <label style={{ display: "grid", gap: 6 }}>
-                <small style={{ color: "#86efac", fontWeight: 800 }}>Nama Produk</small>
-                <input name="productName" placeholder="Contoh: Kopi Susu 250ml" value={form.productName} onChange={handleChange} style={inputStyle} required />
+                <small style={{ color: "#86efac", fontWeight: 800 }}>Nama Barang</small>
+                <input name="productName" placeholder="Contoh: Kerbau / Kopi / Ayam" value={form.productName} onChange={handleChange} style={inputStyle} required />
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
@@ -2139,8 +2139,11 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
-                <small style={{ color: "#fbbf24", fontWeight: 900 }}>📦 Stok Awal Produk</small>
-                <input name="stockInitial" type="number" min="0" placeholder="Contoh: 100 stok awal" value={form.stockInitial} onChange={handleChange} style={{ ...inputStyle, border: "1px solid rgba(245,158,11,0.42)" }} required />
+                <small style={{ color: "#fbbf24", fontWeight: 900 }}>📦 Jumlah Stok Barang</small>
+                <input name="stockInitial" type="number" min="0" placeholder="Contoh: 100 stok barang" value={form.stockInitial} onChange={handleChange} style={{ ...inputStyle, border: "1px solid rgba(245,158,11,0.42)" }} required />
+                <small style={{ color: "#94a3b8" }}>
+                  Isi jumlah barang yang kamu punya sekarang. Nanti stok otomatis berkurang dari jumlah terjual.
+                </small>
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
@@ -2159,7 +2162,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                     fontWeight: 900,
                   }}
                 >
-                  📦 Stok tersisa otomatis: {Math.max(Number(form.stockInitial || 0) - Number(form.quantitySold || 0), 0)} pcs
+                  📦 Stok barang tersisa otomatis: {Math.max(Number(form.stockInitial || 0) - Number(form.quantitySold || 0), 0)} pcs
                 </div>
               )}
 
@@ -2357,7 +2360,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
               <div>
                 <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>
-                  📦 Alert Stok Menipis
+                  📦 Alert Stok Barang Menipis
                 </p>
                 <h2 style={{ margin: "6px 0" }}>
                   {lowStockProducts.length + outOfStockProducts.length} produk butuh perhatian stok
@@ -2467,7 +2470,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                       {item.stockRemaining}/{item.stockInitial}
                     </span>
                     <br />
-                    <small style={{ color: "#94a3b8" }}>Stok tersisa</small>
+                    <small style={{ color: "#94a3b8" }}>Stok barang tersisa</small>
                     <br />
                     <small style={{ color: getStockStatus(item).color }}>{getRestockRecommendation(item)}</small>
                   </div>
