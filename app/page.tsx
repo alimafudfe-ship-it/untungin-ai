@@ -512,45 +512,50 @@ export default function DashboardPage() {
   const urgencyDeadlineText = `${CONVERSION_DEADLINE_HOURS} jam`;
 
   const inputStyle: React.CSSProperties = {
-    padding: "15px 16px",
-    borderRadius: 16,
-    border: "1px solid rgba(148,163,184,0.22)",
-    background: "rgba(2,6,23,0.74)",
+    padding: "16px 18px",
+    borderRadius: 18,
+    border: "1px solid rgba(148,163,184,0.26)",
+    background: "linear-gradient(180deg, rgba(15,23,42,0.78), rgba(2,6,23,0.86))",
     color: "white",
     fontSize: 15,
     outline: "none",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 48px rgba(0,0,0,0.16)",
   };
 
   const cardStyle: React.CSSProperties = {
-    background: "linear-gradient(180deg, rgba(15,23,42,0.88), rgba(2,6,23,0.88))",
-    border: "1px solid rgba(148,163,184,0.16)",
-    borderRadius: 28,
-    padding: 24,
-    boxShadow: "0 30px 100px rgba(0,0,0,0.42)",
-    backdropFilter: "blur(18px)",
+    position: "relative",
+    overflow: "hidden",
+    background:
+      "linear-gradient(145deg, rgba(15,23,42,0.82), rgba(2,6,23,0.92)), linear-gradient(135deg, rgba(34,197,94,0.08), rgba(20,184,166,0.04))",
+    border: "1px solid rgba(255,255,255,0.11)",
+    borderRadius: 32,
+    padding: 26,
+    boxShadow: "0 28px 90px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.06)",
+    backdropFilter: "blur(22px) saturate(130%)",
   };
 
   const ctaButtonStyle: React.CSSProperties = {
-    padding: "14px 18px",
-    background: "linear-gradient(135deg, #22c55e, #14b8a6)",
-    color: "white",
-    border: "none",
-    borderRadius: 16,
+    padding: "15px 20px",
+    background: "linear-gradient(135deg, #84cc16 0%, #22c55e 42%, #14b8a6 100%)",
+    color: "#02130a",
+    border: "1px solid rgba(190,242,100,0.48)",
+    borderRadius: 18,
     cursor: "pointer",
-    fontWeight: 800,
+    fontWeight: 950,
     fontSize: 15,
-    boxShadow: "0 18px 48px rgba(34,197,94,0.28)",
+    letterSpacing: "-0.01em",
+    boxShadow: "0 20px 60px rgba(34,197,94,0.34), inset 0 1px 0 rgba(255,255,255,0.35)",
   };
 
   const ghostButtonStyle: React.CSSProperties = {
-    padding: "12px 15px",
-    background: "rgba(2,6,23,0.72)",
+    padding: "12px 16px",
+    background: "linear-gradient(180deg, rgba(15,23,42,0.72), rgba(2,6,23,0.82))",
     color: "white",
-    border: "1px solid rgba(148,163,184,0.22)",
-    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: 16,
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 42px rgba(0,0,0,0.20)",
   };
 
 useEffect(() => {
@@ -1660,23 +1665,83 @@ Rule CFO: tambah produk karena data, bukan feeling.`
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(circle at 10% 0%, rgba(34,197,94,0.24), transparent 32%), radial-gradient(circle at 90% 10%, rgba(20,184,166,0.18), transparent 30%), linear-gradient(135deg, #020617 0%, #030712 55%, #000 100%)",
+          "radial-gradient(circle at 8% -4%, rgba(132,204,22,0.22), transparent 28%), radial-gradient(circle at 88% 8%, rgba(20,184,166,0.23), transparent 30%), radial-gradient(circle at 50% 110%, rgba(59,130,246,0.18), transparent 34%), linear-gradient(135deg, #020617 0%, #07111f 42%, #030712 72%, #000 100%)",
         color: "white",
-        fontFamily: "Inter, Arial, sans-serif",
+        fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
         padding: 24,
       }}
     >
       <style>{`
         * { box-sizing: border-box; }
-        button:hover { transform: translateY(-1px); filter: brightness(1.04); }
-        button { transition: 160ms ease; }
-        input::placeholder, textarea::placeholder { color: rgba(203,213,225,0.48); }
+        html { scroll-behavior: smooth; }
+        button { transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease; }
+        button:hover { transform: translateY(-2px) scale(1.01); filter: brightness(1.06); }
+        button:active { transform: translateY(0) scale(0.99); }
+        input:focus, textarea:focus {
+          border-color: rgba(34,197,94,0.64) !important;
+          box-shadow: 0 0 0 4px rgba(34,197,94,0.10), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        }
+        input::placeholder, textarea::placeholder { color: rgba(203,213,225,0.46); }
+        .media-orb {
+          position: fixed;
+          inset: auto auto 7% -120px;
+          width: 280px;
+          height: 280px;
+          border-radius: 999px;
+          background: radial-gradient(circle, rgba(34,197,94,0.22), transparent 66%);
+          filter: blur(8px);
+          pointer-events: none;
+          z-index: 0;
+        }
+        .media-grid-bg {
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+          background-size: 54px 54px;
+          mask-image: linear-gradient(to bottom, rgba(0,0,0,0.78), transparent 78%);
+          z-index: 0;
+        }
+        .premium-shell { position: relative; z-index: 1; }
+        .hero-title {
+          background: linear-gradient(90deg, #ffffff 0%, #dcfce7 38%, #86efac 72%, #67e8f9 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          text-shadow: 0 18px 70px rgba(34,197,94,0.13);
+        }
+        .media-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          background: linear-gradient(135deg, rgba(255,255,255,0.10), transparent 28%, rgba(34,197,94,0.06));
+        }
+        .shine-chip {
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 14px 40px rgba(0,0,0,0.22);
+        }
+        .ticker {
+          display: inline-flex;
+          gap: 10px;
+          align-items: center;
+          white-space: nowrap;
+          animation: floatPulse 3.8s ease-in-out infinite;
+        }
+        @keyframes floatPulse {
+          0%, 100% { transform: translateY(0); opacity: 0.88; }
+          50% { transform: translateY(-4px); opacity: 1; }
+        }
         @media (max-width: 980px) {
           .premium-grid, .main-grid, .three-grid, .two-grid { grid-template-columns: 1fr !important; }
-          .hero-title { font-size: 38px !important; }
+          .hero-title { font-size: 40px !important; letter-spacing: -1.3px !important; }
           .product-row, .action-row { grid-template-columns: 1fr !important; }
         }
       `}</style>
+      <div className="media-grid-bg" />
+      <div className="media-orb" />
 
       {showUpgradeModal && (
         <div
@@ -1849,7 +1914,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
         </div>
       )}
 
-      <section style={{ maxWidth: 1240, margin: "0 auto", paddingTop: 22 }}>
+      <section className="premium-shell" style={{ maxWidth: 1280, margin: "0 auto", paddingTop: 22 }}>
         <nav
           style={{
             display: "flex",
@@ -1967,35 +2032,40 @@ Rule CFO: tambah produk karena data, bukan feeling.`
         )}
 
         <header
+          className="media-card"
           style={{
             ...cardStyle,
-            padding: "42px 34px",
+            padding: "48px 38px",
             marginBottom: 24,
-            background: "linear-gradient(135deg, rgba(6,78,59,0.64), rgba(2,6,23,0.92))",
+            border: "1px solid rgba(134,239,172,0.26)",
+            background:
+              "radial-gradient(circle at 16% 0%, rgba(132,204,22,0.20), transparent 34%), radial-gradient(circle at 88% 16%, rgba(6,182,212,0.18), transparent 32%), linear-gradient(135deg, rgba(6,78,59,0.58), rgba(2,6,23,0.94))",
           }}
         >
           <div className="premium-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 28, alignItems: "center" }}>
             <div>
               <div
+                className="shine-chip ticker"
                 style={{
                   display: "inline-flex",
-                  gap: 8,
+                  gap: 9,
                   alignItems: "center",
-                  padding: "8px 13px",
+                  padding: "9px 14px",
                   borderRadius: 999,
-                  background: "rgba(34,197,94,0.14)",
-                  color: "#86efac",
-                  fontWeight: 800,
-                  marginBottom: 16,
+                  background: "linear-gradient(135deg, rgba(34,197,94,0.18), rgba(6,182,212,0.10))",
+                  color: "#bbf7d0",
+                  border: "1px solid rgba(134,239,172,0.24)",
+                  fontWeight: 950,
+                  marginBottom: 18,
                 }}
               >
-                ✨ AI CFO Dashboard {isPro ? "• Full Access" : "• Preview Mode"}
+                ✦ Multimedia Profit Command Center {isPro ? "• Full Access" : "• Preview Mode"}
               </div>
-              <h1 className="hero-title" style={{ fontSize: 58, lineHeight: 1.02, margin: 0, letterSpacing: -2 }}>
-                STOP RUGI DIAM-DIAM. Cek uang bocor hari ini.
+              <h1 className="hero-title" style={{ fontSize: 64, lineHeight: 0.98, margin: 0, letterSpacing: -2.8, maxWidth: 820 }}>
+                STOP RUGI DIAM-DIAM. Lihat Profit Bocor Secara Visual.
               </h1>
-              <p style={{ color: "#cbd5e1", fontSize: 18, lineHeight: 1.75, maxWidth: 720 }}>
-                AI Profit Rescue membaca produk rugi, margin tipis, harga salah, dan langkah fix sebelum uang kamu makin bocor.
+              <p style={{ color: "#cbd5e1", fontSize: 18, lineHeight: 1.78, maxWidth: 760 }}>
+                Dashboard dibuat seperti control room multimedia: profit, stok, risiko, dan keputusan AI CFO tampil dramatis, jelas, dan mendorong user untuk upgrade.
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
                 <button onClick={() => document.getElementById("profit-form")?.scrollIntoView({ behavior: "smooth" })} style={ctaButtonStyle}>
@@ -2007,7 +2077,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               </div>
             </div>
 
-            <div style={{ padding: 22, borderRadius: 26, background: "rgba(2,6,23,0.66)", border: "1px solid rgba(34,197,94,0.22)" }}>
+            <div className="media-card" style={{ padding: 24, borderRadius: 30, background: "linear-gradient(160deg, rgba(2,6,23,0.74), rgba(15,23,42,0.62))", border: "1px solid rgba(134,239,172,0.22)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 24px 70px rgba(0,0,0,0.34)" }}>
               <p style={{ margin: 0, color: "#94a3b8" }}>Profit bersih hari ini</p>
               <h2 style={{ fontSize: 42, margin: "8px 0", color: totalProfit >= 0 ? "#86efac" : "#fca5a5" }}>
                 {money(totalProfit)}
@@ -2047,6 +2117,35 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </div>
           </div>
         </header>
+
+        <section
+          className="media-card"
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            padding: "18px 22px",
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 16,
+            alignItems: "center",
+            background: "linear-gradient(90deg, rgba(34,197,94,0.14), rgba(6,182,212,0.08), rgba(2,6,23,0.72))",
+          }}
+        >
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 28 }}>🎬</span>
+            <div>
+              <strong style={{ fontSize: 18 }}>Visual Selling Layer aktif</strong>
+              <p style={{ margin: "4px 0 0", color: "#94a3b8" }}>
+                Dibuat lebih cinematic: glow, glass card, urgency ribbon, dan decision hierarchy untuk menaikkan trust + conversion.
+              </p>
+            </div>
+          </div>
+          {!isPro && (
+            <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
+              🔓 Unlock Full CFO View
+            </button>
+          )}
+        </section>
 
         {products.length > 0 && (
           <section
