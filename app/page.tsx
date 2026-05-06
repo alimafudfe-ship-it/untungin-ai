@@ -48,6 +48,8 @@ type Profile = {
 };
 
 type ProductFilter = "all" | "loss" | "fix" | "scale" | "stock";
+type TargetSegment = "shopee" | "tokopedia" | "dropship" | "umum";
+
 
 type ProductRow = {
   id: string;
@@ -70,6 +72,75 @@ const LIFETIME_PRICE = "Rp99.000 sekali bayar";
 const ADMIN_PRO_PATH = "/admin/pro";
 const CONVERSION_DEADLINE_HOURS = 24;
 const FOMO_BASE_SLOT = 37;
+
+const MIDTRANS_REVIEW_MODE = true;
+const MANUAL_ADMIN_WHATSAPP = "6281234567890";
+const TARGET_SEGMENT_COPY: Record<TargetSegment, { label: string; headline: string; pain: string; demoProduct: string }> = {
+  shopee: {
+    label: "Seller Shopee",
+    headline: "Seller Shopee sering kelihatan ramai order, tapi profit habis di voucher, admin, dan iklan.",
+    pain: "Cocok untuk seller yang upload CSV Shopee, jual banyak SKU, dan butuh tahu produk mana yang benar-benar menghasilkan uang.",
+    demoProduct: "Bundle Skincare Shopee",
+  },
+  tokopedia: {
+    label: "Seller Tokopedia",
+    headline: "Seller Tokopedia butuh keputusan stok dan harga yang rapi sebelum promo besar.",
+    pain: "Cocok untuk toko yang ingin menjaga margin saat ikut kampanye, bebas ongkir, dan diskon marketplace.",
+    demoProduct: "Aksesoris HP Tokopedia",
+  },
+  dropship: {
+    label: "Dropshipper",
+    headline: "Dropshipper wajib tahu biaya tersembunyi sebelum margin kelihatan aman.",
+    pain: "Cocok untuk dropshipper yang profitnya rawan habis oleh ongkir, supplier fee, retur, dan perang harga.",
+    demoProduct: "Produk Viral Dropship",
+  },
+  umum: {
+    label: "Seller Umum",
+    headline: "Untuk semua seller online yang ingin tahu produk mana yang bocor dan mana yang layak di-scale.",
+    pain: "Bisa dipakai untuk Shopee, Tokopedia, TikTok Shop, Instagram, WhatsApp order, reseller, atau toko offline kecil.",
+    demoProduct: "Produk Best Seller",
+  },
+};
+
+const DEMO_PRODUCTS: Product[] = [
+  {
+    id: "demo-1",
+    name: "Bundle Skincare Shopee",
+    costPrice: 72000,
+    sellingPrice: 99000,
+    quantitySold: 48,
+    stockInitial: 80,
+    stockRemaining: 32,
+    otherCost: 420000,
+    profit: (99000 - 72000) * 48 - 420000,
+    margin: ((99000 - 72000) / 99000) * 100,
+  },
+  {
+    id: "demo-2",
+    name: "Produk Viral Dropship",
+    costPrice: 61000,
+    sellingPrice: 69000,
+    quantitySold: 35,
+    stockInitial: 35,
+    stockRemaining: 0,
+    otherCost: 185000,
+    profit: (69000 - 61000) * 35 - 185000,
+    margin: ((69000 - 61000) / 69000) * 100,
+  },
+  {
+    id: "demo-3",
+    name: "Aksesoris HP Tokopedia",
+    costPrice: 18000,
+    sellingPrice: 35000,
+    quantitySold: 120,
+    stockInitial: 180,
+    stockRemaining: 60,
+    otherCost: 310000,
+    profit: (35000 - 18000) * 120 - 310000,
+    margin: ((35000 - 18000) / 35000) * 100,
+  },
+];
+
 
 const money = (value: number) =>
   `Rp${Math.round(value || 0).toLocaleString("id-ID")}`;
@@ -417,6 +488,11 @@ export default function DashboardPage() {
   const [conversionCountdown, setConversionCountdown] = useState(CONVERSION_DEADLINE_HOURS * 60 * 60);
   const [selectedObjection, setSelectedObjection] = useState<"mahal" | "nanti" | "percaya">("mahal");
   const [showStickyOffer, setShowStickyOffer] = useState(true);
+  const [targetSegment, setTargetSegment] = useState<TargetSegment>("umum");
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [trialActive, setTrialActive] = useState(false);
+  const [manualProofText, setManualProofText] = useState("");
+  const [manualRequestSent, setManualRequestSent] = useState(false);
 
   const isAdmin = profile?.role === "admin";
   const isPro = isProfilePro(profile);
@@ -637,6 +713,9 @@ export default function DashboardPage() {
   const lockedSafePrice = worstProduct
     ? proActionPlan.find((item) => item.id === worstProduct.id)?.recommendedPrice || worstProduct.sellingPrice
     : 0;
+  const selectedSegmentCopy = TARGET_SEGMENT_COPY[targetSegment];
+  const effectiveIsPro = isPro || trialActive;
+  const manualUpgradeMessage = `Halo admin Untungin.ai, saya ingin aktivasi PRO manual. Email: ${userEmail || "demo/user belum login"}. Paket: ${getPlanLabel(selectedPlan)}. Catatan: ${manualProofText || "Saya akan kirim bukti transfer/manual."}`;
 
   const inputStyle: React.CSSProperties = {
     padding: "16px 18px",
@@ -722,12 +801,12 @@ useEffect(() => {
 
     if (sessionError || !user) {
       if (!isMounted) return;
-      setCurrentUserId(null);
+      setCurrentUserId("demo-user");
       setUserEmail(null);
-      setProducts([]);
-      setProfile(null);
+      setProducts(DEMO_PRODUCTS);
+      setProfile({ role: "user", plan: "free", pro_until: null, email: null });
+      setIsDemoMode(true);
       setPageLoading(false);
-      if (redirectIfMissing) router.replace("/login");
       return;
     }
 
@@ -735,6 +814,7 @@ useEffect(() => {
 
     setCurrentUserId(user.id);
     setUserEmail(user.email ?? null);
+    setIsDemoMode(false);
 
     const { data: profileData, error: profileError } = await db
       .from("profiles")
@@ -778,12 +858,12 @@ const { data: productData, error: productError } = await db
     }
 
     if (event === "SIGNED_OUT" || !session?.user) {
-      setCurrentUserId(null);
+      setCurrentUserId("demo-user");
       setUserEmail(null);
-      setProducts([]);
-      setProfile(null);
+      setProducts(DEMO_PRODUCTS);
+      setProfile({ role: "user", plan: "free", pro_until: null, email: null });
+      setIsDemoMode(true);
       setPageLoading(false);
-      router.replace("/login");
     }
   });
 
@@ -850,6 +930,29 @@ const { data: productData, error: productError } = await db
     return true;
   }
 
+  function startDemoMode(segment: TargetSegment = targetSegment) {
+    setTargetSegment(segment);
+    setIsDemoMode(true);
+    setCurrentUserId("demo-user");
+    setUserEmail(null);
+    setProfile({ role: "user", plan: "free", pro_until: null, email: null });
+    setProducts(DEMO_PRODUCTS.map((item, index) => ({ ...item, id: `demo-${segment}-${index + 1}`, name: index === 0 ? TARGET_SEGMENT_COPY[segment].demoProduct : item.name })));
+    setShowOnboarding(false);
+    window.setTimeout(() => document.getElementById("profit-form")?.scrollIntoView({ behavior: "smooth" }), 150);
+  }
+
+  function activateOneDayTrial() {
+    setTrialActive(true);
+    setShowUpgradeModal(false);
+    alert("Trial PRO 1 hari aktif di browser ini. Gunakan untuk melihat value sebelum Midtrans selesai review.");
+  }
+
+  function submitManualActivation() {
+    setManualRequestSent(true);
+    const url = `https://wa.me/${MANUAL_ADMIN_WHATSAPP}?text=${encodeURIComponent(manualUpgradeMessage)}`;
+    window.open(url, "_blank");
+  }
+
   async function handleLogout() {
     if (!isPro && products.length > 0 && dailyLeakEstimate > 0) {
       const confirmed = window.confirm(`Sebelum logout: AI masih melihat potensi bocor ${money(dailyLeakEstimate)} hari ini. Tetap logout?`);
@@ -881,6 +984,12 @@ const { data: productData, error: productError } = await db
 
   async function handleUpgradeMidtrans(plan: UpgradePlan = selectedPlan) {
     if (!ensureLoggedIn()) return;
+
+    if (MIDTRANS_REVIEW_MODE) {
+      alert("Midtrans sedang review. Untuk sementara gunakan aktivasi manual / trial 1 hari di modal upgrade.");
+      setShowUpgradeModal(true);
+      return;
+    }
 
     if (!userEmail) {
       alert("Email user tidak ditemukan. Coba logout lalu login ulang.");
@@ -943,7 +1052,7 @@ const { data: productData, error: productError } = await db
   }
 
   function exportReportCSV() {
-    if (!isPro) {
+    if (!effectiveIsPro) {
       openUpgradeModal("lifetime");
       return;
     }
@@ -1151,6 +1260,33 @@ const { data: productData, error: productError } = await db
     const margin = sellingPrice > 0 ? ((sellingPrice - costPrice) / sellingPrice) * 100 : 0;
 
     try {
+      if (isDemoMode) {
+        const localProduct: Product = {
+          id: `demo-custom-${Date.now()}`,
+          name: form.productName,
+          costPrice,
+          sellingPrice,
+          quantitySold,
+          stockInitial,
+          stockRemaining,
+          otherCost,
+          profit: profitValue,
+          margin,
+        };
+        setProducts((prev) => [localProduct, ...prev]);
+        setProfit(profitValue);
+        setResult(
+          profitValue < 0
+            ? `🚨 Produk ini rugi ${money(Math.abs(profitValue))}. Demo menunjukkan alert sebelum user daftar.`
+            : margin < 20
+            ? `🟡 Produk perlu optimasi. Demo membuka rasa penasaran untuk upgrade PRO.`
+            : `✅ Produk sehat. Demo siap dikonversi ke signup dan trial.`
+        );
+        setForm({ productName: "", costPrice: "", sellingPrice: "", stockInitial: "", quantitySold: "", otherCost: "" });
+        setLoading(false);
+        return;
+      }
+
       await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1223,6 +1359,11 @@ async function deleteProduct(id: string) {
   if (!ensureLoggedIn()) return;
   if (!currentUserId) return;
 
+  if (isDemoMode) {
+    setProducts((prev) => prev.filter((item) => item.id !== id));
+    return;
+  }
+
   const { error } = await db
     .from("products")
     .delete()
@@ -1242,8 +1383,17 @@ async function resetAll() {
   if (!ensureLoggedIn()) return;
   if (!currentUserId) return;
 
-  const confirmed = window.confirm("Yakin hapus semua produk dari database?");
+  const confirmed = window.confirm(isDemoMode ? "Reset data demo?" : "Yakin hapus semua produk dari database?");
   if (!confirmed) return;
+
+  if (isDemoMode) {
+    setProducts([]);
+    setHistory([]);
+    setResult("");
+    setProfit(null);
+    setShowLeakAlert(false);
+    return;
+  }
 
   const { error } = await db
     .from("products")
@@ -1749,7 +1899,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
       return;
     }
 
-    if (!isPro) {
+    if (!effectiveIsPro) {
       setAiAnswer(`🚨 AI sudah menemukan sinyal profit bocor.
 
 🔒 Diagnosis lengkap dikunci:
@@ -1787,7 +1937,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
   }
 
   function exportPremiumPDFReport() {
-    if (!isPro) {
+    if (!effectiveIsPro) {
       openUpgradeModal("lifetime");
       return;
     }
@@ -2234,6 +2384,25 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               </button>
             </div>
 
+            <div
+              style={{
+                marginTop: 16,
+                padding: 16,
+                borderRadius: 18,
+                background: "linear-gradient(135deg, rgba(69,26,3,0.54), rgba(2,6,23,0.76))",
+                border: "1px solid rgba(245,158,11,0.28)",
+              }}
+            >
+              <p style={{ marginTop: 0, color: "#fbbf24", fontWeight: 950 }}>⏳ Midtrans masih proses review?</p>
+              <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.6 }}>
+                Gunakan aktivasi manual sementara, atau aktifkan trial PRO 1 hari agar user bisa merasakan full value dulu.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="two-grid">
+                <button onClick={activateOneDayTrial} style={ctaButtonStyle}>🎁 Trial 1 Hari</button>
+                <button onClick={submitManualActivation} style={ghostButtonStyle}>🧾 Aktivasi Manual</button>
+              </div>
+            </div>
+
             <p style={{ fontSize: 12, opacity: 0.58, textAlign: "center" }}>
               Catatan: pembayaran diproses oleh Midtrans. Setelah transaksi sukses, PRO aktif otomatis lewat webhook.
             </p>
@@ -2369,7 +2538,16 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               Logout
             </button>
           </div>
-        </nav>
+</nav>
+
+        {(isDemoMode || trialActive) && (
+          <div style={{ ...cardStyle, marginBottom: 24, padding: 18, border: "1px solid rgba(96,165,250,0.32)", background: "linear-gradient(135deg, rgba(29,78,216,0.34), rgba(2,6,23,0.90))" }}>
+            <strong style={{ color: "#bfdbfe" }}>{isDemoMode ? "🎮 Demo Mode aktif" : "🎁 Trial PRO aktif"}</strong>
+            <p style={{ margin: "6px 0 0", color: "#cbd5e1" }}>
+              {isDemoMode ? "User bisa mencoba app tanpa login. Data demo tidak disimpan ke Supabase." : "Fitur PRO terbuka sementara di browser ini untuk mempercepat keputusan beli."}
+            </p>
+          </div>
+        )}
 
         {proExpired && (
           <div
@@ -2511,6 +2689,84 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               🔓 Unlock Full CFO View
             </button>
           )}
+        </section>
+
+        <section
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            border: "1px solid rgba(59,130,246,0.30)",
+            background: "linear-gradient(135deg, rgba(2,6,23,0.94), rgba(30,41,59,0.72))",
+          }}
+        >
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
+            <div>
+              <p style={{ margin: 0, color: "#93c5fd", fontWeight: 950 }}>🌐 Landing Page Funnel — Multi Marketplace</p>
+              <h2 style={{ margin: "8px 0", fontSize: 32 }}>{selectedSegmentCopy.headline}</h2>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.75 }}>{selectedSegmentCopy.pain}</p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                {(["shopee", "tokopedia", "dropship", "umum"] as TargetSegment[]).map((segment) => (
+                  <button
+                    key={segment}
+                    onClick={() => setTargetSegment(segment)}
+                    style={{
+                      ...ghostButtonStyle,
+                      borderColor: targetSegment === segment ? "rgba(34,197,94,0.52)" : "rgba(148,163,184,0.18)",
+                      color: targetSegment === segment ? "#86efac" : "white",
+                      padding: "9px 12px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    {TARGET_SEGMENT_COPY[segment].label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => startDemoMode(targetSegment)} style={{ ...ctaButtonStyle, marginTop: 14 }}>
+                🎮 Coba Demo Tanpa Login
+              </button>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              {[
+                ["Problem", "Profit ramai belum tentu uang masuk. Biaya admin, voucher, iklan, retur, dan ongkir bisa diam-diam makan margin."],
+                ["Demo", "User cukup input 1 produk atau pakai data demo untuk langsung melihat leak, margin, stok, dan keputusan CFO."],
+                ["Offer", `Trial PRO 1 hari + aktivasi manual selama Midtrans review. Harga mulai ${MONTHLY_PRICE}.`],
+                ["FAQ", "Bisa untuk Shopee, Tokopedia, dropship, reseller, TikTok Shop, dan seller umum karena datanya berbasis modal, harga, stok, dan biaya."],
+              ].map(([title, desc]) => (
+                <div key={title} style={{ padding: 14, borderRadius: 18, background: "rgba(2,6,23,0.76)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                  <strong style={{ color: "#86efac" }}>{title}</strong>
+                  <p style={{ margin: "6px 0 0", color: "#cbd5e1", lineHeight: 1.6 }}>{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            border: "1px solid rgba(34,197,94,0.30)",
+            background: "linear-gradient(135deg, rgba(6,78,59,0.52), rgba(2,6,23,0.92))",
+          }}
+        >
+          <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+            <div style={{ padding: 16, borderRadius: 20, background: "rgba(2,6,23,0.74)", border: "1px solid rgba(34,197,94,0.18)" }}>
+              <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>🎁 Trial PRO 1 Hari</p>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>Buka sementara fitur PRO di browser ini agar calon user merasakan value sebelum bayar.</p>
+              {!isPro && <button onClick={activateOneDayTrial} style={{ ...ctaButtonStyle, width: "100%" }}>{trialActive ? "✅ Trial Aktif" : "Aktifkan Trial"}</button>}
+            </div>
+            <div style={{ padding: 16, borderRadius: 20, background: "rgba(2,6,23,0.74)", border: "1px solid rgba(245,158,11,0.22)" }}>
+              <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>🧾 Manual Activation</p>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>Selama Midtrans review, user bisa kirim bukti transfer/aktivasi manual ke admin.</p>
+              <input value={manualProofText} onChange={(e) => setManualProofText(e.target.value)} placeholder="Catatan / nomor WA / bukti transfer" style={{ ...inputStyle, width: "100%", marginBottom: 10 }} />
+              <button onClick={submitManualActivation} style={{ ...ghostButtonStyle, width: "100%" }}>{manualRequestSent ? "✅ Request Terkirim" : "Kirim ke Admin"}</button>
+            </div>
+            <div style={{ padding: 16, borderRadius: 20, background: "rgba(2,6,23,0.74)", border: "1px solid rgba(96,165,250,0.22)" }}>
+              <p style={{ margin: 0, color: "#93c5fd", fontWeight: 950 }}>📱 Mobile-first Polish</p>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>CTA sticky, grid responsive, card ringkas, dan demo mode dibuat cocok untuk seller yang buka lewat HP.</p>
+              <small style={{ color: "#94a3b8" }}>Target: seller Shopee, Tokopedia, dropship, dan seller umum.</small>
+            </div>
+          </div>
         </section>
 
         <section
