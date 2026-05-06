@@ -21,6 +21,8 @@ type Product = {
   costPrice: number;
   sellingPrice: number;
   quantitySold: number;
+  stockInitial: number;
+  stockRemaining: number;
   otherCost: number;
   profit: number;
   margin: number;
@@ -52,6 +54,8 @@ type ProductRow = {
   cost_price: number | string | null;
   selling_price: number | string | null;
   quantity_sold: number | string | null;
+  stock_initial: number | string | null;
+  stock_remaining: number | string | null;
   other_cost: number | string | null;
   profit: number | string | null;
   margin: number | string | null;
@@ -99,6 +103,11 @@ function mapProductRow(row: ProductRow): Product {
     costPrice: toNumber(row.cost_price),
     sellingPrice: toNumber(row.selling_price),
     quantitySold: toNumber(row.quantity_sold),
+    stockInitial: toNumber(row.stock_initial) || toNumber(row.quantity_sold),
+    stockRemaining:
+      row.stock_remaining === null || row.stock_remaining === undefined
+        ? Math.max((toNumber(row.stock_initial) || toNumber(row.quantity_sold)) - toNumber(row.quantity_sold), 0)
+        : toNumber(row.stock_remaining),
     otherCost: toNumber(row.other_cost),
     profit: toNumber(row.profit),
     margin: toNumber(row.margin),
@@ -230,6 +239,45 @@ function getRiskBadge(item: Product) {
   return { label: "🟢 AMAN SCALE", color: "#86efac", bg: "rgba(20,83,45,0.34)" };
 }
 
+
+function getStockStatus(item: Product) {
+  if (item.stockInitial <= 0) {
+    return { label: "⚪ Stok belum diisi", color: "#cbd5e1", bg: "rgba(148,163,184,0.12)" };
+  }
+
+  const stockRate = (item.stockRemaining / Math.max(item.stockInitial, 1)) * 100;
+
+  if (item.stockRemaining <= 0) {
+    return { label: "🔴 STOK HABIS", color: "#fca5a5", bg: "rgba(127,29,29,0.38)" };
+  }
+
+  if (item.stockRemaining <= 5 || stockRate <= 15) {
+    return { label: "🟠 STOK MENIPIS", color: "#fdba74", bg: "rgba(154,52,18,0.34)" };
+  }
+
+  return { label: "🟢 STOK AMAN", color: "#86efac", bg: "rgba(20,83,45,0.34)" };
+}
+
+function getRestockRecommendation(item: Product) {
+  if (item.profit < 0 || item.margin < 10) {
+    return "🔴 Jangan restock dulu";
+  }
+
+  if (item.stockRemaining <= 0 && item.profit > 0 && item.margin >= 20) {
+    return "🟢 Restock segera";
+  }
+
+  if ((item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15) && item.profit > 0 && item.margin >= 20) {
+    return "🟢 Restock";
+  }
+
+  if (item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15) {
+    return "🟡 Optimasi dulu";
+  }
+
+  return "✅ Pantau stok";
+}
+
 function getRescueTone(score: number) {
   if (score >= 75) return "KRITIS";
   if (score >= 50) return "WASPADA";
@@ -244,6 +292,7 @@ export default function DashboardPage() {
     productName: "",
     costPrice: "",
     sellingPrice: "",
+    stockInitial: "",
     quantitySold: "",
     otherCost: "",
   });
@@ -283,6 +332,24 @@ export default function DashboardPage() {
     0
   );
   const totalUnits = products.reduce((acc, item) => acc + item.quantitySold, 0);
+  const totalInitialStock = products.reduce((acc, item) => acc + item.stockInitial, 0);
+  const totalRemainingStock = products.reduce((acc, item) => acc + item.stockRemaining, 0);
+  const lowStockProducts = products.filter(
+    (item) =>
+      item.stockInitial > 0 &&
+      item.stockRemaining > 0 &&
+      (item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15)
+  );
+  const outOfStockProducts = products.filter(
+    (item) => item.stockInitial > 0 && item.stockRemaining <= 0
+  );
+  const restockNowProducts = products.filter(
+    (item) =>
+      item.stockInitial > 0 &&
+      item.stockRemaining <= Math.max(5, item.stockInitial * 0.15) &&
+      item.profit > 0 &&
+      item.margin >= 20
+  );
   const avgMargin =
     products.length > 0
       ? products.reduce((acc, item) => acc + item.margin, 0) / products.length
@@ -682,6 +749,8 @@ const { data: productData, error: productError } = await db
       "Nama Produk",
       "Modal",
       "Harga Jual",
+      "Stok Awal",
+      "Stok Tersisa",
       "Terjual",
       "Biaya Lain",
       "Profit",
@@ -694,6 +763,8 @@ const { data: productData, error: productError } = await db
       item.name,
       item.costPrice,
       item.sellingPrice,
+      item.stockInitial,
+      item.stockRemaining,
       item.quantitySold,
       item.otherCost,
       item.profit,
@@ -759,6 +830,16 @@ const { data: productData, error: productError } = await db
           );
           const quantitySold =
             parseNumber(row["Jumlah"] || row["Jumlah Produk di Pesan"] || row["Quantity"] || 1) || 1;
+          const stockInitial =
+            parseNumber(
+              row["Stok Awal"] ||
+                row["Stock"] ||
+                row["Stok"] ||
+                row["Initial Stock"] ||
+                row["Jumlah Stok"] ||
+                quantitySold
+            ) || quantitySold;
+          const stockRemaining = Math.max(stockInitial - quantitySold, 0);
           const otherCost = parseNumber(
             row["Biaya Admin"] ||
               row["Biaya Layanan"] ||
@@ -783,6 +864,8 @@ const { data: productData, error: productError } = await db
             cost_price: costPrice,
             selling_price: sellingPrice,
             quantity_sold: quantitySold,
+            stock_initial: stockInitial,
+            stock_remaining: stockRemaining,
             other_cost: otherCost,
             profit,
             margin,
@@ -841,17 +924,21 @@ const { data: productData, error: productError } = await db
 
     const costPrice = Number(form.costPrice);
     const sellingPrice = Number(form.sellingPrice);
+    const stockInitial = Number(form.stockInitial);
     const quantitySold = Number(form.quantitySold);
+    const stockRemaining = Math.max(stockInitial - quantitySold, 0);
     const otherCost = Number(form.otherCost);
 
     if (
       !form.productName.trim() ||
       costPrice < 0 ||
       sellingPrice <= 0 ||
+      stockInitial < 0 ||
       quantitySold <= 0 ||
+      quantitySold > stockInitial ||
       otherCost < 0
     ) {
-      alert("Cek lagi input kamu. Harga jual dan jumlah terjual harus lebih dari 0, biaya tidak boleh minus.");
+      alert("Cek lagi input kamu. Harga jual, stok awal, dan jumlah terjual harus valid. Jumlah terjual tidak boleh melebihi stok awal.");
       setLoading(false);
       return;
     }
@@ -875,6 +962,8 @@ const { data: productData, error: productError } = await db
             cost_price: costPrice,
             selling_price: sellingPrice,
             quantity_sold: quantitySold,
+            stock_initial: stockInitial,
+            stock_remaining: stockRemaining,
             other_cost: otherCost,
             profit: profitValue,
             margin,
@@ -898,6 +987,7 @@ const { data: productData, error: productError } = await db
         productName: "",
         costPrice: "",
         sellingPrice: "",
+        stockInitial: "",
         quantitySold: "",
         otherCost: "",
       });
@@ -999,6 +1089,9 @@ Omzet: ${money(totalRevenue)}
 Profit bersih: ${money(totalProfit)}
 Margin rata-rata: ${percent(avgMargin)}
 Unit terjual: ${totalUnits.toLocaleString("id-ID")}
+Stok tersisa: ${totalRemainingStock.toLocaleString("id-ID")} dari ${totalInitialStock.toLocaleString("id-ID")}
+Stok menipis: ${lowStockProducts.length}
+Stok habis: ${outOfStockProducts.length}
 
 Deteksi risiko:
 - Produk rugi: ${lossProducts.length}
@@ -1024,6 +1117,7 @@ Rekomendasi utama:
     }
 3. Naikkan harga produk margin rendah minimal Rp1.000-Rp2.000 atau tekan biaya admin/iklan.
 4. Jangan tambah stok untuk produk rugi sebelum profit per transaksi aman.
+5. Restock hanya produk margin sehat, profit positif, dan stok menipis.
 
 Prioritas hari ini:
 ${
@@ -1111,6 +1205,8 @@ ${
         promoFloor: promoFloor(item),
         unitOtherCost: unitOtherCost(item),
         netProfitPerUnit: item.profit / unitSafe(item),
+        stockStatus: getStockStatus(item).label,
+        restockRecommendation: getRestockRecommendation(item),
       };
     });
 
@@ -1216,6 +1312,9 @@ Kamu bukan cuma butuh omzet. Kamu butuh keputusan yang menyelamatkan profit. Jik
 - Profit bersih: ${money(totalProfit)}
 - Margin rata-rata: ${percent(avgMargin)}
 - Unit terjual: ${totalUnits.toLocaleString("id-ID")}
+- Stok tersisa: ${totalRemainingStock.toLocaleString("id-ID")} dari ${totalInitialStock.toLocaleString("id-ID")}
+- Produk stok menipis: ${lowStockProducts.length}
+- Produk stok habis: ${outOfStockProducts.length}
 - Estimasi profit bocor: ${money(cashLeakTotal)}
 
 Opini CFO:
@@ -1231,6 +1330,7 @@ ${ranking
    - AI Score: ${item.score}/100
    - Segment: ${item.segment}
    - Profit: ${money(item.profit)} | Margin: ${percent(item.margin)}
+   - Stok: ${item.stockRemaining}/${item.stockInitial} | ${item.restockRecommendation}
    - Kontribusi omzet: ${percent(item.revenueShare)}
    - Keputusan: ${item.decision}`
   )
@@ -1246,6 +1346,7 @@ ${
           (item, index) => `${index + 1}. ${item.name}
    - Alasan: profit positif, margin ${percent(item.margin)}, score ${item.score}/100.
    - Cara scale: tambah stok kecil dulu, naikkan traffic bertahap, jangan diskon besar.
+   - Rekomendasi stok: ${item.restockRecommendation}. Stok tersisa ${item.stockRemaining}/${item.stockInitial}.
    - Batas aman promo: jangan jual di bawah ${money(item.promoFloor)}.`
         )
         .join("\n")
@@ -1332,7 +1433,8 @@ ${
           (item, index) => `${index + 1}. ${item.name}
    - Rugi: ${money(item.profit)}
    - Margin: ${percent(item.margin)}
-   - Keputusan: stop iklan/stok baru sampai harga minimal ${money(item.safe25)} atau biaya turun.`
+   - Keputusan: stop iklan/stok baru sampai harga minimal ${money(item.safe25)} atau biaya turun.
+   - Rekomendasi stok: jangan restock sampai profit aman.`
         )
         .join("\n")
     : weakest
@@ -1374,6 +1476,7 @@ Hari ini:
     }
 2. Cek biaya admin, voucher, iklan, packing, dan retur.
 3. Jangan tambah stok ke produk margin di bawah 10%.
+4. ${restockNowProducts[0] ? `Restock ${restockNowProducts[0].name} secara bertahap karena stok menipis dan profit sehat.` : "Pantau stok produk sehat, jangan restock produk rugi."}
 
 7 hari:
 1. Naikkan harga produk margin tipis secara bertahap.
@@ -2011,12 +2114,13 @@ Rule CFO: tambah produk karena data, bukan feeling.`
           </div>
         )}
 
-        <section className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+        <section className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 24 }}>
           {[
             ["Profit Bersih", money(totalProfit), totalProfit >= 0 ? "#86efac" : "#fca5a5", "Real profit setelah biaya"],
             ["Omzet", money(totalRevenue), "white", `${totalUnits.toLocaleString("id-ID")} unit terjual`],
             ["Margin Rata-rata", percent(avgMargin), avgMargin < 10 ? "#fca5a5" : avgMargin < 20 ? "#fbbf24" : "#86efac", "Target aman >= 20%"],
             ["Produk Rugi", `${lossProducts.length}`, lossProducts.length ? "#fca5a5" : "#86efac", "Stop sebelum scale"],
+            ["Stok Menipis", `${lowStockProducts.length + outOfStockProducts.length}`, lowStockProducts.length + outOfStockProducts.length ? "#fbbf24" : "#86efac", `${totalRemainingStock.toLocaleString("id-ID")} stok tersisa`],
           ].map(([title, value, color, desc]) => (
             <div key={title} style={cardStyle}>
               <p style={{ margin: 0, color: "#94a3b8" }}>{title}</p>
@@ -2052,6 +2156,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               <input name="productName" placeholder="Nama produk" value={form.productName} onChange={handleChange} style={inputStyle} required />
               <input name="costPrice" type="number" min="0" placeholder="Modal per produk" value={form.costPrice} onChange={handleChange} style={inputStyle} required />
               <input name="sellingPrice" type="number" min="1" placeholder="Harga jual" value={form.sellingPrice} onChange={handleChange} style={inputStyle} required />
+              <input name="stockInitial" type="number" min="0" placeholder="Stok awal produk" value={form.stockInitial} onChange={handleChange} style={inputStyle} required />
               <input name="quantitySold" type="number" min="1" placeholder="Jumlah terjual" value={form.quantitySold} onChange={handleChange} style={inputStyle} required />
               <input name="otherCost" type="number" min="0" placeholder="Biaya admin, iklan, packing, operasional" value={form.otherCost} onChange={handleChange} style={inputStyle} required />
               <button type="submit" disabled={loading || !currentUserId} style={{ ...ctaButtonStyle, opacity: loading ? 0.7 : 1 }}>
@@ -2079,7 +2184,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               <EmptyState title="Belum ada produk" description="Tambahkan produk pertama untuk membuka dashboard premium." />
             ) : (
               <>
-                <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+                <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
                   <div style={{ padding: 16, borderRadius: 18, background: "rgba(127,29,29,0.32)", border: "1px solid rgba(248,113,113,0.24)" }}>
                     <small>Stop</small>
                     <h3 style={{ color: "#fca5a5" }}>{proStopProducts.length}</h3>
@@ -2092,6 +2197,10 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                     <small>Scale</small>
                     <h3 style={{ color: "#86efac" }}>{proScaleProducts.length}</h3>
                   </div>
+                  <div style={{ padding: 16, borderRadius: 18, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(96,165,250,0.24)" }}>
+                    <small>Restock</small>
+                    <h3 style={{ color: "#93c5fd" }}>{restockNowProducts.length}</h3>
+                  </div>
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>
@@ -2101,7 +2210,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                       key={item.id}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "1.1fr 1fr 1fr",
+                        gridTemplateColumns: "1.1fr 0.9fr 0.9fr 1fr",
                         gap: 12,
                         alignItems: "center",
                         padding: 15,
@@ -2118,6 +2227,15 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                       <div>
                         <small style={{ color: "#94a3b8" }}>Margin {percent(item.margin)}</small>
                         <MarginBar value={item.margin} />
+                      </div>
+                      <div>
+                        <small style={{ color: "#94a3b8" }}>Stok</small>
+                        <br />
+                        <strong style={{ color: item.stockRemaining <= 5 ? "#fbbf24" : "#e5e7eb" }}>
+                          {item.stockRemaining}/{item.stockInitial}
+                        </strong>
+                        <br />
+                        <small style={{ color: getStockStatus(item).color }}>{getStockStatus(item).label}</small>
                       </div>
                       <div>
                         <strong
@@ -2218,6 +2336,74 @@ Rule CFO: tambah produk karena data, bukan feeling.`
           </div>
         </section>
 
+        {(lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
+          <section
+            style={{
+              ...cardStyle,
+              marginTop: 24,
+              border: "1px solid rgba(245,158,11,0.38)",
+              background: "linear-gradient(135deg, rgba(69,26,3,0.72), rgba(2,6,23,0.9))",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+              <div>
+                <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>
+                  📦 Alert Stok Menipis
+                </p>
+                <h2 style={{ margin: "6px 0" }}>
+                  {lowStockProducts.length + outOfStockProducts.length} produk butuh perhatian stok
+                </h2>
+                <p style={{ margin: 0, color: "#cbd5e1" }}>
+                  AI menyarankan restock hanya untuk produk yang profit positif dan margin sehat. Produk rugi jangan direstock dulu.
+                </p>
+              </div>
+              {!isPro && (
+                <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
+                  🔓 Buka AI Restock Plan
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+              {[...outOfStockProducts, ...lowStockProducts].slice(0, isPro ? 8 : 2).map((item) => (
+                <div
+                  key={`stock-${item.id}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.2fr 0.8fr 1fr",
+                    gap: 12,
+                    alignItems: "center",
+                    padding: 14,
+                    borderRadius: 16,
+                    background: "rgba(2,6,23,0.68)",
+                    border: "1px solid rgba(148,163,184,0.14)",
+                  }}
+                >
+                  <div>
+                    <strong>{item.name}</strong>
+                    <br />
+                    <small style={{ color: getStockStatus(item).color }}>{getStockStatus(item).label}</small>
+                  </div>
+                  <div>
+                    <strong>{item.stockRemaining}/{item.stockInitial}</strong>
+                    <br />
+                    <small style={{ color: "#94a3b8" }}>stok tersisa</small>
+                  </div>
+                  <div>
+                    <strong style={{ color: item.profit > 0 && item.margin >= 20 ? "#86efac" : "#fca5a5" }}>
+                      {isPro ? getRestockRecommendation(item) : "🔒 AI Restock PRO"}
+                    </strong>
+                    <br />
+                    <small style={{ color: "#94a3b8" }}>
+                      {isPro ? "Berdasarkan profit, margin, dan stok." : "Upgrade untuk keputusan restock/stop."}
+                    </small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {result && (
           <section style={{ ...cardStyle, marginTop: 24 }}>
             <h2 style={{ marginTop: 0 }}>🤖 Smart Business Insight Terakhir</h2>
@@ -2260,7 +2446,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   key={item.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "0.5fr 1.3fr 1fr 1fr 1fr auto",
+                    gridTemplateColumns: "0.5fr 1.3fr 1fr 1fr 1fr 1fr auto",
                     gap: 12,
                     alignItems: "center",
                     padding: 16,
@@ -2304,6 +2490,15 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   <div>
                     <span>{percent(item.margin)}</span>
                     <MarginBar value={item.margin} />
+                  </div>
+                  <div>
+                    <span style={{ color: getStockStatus(item).color, fontWeight: 900 }}>
+                      {item.stockRemaining}/{item.stockInitial}
+                    </span>
+                    <br />
+                    <small style={{ color: "#94a3b8" }}>Stok tersisa</small>
+                    <br />
+                    <small style={{ color: getStockStatus(item).color }}>{getRestockRecommendation(item)}</small>
                   </div>
                   <button onClick={() => deleteProduct(item.id)} style={{ ...ghostButtonStyle, background: "rgba(127,29,29,0.52)" }}>
                     Hapus
