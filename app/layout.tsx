@@ -115,6 +115,42 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-slate-950 text-white">
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              name: "Untungin.ai",
+              applicationCategory: "BusinessApplication",
+              operatingSystem: "Web",
+              description:
+                "AI CFO untuk seller online: hitung profit real, deteksi margin bocor, rekomendasi harga jual, dan action plan bisnis.",
+              url: "https://untungin.ai",
+              offers: [
+                {
+                  "@type": "Offer",
+                  name: "PRO Bulanan",
+                  price: "29000",
+                  priceCurrency: "IDR",
+                },
+                {
+                  "@type": "Offer",
+                  name: "PRO Lifetime",
+                  price: "99000",
+                  priceCurrency: "IDR",
+                },
+              ],
+              publisher: {
+                "@type": "Organization",
+                name: "Untungin.ai",
+                url: "https://untungin.ai",
+              },
+            }),
+          }}
+        />
+
         {children}
       </body>
     </html>
