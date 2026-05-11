@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type React from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabaseClient";
@@ -73,7 +74,7 @@ const ADMIN_PRO_PATH = "/admin/pro";
 const CONVERSION_DEADLINE_HOURS = 24;
 const FOMO_BASE_SLOT = 37;
 
-const MIDTRANS_REVIEW_MODE = true;
+const MIDTRANS_REVIEW_MODE = false;
 const MANUAL_ADMIN_WHATSAPP = "6281234567890";
 const TARGET_SEGMENT_COPY: Record<TargetSegment, { label: string; headline: string; pain: string; demoProduct: string }> = {
   shopee: {
@@ -2384,25 +2385,6 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               </button>
             </div>
 
-            <div
-              style={{
-                marginTop: 16,
-                padding: 16,
-                borderRadius: 18,
-                background: "linear-gradient(135deg, rgba(69,26,3,0.54), rgba(2,6,23,0.76))",
-                border: "1px solid rgba(245,158,11,0.28)",
-              }}
-            >
-              <p style={{ marginTop: 0, color: "#fbbf24", fontWeight: 950 }}>⏳ Midtrans masih proses review?</p>
-              <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.6 }}>
-                Gunakan aktivasi manual sementara, atau aktifkan trial PRO 1 hari agar user bisa merasakan full value dulu.
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="two-grid">
-                <button onClick={activateOneDayTrial} style={ctaButtonStyle}>🎁 Trial 1 Hari</button>
-                <button onClick={submitManualActivation} style={ghostButtonStyle}>🧾 Aktivasi Manual</button>
-              </div>
-            </div>
-
             <p style={{ fontSize: 12, opacity: 0.58, textAlign: "center" }}>
               Catatan: pembayaran diproses oleh Midtrans. Setelah transaksi sukses, PRO aktif otomatis lewat webhook.
             </p>
@@ -2496,21 +2478,6 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             >
               {isPro ? `PRO Aktif${proExpiryText ? ` sampai ${proExpiryText}` : ""}` : proExpired ? "PRO Expired" : "Free Plan"}
             </span>
-            <span
-              title="Mode testing: role dan plan dari database"
-              style={{
-                padding: "8px 12px",
-                borderRadius: 999,
-                background: "rgba(15,23,42,0.72)",
-                color: "#cbd5e1",
-                border: "1px solid rgba(148,163,184,0.22)",
-                fontSize: 12,
-                fontWeight: 800,
-                textTransform: "uppercase",
-              }}
-            >
-              {(profile?.role || "user")} | {(profile?.plan || "free")}
-            </span>
             <button onClick={exportReportCSV} style={ghostButtonStyle}>
               {isPro ? "Export CSV" : "🔒 Export PRO"}
             </button>
@@ -2539,15 +2506,6 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </button>
           </div>
 </nav>
-
-        {(isDemoMode || trialActive) && (
-          <div style={{ ...cardStyle, marginBottom: 24, padding: 18, border: "1px solid rgba(96,165,250,0.32)", background: "linear-gradient(135deg, rgba(29,78,216,0.34), rgba(2,6,23,0.90))" }}>
-            <strong style={{ color: "#bfdbfe" }}>{isDemoMode ? "🎮 Demo Mode aktif" : "🎁 Trial PRO aktif"}</strong>
-            <p style={{ margin: "6px 0 0", color: "#cbd5e1" }}>
-              {isDemoMode ? "User bisa mencoba app tanpa login. Data demo tidak disimpan ke Supabase." : "Fitur PRO terbuka sementara di browser ini untuk mempercepat keputusan beli."}
-            </p>
-          </div>
-        )}
 
         {proExpired && (
           <div
@@ -2603,13 +2561,13 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   marginBottom: 18,
                 }}
               >
-                ✦ Multimedia Profit Command Center {isPro ? "• Full Access" : "• Preview Mode"}
+                ✦ Untungin.ai Profit Command Center • Produk Digital
               </div>
               <h1 className="hero-title" style={{ fontSize: 64, lineHeight: 0.98, margin: 0, letterSpacing: -2.8, maxWidth: 820 }}>
                 {premiumPainHeadline}
               </h1>
               <p style={{ color: "#cbd5e1", fontSize: 18, lineHeight: 1.78, maxWidth: 760 }}>
-                SaaS premium conversion mode: user langsung melihat rasa sakit finansial, estimasi uang bocor, payback PRO, dan keputusan AI CFO yang harus dilakukan hari ini.
+                Aplikasi digital untuk membantu seller menghitung profit, mendeteksi biaya bocor, menentukan harga aman, dan membuat keputusan stok berbasis data.
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
                 <button onClick={() => document.getElementById("profit-form")?.scrollIntoView({ behavior: "smooth" })} style={ctaButtonStyle}>
@@ -2680,7 +2638,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             <div>
               <strong style={{ fontSize: 18 }}>Visual Selling Layer aktif</strong>
               <p style={{ margin: "4px 0 0", color: "#94a3b8" }}>
-                Dibuat lebih cinematic: glow, glass card, urgency ribbon, dan decision hierarchy untuk menaikkan trust + conversion.
+                Dashboard analisis profit, stok, margin, rekomendasi restock, laporan PDF, dan AI CFO untuk seller online.
               </p>
             </div>
           </div>
@@ -2701,7 +2659,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
         >
           <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
             <div>
-              <p style={{ margin: 0, color: "#93c5fd", fontWeight: 950 }}>🌐 Landing Page Funnel — Multi Marketplace</p>
+              <p style={{ margin: 0, color: "#93c5fd", fontWeight: 950 }}>🌐 Produk Digital untuk Multi Marketplace</p>
               <h2 style={{ margin: "8px 0", fontSize: 32 }}>{selectedSegmentCopy.headline}</h2>
               <p style={{ color: "#cbd5e1", lineHeight: 1.75 }}>{selectedSegmentCopy.pain}</p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
@@ -2722,14 +2680,14 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 ))}
               </div>
               <button onClick={() => startDemoMode(targetSegment)} style={{ ...ctaButtonStyle, marginTop: 14 }}>
-                🎮 Coba Demo Tanpa Login
+                Lihat Contoh Analisis
               </button>
             </div>
             <div style={{ display: "grid", gap: 12 }}>
               {[
                 ["Problem", "Profit ramai belum tentu uang masuk. Biaya admin, voucher, iklan, retur, dan ongkir bisa diam-diam makan margin."],
                 ["Demo", "User cukup input 1 produk atau pakai data demo untuk langsung melihat leak, margin, stok, dan keputusan CFO."],
-                ["Offer", `Trial PRO 1 hari + aktivasi manual selama Midtrans review. Harga mulai ${MONTHLY_PRICE}.`],
+                ["Offer", `Pembayaran online melalui Midtrans. Harga mulai ${MONTHLY_PRICE}, dengan opsi lifetime ${LIFETIME_PRICE}.`],
                 ["FAQ", "Bisa untuk Shopee, Tokopedia, dropship, reseller, TikTok Shop, dan seller umum karena datanya berbasis modal, harga, stok, dan biaya."],
               ].map(([title, desc]) => (
                 <div key={title} style={{ padding: 14, borderRadius: 18, background: "rgba(2,6,23,0.76)", border: "1px solid rgba(148,163,184,0.14)" }}>
@@ -2737,34 +2695,6 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   <p style={{ margin: "6px 0 0", color: "#cbd5e1", lineHeight: 1.6 }}>{desc}</p>
                 </div>
               ))}
-            </div>
-          </div>
-        </section>
-
-        <section
-          style={{
-            ...cardStyle,
-            marginBottom: 24,
-            border: "1px solid rgba(34,197,94,0.30)",
-            background: "linear-gradient(135deg, rgba(6,78,59,0.52), rgba(2,6,23,0.92))",
-          }}
-        >
-          <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
-            <div style={{ padding: 16, borderRadius: 20, background: "rgba(2,6,23,0.74)", border: "1px solid rgba(34,197,94,0.18)" }}>
-              <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>🎁 Trial PRO 1 Hari</p>
-              <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>Buka sementara fitur PRO di browser ini agar calon user merasakan value sebelum bayar.</p>
-              {!isPro && <button onClick={activateOneDayTrial} style={{ ...ctaButtonStyle, width: "100%" }}>{trialActive ? "✅ Trial Aktif" : "Aktifkan Trial"}</button>}
-            </div>
-            <div style={{ padding: 16, borderRadius: 20, background: "rgba(2,6,23,0.74)", border: "1px solid rgba(245,158,11,0.22)" }}>
-              <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>🧾 Manual Activation</p>
-              <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>Selama Midtrans review, user bisa kirim bukti transfer/aktivasi manual ke admin.</p>
-              <input value={manualProofText} onChange={(e) => setManualProofText(e.target.value)} placeholder="Catatan / nomor WA / bukti transfer" style={{ ...inputStyle, width: "100%", marginBottom: 10 }} />
-              <button onClick={submitManualActivation} style={{ ...ghostButtonStyle, width: "100%" }}>{manualRequestSent ? "✅ Request Terkirim" : "Kirim ke Admin"}</button>
-            </div>
-            <div style={{ padding: 16, borderRadius: 20, background: "rgba(2,6,23,0.74)", border: "1px solid rgba(96,165,250,0.22)" }}>
-              <p style={{ margin: 0, color: "#93c5fd", fontWeight: 950 }}>📱 Mobile-first Polish</p>
-              <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>CTA sticky, grid responsive, card ringkas, dan demo mode dibuat cocok untuk seller yang buka lewat HP.</p>
-              <small style={{ color: "#94a3b8" }}>Target: seller Shopee, Tokopedia, dropship, dan seller umum.</small>
             </div>
           </div>
         </section>
@@ -2780,10 +2710,10 @@ Rule CFO: tambah produk karena data, bukan feeling.`
         >
           <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 18, alignItems: "center" }}>
             <div>
-              <p style={{ margin: 0, color: "#fecaca", fontWeight: 950 }}>💣 SaaS Premium Conversion Engine</p>
+              <p style={{ margin: 0, color: "#fecaca", fontWeight: 950 }}>💣 Analisis Profit & Risiko Produk</p>
               <h2 style={{ margin: "8px 0", fontSize: 34 }}>{premiumPainHeadline}</h2>
               <p style={{ color: "#cbd5e1", lineHeight: 1.75 }}>
-                Ini bagian yang bikin user merasa “kalau saya tutup sekarang, saya rugi”. Sistem menampilkan loss, ROI, urgency, dan preview terkunci dalam satu layar.
+                Sistem membantu seller melihat estimasi profit bocor, potensi perbaikan margin, dan prioritas produk yang harus diperbaiki.
               </p>
               <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 14 }}>
                 <div style={{ padding: 14, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(248,113,113,0.22)" }}>
@@ -3714,6 +3644,75 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </div>
           )}
         </section>
+
+        <section
+          id="produk-harga"
+          style={{
+            ...cardStyle,
+            marginTop: 24,
+            border: "1px solid rgba(34,197,94,0.30)",
+            background: "linear-gradient(135deg, rgba(6,78,59,0.48), rgba(2,6,23,0.94))",
+          }}
+        >
+          <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>💼 Produk & Harga Resmi</p>
+          <h2 style={{ margin: "8px 0" }}>Untungin.ai PRO untuk seller online</h2>
+          <p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>
+            Untungin.ai menjual akses aplikasi digital berbasis web untuk analisis profit, margin, stok, pricing, export laporan, dan rekomendasi keputusan bisnis harian.
+          </p>
+          <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
+            <div style={{ padding: 18, borderRadius: 20, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(148,163,184,0.18)" }}>
+              <strong>PRO Bulanan</strong>
+              <h3 style={{ color: "#86efac", margin: "8px 0" }}>{MONTHLY_PRICE}</h3>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>Akses fitur PRO selama 1 bulan: AI CFO, diagnosis produk, harga aman, dan laporan.</p>
+            </div>
+            <div style={{ padding: 18, borderRadius: 20, background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.30)" }}>
+              <strong>PRO Lifetime</strong>
+              <h3 style={{ color: "#86efac", margin: "8px 0" }}>{LIFETIME_PRICE}</h3>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan berikutnya.</p>
+            </div>
+          </div>
+          {!isPro && (
+            <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%", marginTop: 16 }}>
+              Upgrade PRO via Midtrans
+            </button>
+          )}
+        </section>
+
+        <footer
+          style={{
+            marginTop: 28,
+            padding: 24,
+            borderRadius: 24,
+            background: "rgba(2,6,23,0.72)",
+            border: "1px solid rgba(148,163,184,0.16)",
+            color: "#cbd5e1",
+          }}
+        >
+          <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 18 }}>
+            <div>
+              <strong style={{ color: "white" }}>Untungin.ai</strong>
+              <p style={{ lineHeight: 1.7 }}>
+                Aplikasi digital AI CFO untuk membantu seller marketplace membaca profit bersih, harga aman, biaya bocor, dan rencana restock.
+              </p>
+            </div>
+            <div>
+              <strong style={{ color: "white" }}>Kontak</strong>
+              <p style={{ lineHeight: 1.7 }}>
+                Email: support@untungin.ai<br />
+                Website: untungin-ai-pmd1.vercel.app<br />
+                Produk: Software as a Service / aplikasi digital
+              </p>
+            </div>
+            <div>
+              <strong style={{ color: "white" }}>Legal</strong>
+              <p style={{ lineHeight: 1.7 }}>
+                Kebijakan Privasi<br />
+                Syarat & Ketentuan<br />
+                Refund mengikuti status aktivasi dan penggunaan akun.
+              </p>
+            </div>
+          </div>
+        </footer>
       </section>
     </main>
   );
