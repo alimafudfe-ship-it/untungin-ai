@@ -16,13 +16,17 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://untungin.ai"),
+
   title: {
     default: "Untungin.ai - AI CFO untuk Seller",
     template: "%s | Untungin.ai",
   },
+
   description:
     "Profit OS untuk seller: hitung profit real, deteksi margin bocor, rekomendasi harga jual, dan action plan dari AI CFO.",
+
   applicationName: "Untungin.ai",
+
   keywords: [
     "Untungin.ai",
     "AI CFO",
@@ -31,25 +35,61 @@ export const metadata: Metadata = {
     "margin produk",
     "dashboard bisnis",
     "Shopee seller",
+    "analisis profit",
+    "pricing produk",
+    "seller marketplace",
   ],
+
   authors: [{ name: "Untungin.ai" }],
   creator: "Untungin.ai",
   publisher: "Untungin.ai",
+
+  alternates: {
+    canonical: "https://untungin.ai",
+  },
+
+  category: "business",
+  classification: "AI Finance SaaS",
+
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon-16x16.png",
+    apple: "/apple-touch-icon.png",
+  },
+
+  themeColor: "#020617",
+
   openGraph: {
     title: "Untungin.ai - AI CFO untuk Seller",
     description:
       "Buka profit sebenarnya, deteksi produk bocor, dan ambil keputusan scale/stop dengan AI CFO.",
+
     url: "https://untungin.ai",
     siteName: "Untungin.ai",
     locale: "id_ID",
     type: "website",
+
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Untungin.ai",
+      },
+    ],
   },
+
   twitter: {
     card: "summary_large_image",
+
     title: "Untungin.ai - AI CFO untuk Seller",
+
     description:
       "Profit OS untuk seller: hitung profit real, deteksi margin bocor, dan rekomendasi harga jual.",
+
+    images: ["/og-image.png"],
   },
+
   robots: {
     index: true,
     follow: true,
@@ -60,7 +100,6 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#020617",
   colorScheme: "dark",
 };
 
