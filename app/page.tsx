@@ -70,12 +70,10 @@ type ProductRow = {
 const FREE_PRODUCT_LIMIT = 3;
 const MONTHLY_PRICE = "Rp29.000/bulan";
 const LIFETIME_PRICE = "Rp99.000 sekali bayar";
-const ADMIN_PRO_PATH = "/admin/pro";
 const CONVERSION_DEADLINE_HOURS = 24;
 const FOMO_BASE_SLOT = 37;
 
 const MIDTRANS_REVIEW_MODE = false;
-const MANUAL_ADMIN_WHATSAPP = "6281234567890";
 const TARGET_SEGMENT_COPY: Record<TargetSegment, { label: string; headline: string; pain: string; demoProduct: string }> = {
   shopee: {
     label: "Seller Shopee",
@@ -491,11 +489,7 @@ export default function DashboardPage() {
   const [showStickyOffer, setShowStickyOffer] = useState(true);
   const [targetSegment, setTargetSegment] = useState<TargetSegment>("umum");
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [trialActive, setTrialActive] = useState(false);
-  const [manualProofText, setManualProofText] = useState("");
-  const [manualRequestSent, setManualRequestSent] = useState(false);
 
-  const isAdmin = profile?.role === "admin";
   const isPro = isProfilePro(profile);
   const proExpired = isProfileExpired(profile);
   const proExpiryText =
@@ -715,8 +709,7 @@ export default function DashboardPage() {
     ? proActionPlan.find((item) => item.id === worstProduct.id)?.recommendedPrice || worstProduct.sellingPrice
     : 0;
   const selectedSegmentCopy = TARGET_SEGMENT_COPY[targetSegment];
-  const effectiveIsPro = isPro || trialActive;
-  const manualUpgradeMessage = `Halo admin Untungin.ai, saya ingin aktivasi PRO manual. Email: ${userEmail || "demo/user belum login"}. Paket: ${getPlanLabel(selectedPlan)}. Catatan: ${manualProofText || "Saya akan kirim bukti transfer/manual."}`;
+  const effectiveIsPro = isPro;
 
   const inputStyle: React.CSSProperties = {
     padding: "16px 18px",
@@ -942,17 +935,6 @@ const { data: productData, error: productError } = await db
     window.setTimeout(() => document.getElementById("profit-form")?.scrollIntoView({ behavior: "smooth" }), 150);
   }
 
-  function activateOneDayTrial() {
-    setTrialActive(true);
-    setShowUpgradeModal(false);
-    alert("Trial PRO 1 hari aktif di browser ini. Gunakan untuk melihat value sebelum Midtrans selesai review.");
-  }
-
-  function submitManualActivation() {
-    setManualRequestSent(true);
-    const url = `https://wa.me/${MANUAL_ADMIN_WHATSAPP}?text=${encodeURIComponent(manualUpgradeMessage)}`;
-    window.open(url, "_blank");
-  }
 
   async function handleLogout() {
     if (!isPro && products.length > 0 && dailyLeakEstimate > 0) {
@@ -987,7 +969,7 @@ const { data: productData, error: productError } = await db
     if (!ensureLoggedIn()) return;
 
     if (MIDTRANS_REVIEW_MODE) {
-      alert("Midtrans sedang review. Untuk sementara gunakan aktivasi manual / trial 1 hari di modal upgrade.");
+      alert("Midtrans sedang review. Silakan coba lagi nanti atau hubungi support Untungin.ai.");
       setShowUpgradeModal(true);
       return;
     }
@@ -1281,7 +1263,7 @@ const { data: productData, error: productError } = await db
             ? `🚨 Produk ini rugi ${money(Math.abs(profitValue))}. Demo menunjukkan alert sebelum user daftar.`
             : margin < 20
             ? `🟡 Produk perlu optimasi. Demo membuka rasa penasaran untuk upgrade PRO.`
-            : `✅ Produk sehat. Demo siap dikonversi ke signup dan trial.`
+            : `✅ Produk sehat. Demo siap dikonversi ke signup dan upgrade PRO.`
         );
         setForm({ productName: "", costPrice: "", sellingPrice: "", stockInitial: "", quantitySold: "", otherCost: "" });
         setLoading(false);
@@ -1868,7 +1850,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
     const upsellHint = !isPro
       ? `
 
-🔒 Preview AI selesai. Upgrade PRO membuka Ranking Produk, Smart Pricing Engine, Profit Leak Detector, What-if Simulator, dan Action Plan penuh.`
+Demo AI selesai. Paket PRO membuka Ranking Produk, Smart Pricing Engine, Profit Leak Detector, What-if Simulator, dan Action Plan penuh.`
       : "";
 
     if (q.includes("scale") || q.includes("fokus") || q.includes("jual") || q.includes("ranking")) {
@@ -1919,8 +1901,8 @@ Rule CFO: tambah produk karena data, bukan feeling.`
       const aiResult = smartAiCfo(question || "Buat ringkasan bisnis dan action plan hari ini.");
 
       if (!isPro) {
-        const previewLines = aiResult.split("\n").slice(0, 6).join("\n");
-        setAiAnswer(`${previewLines}
+        const demoLines = aiResult.split("\n").slice(0, 6).join("\n");
+        setAiAnswer(`${demoLines}
 
 🚨 AI sudah menemukan potensi keputusan yang bisa menyelamatkan profit kamu.
 
@@ -2166,7 +2148,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             <small style={{ color: "#cbd5e1" }}>PRO bisa balik modal ±{paybackDays} hari jika leak ini benar terjadi.</small>
           </div>
           <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, padding: "11px 14px" }}>
-            Buka Solusi
+            Lihat Paket PRO
           </button>
           <button onClick={() => setShowStickyOffer(false)} style={{ background: "transparent", color: "white", border: "none", fontSize: 20, cursor: "pointer" }}>
             ×
@@ -2299,10 +2281,10 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               🚨 Kamu hampir kehilangan {money(estimatedMonthlyLoss)}/bulan TANPA sadar
             </p>
             <h2 style={{ marginBottom: 8, fontSize: 32 }}>
-              Buka Produk Penyebab Rugi
+              Upgrade Untungin.ai PRO
             </h2>
             <p style={{ opacity: 0.76, lineHeight: 1.7 }}>
-              AI sudah menemukan produk rugi, margin bocor, dan harga salah. Detail produk penyebab dan harga aman dikunci untuk akun Free.
+              Pilih paket PRO untuk membuka diagnosis produk, rekomendasi harga aman, laporan PDF, dan action plan bisnis harian.
             </p>
 
             <div
@@ -2345,7 +2327,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               }}
             >
               <p style={{ margin: "0 0 8px", color: "#86efac", fontWeight: 800 }}>
-                Yang kamu lihat setelah upgrade:
+                Yang didapat setelah upgrade:
               </p>
               <div style={{ display: "grid", gap: 8, color: "#cbd5e1" }}>
                 <span>✅ Produk mana yang rugi dan harus dihentikan</span>
@@ -2365,7 +2347,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               }}
             >
               <p style={{ marginTop: 0, color: "#86efac", fontWeight: 900 }}>
-                🔓 Buka diagnosis profit via Midtrans
+                🔓 Pembayaran PRO via Midtrans
               </p>
               <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.6 }}>
                 Paket terpilih: <b>{getPlanLabel(selectedPlan)}</b>. Setelah pembayaran sukses, akun kamu akan otomatis menjadi PRO.
@@ -2381,7 +2363,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   opacity: upgradeLoading ? 0.7 : 1,
                 }}
               >
-                {upgradeLoading ? "Membuka pembayaran..." : `🔓 Buka Data Produk Penyebab Rugi`}
+                {upgradeLoading ? "Membuka pembayaran..." : `Bayar dengan Midtrans`}
               </button>
             </div>
 
@@ -2418,7 +2400,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             AI sudah tahu langkah pertama yang harus kamu lakukan: <b>{oneThingAction}</b>
           </p>
           <div style={{ padding: 13, borderRadius: 16, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(248,113,113,0.22)", marginBottom: 12 }}>
-            <small style={{ color: "#fca5a5", fontWeight: 900 }}>Unlocked di PRO:</small>
+            <small style={{ color: "#fca5a5", fontWeight: 900 }}>Fitur PRO:</small>
             <div style={{ display: "grid", gap: 5, color: "#cbd5e1", marginTop: 8, fontSize: 13 }}>
               <span>• Produk penyebab bocor</span>
               <span>• Harga aman per produk</span>
@@ -2426,7 +2408,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             </div>
           </div>
           <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%" }}>
-            🔓 Buka Solusi Profit Bocor
+            Lihat Paket PRO
           </button>
         </div>
       )}
@@ -2476,22 +2458,14 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 fontWeight: 800,
               }}
             >
-              {isPro ? `PRO Aktif${proExpiryText ? ` sampai ${proExpiryText}` : ""}` : proExpired ? "PRO Expired" : "Free Plan"}
+              {isPro ? `PRO Aktif${proExpiryText ? ` sampai ${proExpiryText}` : ""}` : proExpired ? "PRO Expired" : "Paket Free"}
             </span>
             <button onClick={exportReportCSV} style={ghostButtonStyle}>
-              {isPro ? "Export CSV" : "🔒 Export PRO"}
+              {isPro ? "Export CSV" : "Export Laporan PRO"}
             </button>
             {!isPro && (
               <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
-                {proExpired ? "Perpanjang PRO" : "Upgrade PRO"}
-              </button>
-            )}
-            {isAdmin && (
-              <button
-                onClick={() => router.push(ADMIN_PRO_PATH)}
-                style={{ ...ghostButtonStyle, borderColor: "rgba(34,197,94,0.32)", color: "#86efac" }}
-              >
-                Admin PRO
+                {proExpired ? "Perpanjang PRO" : "Pilih Paket PRO"}
               </button>
             )}
             <button
@@ -2523,7 +2497,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 </p>
                 <h2 style={{ margin: "6px 0" }}>Perpanjang untuk membuka kembali fitur PRO</h2>
                 <p style={{ margin: 0, color: "#cbd5e1" }}>
-                  AI CFO lengkap, export laporan, unlimited produk, dan Smart Pricing akan aktif lagi setelah admin verifikasi pembayaran.
+                  AI CFO lengkap, export laporan, unlimited produk, dan Smart Pricing akan aktif lagi setelah pembayaran berhasil diproses.
                 </p>
               </div>
               <button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>
@@ -2644,7 +2618,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
           </div>
           {!isPro && (
             <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
-              🔓 Unlock Full CFO View
+              Pilih Paket PRO
             </button>
           )}
         </section>
@@ -2731,7 +2705,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               </div>
             </div>
             <div style={{ padding: 18, borderRadius: 24, background: "rgba(2,6,23,0.78)", border: "1px solid rgba(248,113,113,0.24)" }}>
-              <p style={{ marginTop: 0, color: "#fca5a5", fontWeight: 950 }}>🔒 Locked CFO Preview</p>
+              <p style={{ marginTop: 0, color: "#fca5a5", fontWeight: 950 }}>Contoh Analisis PRO</p>
               <div style={{ display: "grid", gap: 10 }}>
                 <div style={{ padding: 12, borderRadius: 14, background: "rgba(15,23,42,0.86)", border: "1px solid rgba(148,163,184,0.14)" }}>
                   <small style={{ color: "#94a3b8" }}>Produk paling berbahaya</small><br />
@@ -2746,7 +2720,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                   <strong style={{ color: riskScore >= 50 ? "#fca5a5" : "#86efac" }}>{cfoCommandLabel}</strong>
                 </div>
               </div>
-              {!isPro && <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%", marginTop: 14 }}>🔓 Buka Data yang Dikunci</button>}
+              {!isPro && <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%", marginTop: 14 }}>Lanjut ke Pembayaran</button>}
             </div>
           </div>
         </section>
@@ -2792,7 +2766,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               <div style={{ padding: 16, borderRadius: 18, background: "rgba(2,6,23,0.78)", border: "1px solid rgba(245,158,11,0.20)", color: "#e5e7eb", lineHeight: 1.7 }}>
                 {getObjectionAnswer(selectedObjection, dailyLeakEstimate, selectedPlanAmount)}
               </div>
-              {!isPro && <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%", marginTop: 12 }}>Saya Mau Selamatkan Profit</button>}
+              {!isPro && <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%", marginTop: 12 }}>Pilih Paket PRO</button>}
             </div>
           </div>
         </section>
@@ -2954,19 +2928,19 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             }}
           >
             <button onClick={() => setShowBeforeAfter(false)} style={{ float: "right", background: "transparent", color: "white", border: "none", fontSize: 22, cursor: "pointer" }}>×</button>
-            <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>🔐 Before / After PRO Preview</p>
+            <p style={{ margin: 0, color: "#fbbf24", fontWeight: 950 }}>Perbandingan Paket Free dan PRO</p>
             <h2 style={{ margin: "8px 0" }}>Free kasih alarm. PRO kasih keputusan.</h2>
             <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
               <div style={{ padding: 16, borderRadius: 18, background: "rgba(2,6,23,0.74)", border: "1px solid rgba(148,163,184,0.16)" }}>
                 <strong>Free</strong>
-                <p style={{ color: "#94a3b8", lineHeight: 1.6 }}>Melihat estimasi bocor, jumlah produk berisiko, dan preview AI.</p>
+                <p style={{ color: "#94a3b8", lineHeight: 1.6 }}>Melihat estimasi bocor, jumlah produk berisiko, dan demo AI.</p>
               </div>
               <div style={{ padding: 16, borderRadius: 18, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.28)" }}>
                 <strong style={{ color: "#86efac" }}>PRO</strong>
                 <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>Membuka harga aman, diagnosis tiap produk, checklist, PDF report, simulator, dan action plan CFO.</p>
               </div>
             </div>
-            <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, marginTop: 14 }}>🔓 Unlock PRO View</button>
+            <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, marginTop: 14 }}>Pilih Paket PRO</button>
           </section>
         )}
 
@@ -3012,7 +2986,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               </div>
               {!isPro && (
                 <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
-                  Buka Detail Action Plan
+                  Lihat Detail Action Plan
                 </button>
               )}
             </div>
@@ -3085,7 +3059,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 <strong style={{ color: "#fbbf24" }}>Harga aman per produk</strong>
                 <strong style={{ color: "#86efac" }}>Action plan fix 24 jam</strong>
                 <button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>
-                  🔓 Buka Diagnosis Lengkap
+                  Lihat Paket PRO
                 </button>
                 <button
                   onClick={() => setShowLeakAlert(false)}
@@ -3356,13 +3330,13 @@ Rule CFO: tambah produk karena data, bukan feeling.`
           <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.15fr", gap: 20 }}>
             <div>
               <p style={{ margin: 0, color: "#86efac", fontWeight: 900 }}>
-                🧠 AI CFO {isPro ? "Aktif" : "Preview"}
+                🧠 AI CFO {isPro ? "Aktif" : "Demo"}
               </p>
               <h2 style={{ marginTop: 6 }}>Tanya apa pun tentang bisnis kamu</h2>
               <p style={{ color: "#94a3b8", lineHeight: 1.7 }}>
                 {isPro
                   ? "AI CFO membaca data produk, omzet, profit, margin, biaya bocor, simulasi harga, dan memberi action plan."
-                  : "Free bisa melihat preview. Upgrade PRO membuka analisa lengkap dan rekomendasi detail."}
+                  : "Paket Free menampilkan ringkasan. Paket PRO membuka analisa lengkap dan rekomendasi detail."}
               </p>
 
               <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 12 }}>
@@ -3404,7 +3378,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 }}
               />
               <button onClick={() => askAiCfo()} disabled={aiLoading} style={{ ...ctaButtonStyle, width: "100%", marginTop: 12 }}>
-                {aiLoading ? "AI CFO sedang menganalisa..." : isPro ? "Tanya AI CFO" : "Lihat Preview AI CFO"}
+                {aiLoading ? "AI CFO sedang menganalisa..." : isPro ? "Tanya AI CFO" : "Coba AI CFO"}
               </button>
             </div>
 
@@ -3598,7 +3572,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
             textAlign: "center",
           }}
         >
-          <h2 style={{ marginTop: 0 }}>{isPro ? "✅ PRO kamu sudah aktif" : "🚨 Buka Produk Penyebab Rugi"}</h2>
+          <h2 style={{ marginTop: 0 }}>{isPro ? "✅ PRO kamu sudah aktif" : "🚨 Upgrade Untungin.ai PRO"}</h2>
           <p style={{ color: "#cbd5e1" }}>
             {isPro
               ? "Gunakan AI CFO dan export laporan untuk mengambil keputusan harian."
@@ -3607,7 +3581,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
 
           {!isPro && (
             <div style={{ marginTop: 18, padding: 20, borderRadius: 20, background: "rgba(2,6,23,0.72)", border: "1px solid rgba(34,197,94,0.26)", textAlign: "left" }}>
-              <h3>💳 Pembayaran Buka Produk Penyebab Rugi</h3>
+              <h3>💳 Pembayaran Upgrade Untungin.ai PRO</h3>
               <p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>
                 Bayar lewat Midtrans untuk membuka diagnosis lengkap dan menyelamatkan profit yang bocor.
               </p>
@@ -3639,7 +3613,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
                 disabled={upgradeLoading}
                 style={{ ...ctaButtonStyle, width: "100%", marginTop: 14, opacity: upgradeLoading ? 0.72 : 1 }}
               >
-                {upgradeLoading ? "Membuka pembayaran..." : `🔓 Buka Data Produk Penyebab Rugi`}
+                {upgradeLoading ? "Membuka pembayaran..." : `Bayar dengan Midtrans`}
               </button>
             </div>
           )}
@@ -3673,7 +3647,7 @@ Rule CFO: tambah produk karena data, bukan feeling.`
           </div>
           {!isPro && (
             <button onClick={() => openUpgradeModal("lifetime")} style={{ ...ctaButtonStyle, width: "100%", marginTop: 16 }}>
-              Upgrade PRO via Midtrans
+              Bayar PRO via Midtrans
             </button>
           )}
         </section>
@@ -3700,7 +3674,8 @@ Rule CFO: tambah produk karena data, bukan feeling.`
               <p style={{ lineHeight: 1.7 }}>
                 Email: support@untungin.ai<br />
                 Website: untungin-ai-pmd1.vercel.app<br />
-                Produk: Software as a Service / aplikasi digital
+                Produk: Software as a Service / aplikasi digital<br />
+                Pembayaran: Midtrans
               </p>
             </div>
             <div>
