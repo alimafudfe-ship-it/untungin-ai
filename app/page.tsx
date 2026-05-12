@@ -1081,58 +1081,6 @@ function renderProductTable(mode: "product" | "inventory" = "product") {
 }
 
 
-    return (
-      <div style={{ display: "grid", gap: 12 }}>
-        {filteredProducts.map((item, index) => {
-          const risk = getRiskBadge(item);
-          const stock = getStockStatus(item);
-          const dayLeft = daysUntilOut(item);
-          const action = proActionPlan.find((plan) => plan.id === item.id);
-          return (
-            <div key={item.id} className="product-row" style={{ display: "grid", gridTemplateColumns: mode === "inventory" ? "1.2fr 0.8fr 0.8fr 0.8fr auto" : "1.2fr 0.8fr 0.8fr 0.8fr 0.8fr auto", gap: 14, alignItems: "center", padding: 16, borderRadius: 20, background: "rgba(2,6,23,0.64)", border: "1px solid rgba(148,163,184,0.12)" }}>
-              <div>
-                <small style={{ color: "#64748b" }}>#{index + 1}</small>
-                <h3 style={{ margin: "4px 0" }}>{item.name}</h3>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Badge {...risk} />
-                  <Badge {...stock} />
-                </div>
-              </div>
-              <div>
-                <small style={{ color: "#94a3b8" }}>Harga jual</small><br />
-                <strong>{money(item.sellingPrice)}</strong>
-              </div>
-              <div>
-                <small style={{ color: "#94a3b8" }}>Profit</small><br />
-                <strong style={{ color: item.profit >= 0 ? "#86efac" : "#fca5a5" }}>{money(item.profit)}</strong>
-              </div>
-              <div>
-                <small style={{ color: "#94a3b8" }}>Stok / Terjual</small><br />
-                <strong>{item.stockRemaining} / {item.quantitySold}</strong>
-                {dayLeft !== null && <div style={{ color: dayLeft <= 7 ? "#fdba74" : "#94a3b8", fontSize: 12 }}>Estimasi habis {dayLeft} hari</div>}
-              </div>
-              {mode === "product" && (
-                <div>
-                  <small style={{ color: "#94a3b8" }}>Margin</small><br />
-                  <strong>{percent(item.margin)}</strong>
-                  <MarginBar value={item.margin} />
-                </div>
-              )}
-              <div style={{ display: "grid", gap: 8 }}>
-                <button onClick={() => { setStockMove((prev) => ({ ...prev, productId: item.id })); setActiveTab("inventory"); }} style={ghostButtonStyle}>Kelola stok</button>
-                <button onClick={() => { setSaleForm((prev) => ({ ...prev, productId: item.id })); setActiveTab("sales"); }} style={ghostButtonStyle}>Catat jual</button>
-                <button onClick={() => deleteProduct(item.id)} style={{ ...ghostButtonStyle, background: "rgba(127,29,29,0.48)", borderColor: "rgba(248,113,113,0.24)" }}>Hapus</button>
-              </div>
-              {mode === "product" && action && (
-                <div style={{ gridColumn: "1 / -1", paddingTop: 8, borderTop: "1px solid rgba(148,163,184,0.10)", color: "#cbd5e1", lineHeight: 1.6 }}>
-                  <b style={{ color: "#86efac" }}>AI CFO:</b> {action.reason} Harga aman: <b>{money(action.recommendedPrice)}</b>. Restock: <b>{getRestockRecommendation(item)}</b>.
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
   }
 
   if (pageLoading) {
@@ -1210,9 +1158,9 @@ function renderProductTable(mode: "product" | "inventory" = "product") {
         <header className="top-grid" style={{ ...cardStyle, display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 26, alignItems: "center", marginBottom: 18, border: "1px solid rgba(34,197,94,0.24)", background: "radial-gradient(circle at 10% 0%, rgba(34,197,94,0.20), transparent 34%), linear-gradient(135deg, rgba(6,78,59,0.46), rgba(2,6,23,0.94))" }}>
           <div>
             <p style={{ color: "#86efac", fontWeight: 950, margin: 0 }}>AI CFO untuk seller marketplace</p>
-            <h1 className="hero-title" style={{ fontSize: 60, lineHeight: 1.02, letterSpacing: -2.4, margin: "12px 0" }}>Seller ramai order belum tentu untung.</h1>
+            <h1 className="hero-title" style={{ fontSize: 60, lineHeight: 1.02, letterSpacing: -2.4, margin: "12px 0" }}>Selamat datang kembali.</h1>
             <p style={{ color: "#cbd5e1", fontSize: 18, lineHeight: 1.8, maxWidth: 760 }}>
-              Untungin.ai membaca profit real, biaya bocor, stok kritis, harga aman, dan keputusan restock dalam satu dashboard yang siap dipakai harian.
+              Pantau profit, inventory, margin, dan keputusan bisnis harian dalam satu dashboard yang siap dipakai seller online.
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
               <button onClick={() => setActiveTab("products")} style={ctaButtonStyle}>Tambah produk</button>
@@ -1334,7 +1282,7 @@ function renderProductTable(mode: "product" | "inventory" = "product") {
               <StatCard label="Stok kritis" value={lowStockProducts.length + outOfStockProducts.length} helper="Perlu perhatian" tone={lowStockProducts.length + outOfStockProducts.length ? "yellow" : "green"} />
               <StatCard label="Nilai inventory" value={money(inventoryValue)} helper="Modal masih tersimpan" tone="green" />
             </section>
-            <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.15fr", gap: 18 }}>
+            <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.7fr 1.3fr", gap: 18 }}>
               <div style={cardStyle}>
                 <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>Stock Movement</p>
                 <h2 style={{ margin: "8px 0" }}>Stok terpisah dari penjualan</h2>
@@ -1425,18 +1373,34 @@ function renderProductTable(mode: "product" | "inventory" = "product") {
           </section>
         )}
 
-        <footer style={{ ...cardStyle, marginTop: 18, display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 18 }} className="three-grid">
+        <footer
+          style={{
+            marginTop: 30,
+            padding: "24px 0",
+            borderTop: "1px solid rgba(148,163,184,0.08)",
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 20,
+            flexWrap: "wrap",
+            color: "#64748b",
+            fontSize: 14,
+          }}
+        >
           <div>
-            <strong>Untungin.ai</strong>
-            <p style={{ color: "#94a3b8", lineHeight: 1.7 }}>Aplikasi digital AI CFO untuk membantu seller membaca profit real, harga aman, biaya bocor, stok, dan rencana restock.</p>
+            © 2026 Untungin.ai · Built for marketplace sellers in Indonesia
           </div>
-          <div>
-            <strong>Kontak</strong>
-            <p style={{ color: "#94a3b8", lineHeight: 1.7 }}>Email: support@untungin.ai<br />Website: untungin-ai-pmd1.vercel.app<br />Pembayaran: Midtrans</p>
-          </div>
-          <div>
-            <strong>Legal</strong>
-            <p style={{ color: "#94a3b8", lineHeight: 1.7 }}>Kebijakan Privasi<br />Syarat dan Ketentuan<br />Refund mengikuti status aktivasi dan penggunaan akun.</p>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 18,
+              flexWrap: "wrap",
+            }}
+          >
+            <span>Privacy</span>
+            <span>Terms</span>
+            <span>Support</span>
+            <span>Midtrans Payment</span>
           </div>
         </footer>
       </section>
