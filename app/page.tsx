@@ -832,7 +832,7 @@ export default function DashboardPage() {
     );
   }
 
-function renderProductTable(mode: "product" | "inventory" = "product") {
+  const renderProductTable = (mode: "product" | "inventory" = "product") => {
   if (filteredProducts.length === 0) {
     return (
       <EmptyState
@@ -1078,8 +1078,7 @@ function renderProductTable(mode: "product" | "inventory" = "product") {
       </table>
     </div>
   );
-}
-
+  };
 
   if (pageLoading) {
     return (
