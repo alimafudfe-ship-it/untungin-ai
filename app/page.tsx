@@ -378,11 +378,12 @@ export default function DashboardPage() {
   };
 
   const cardStyle: React.CSSProperties = {
-    background: "linear-gradient(180deg, rgba(15,23,42,0.90), rgba(2,6,23,0.94))",
-    border: "1px solid rgba(148,163,184,0.14)",
+    background: "linear-gradient(180deg, rgba(15,23,42,0.92), rgba(2,6,23,0.96))",
+    border: "1px solid rgba(148,163,184,0.16)",
     borderRadius: 28,
     padding: 24,
-    boxShadow: "0 26px 80px rgba(0,0,0,0.40)",
+    boxShadow: "0 26px 80px rgba(0,0,0,0.36)",
+    minWidth: 0,
   };
 
   const ctaButtonStyle: React.CSSProperties = {
@@ -1100,10 +1101,22 @@ export default function DashboardPage() {
         button:hover { transform: translateY(-1px); filter: brightness(1.04); }
         input::placeholder, textarea::placeholder { color: rgba(203,213,225,0.45); }
         select { color-scheme: dark; }
-        @media (max-width: 980px) {
+        .app-shell { width: min(100%, 1320px); margin: 0 auto; }
+        .table-card { min-width: 0; }
+        .quick-nav { overflow-x: auto; scrollbar-width: none; }
+        .quick-nav::-webkit-scrollbar { display: none; }
+        tbody tr:hover { background: rgba(34,197,94,0.035); }
+        @media (max-width: 1100px) {
           .top-grid, .main-grid, .metrics-grid, .two-grid, .three-grid, .product-row { grid-template-columns: 1fr !important; }
-          .hero-title { font-size: 42px !important; }
+          .hero-title { font-size: 42px !important; letter-spacing: -1.4px !important; }
           .sticky-nav { position: static !important; }
+          .desktop-actions { justify-content: flex-start !important; }
+        }
+        @media (max-width: 640px) {
+          main { padding: 14px !important; }
+          .hero-title { font-size: 34px !important; }
+          .hero-card { padding: 18px !important; }
+          .hide-mobile { display: none !important; }
         }
       `}</style>
 
@@ -1133,7 +1146,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <section style={{ maxWidth: 1240, margin: "0 auto" }}>
+      <section className="app-shell">
         <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 24 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <div style={{ width: 44, height: 44, borderRadius: 14, display: "grid", placeItems: "center", background: "linear-gradient(135deg,#22c55e,#14b8a6)", fontWeight: 950 }}>U</div>
@@ -1142,7 +1155,7 @@ export default function DashboardPage() {
               <div style={{ color: "#94a3b8", fontSize: 12 }}>Profit, sales, and inventory OS</div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div className="desktop-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
             <span style={{ padding: "8px 12px", borderRadius: 999, color: isPro ? "#86efac" : proExpired ? "#fca5a5" : "#fbbf24", background: isPro ? "rgba(34,197,94,0.12)" : "rgba(245,158,11,0.12)", border: "1px solid rgba(148,163,184,0.16)", fontWeight: 900, fontSize: 13 }}>
               {isPro ? "PRO Aktif" : proExpired ? "PRO Expired" : "Paket Free"}
             </span>
@@ -1152,10 +1165,10 @@ export default function DashboardPage() {
           </div>
         </nav>
 
-        <header className="top-grid" style={{ ...cardStyle, display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 26, alignItems: "center", marginBottom: 18, border: "1px solid rgba(34,197,94,0.24)", background: "radial-gradient(circle at 10% 0%, rgba(34,197,94,0.20), transparent 34%), linear-gradient(135deg, rgba(6,78,59,0.46), rgba(2,6,23,0.94))" }}>
+        <header className="top-grid hero-card" style={{ ...cardStyle, display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 26, alignItems: "center", marginBottom: 18, border: "1px solid rgba(34,197,94,0.24)", background: "radial-gradient(circle at 10% 0%, rgba(34,197,94,0.22), transparent 38%), radial-gradient(circle at 100% 0%, rgba(20,184,166,0.16), transparent 30%), linear-gradient(135deg, rgba(6,78,59,0.50), rgba(2,6,23,0.94))" }}>
           <div>
             <p style={{ color: "#86efac", fontWeight: 950, margin: 0 }}>AI CFO untuk seller marketplace</p>
-            <h1 className="hero-title" style={{ fontSize: 60, lineHeight: 1.02, letterSpacing: -2.4, margin: "12px 0" }}>Selamat datang kembali.</h1>
+            <h1 className="hero-title" style={{ fontSize: 54, lineHeight: 1.04, letterSpacing: -2, margin: "12px 0" }}>Selamat datang kembali.</h1>
             <p style={{ color: "#cbd5e1", fontSize: 18, lineHeight: 1.8, maxWidth: 760 }}>
               Pantau profit, inventory, margin, dan keputusan bisnis harian dalam satu dashboard yang siap dipakai seller online.
             </p>
@@ -1180,7 +1193,7 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <div className="sticky-nav" style={{ position: "sticky", top: 12, zIndex: 20, display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18, padding: 10, borderRadius: 20, background: "rgba(2,6,23,0.76)", border: "1px solid rgba(148,163,184,0.12)", backdropFilter: "blur(16px)" }}>
+        <div className="sticky-nav quick-nav" style={{ position: "sticky", top: 10, zIndex: 20, display: "flex", gap: 8, flexWrap: "nowrap", marginBottom: 18, padding: 10, borderRadius: 22, background: "rgba(2,6,23,0.82)", border: "1px solid rgba(148,163,184,0.14)", backdropFilter: "blur(18px)", boxShadow: "0 18px 60px rgba(0,0,0,0.28)" }}>
           {([
             ["overview", "Overview"],
             ["products", "Produk"],
@@ -1233,7 +1246,7 @@ export default function DashboardPage() {
         )}
 
         {activeTab === "products" && (
-          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 18 }}>
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.75fr) minmax(0, 1.55fr)", gap: 18 }}>
             <section style={cardStyle}>
               <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>Input produk</p>
               <h2 style={{ margin: "8px 0" }}>Tambah produk dan data profit</h2>
@@ -1279,7 +1292,7 @@ export default function DashboardPage() {
               <StatCard label="Stok kritis" value={lowStockProducts.length + outOfStockProducts.length} helper="Perlu perhatian" tone={lowStockProducts.length + outOfStockProducts.length ? "yellow" : "green"} />
               <StatCard label="Nilai inventory" value={money(inventoryValue)} helper="Modal masih tersimpan" tone="green" />
             </section>
-            <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.7fr 1.3fr", gap: 18 }}>
+            <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.8fr) minmax(0, 1.6fr)", gap: 18 }}>
               <div style={cardStyle}>
                 <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>Stock Movement</p>
                 <h2 style={{ margin: "8px 0" }}>Stok terpisah dari penjualan</h2>
@@ -1309,7 +1322,7 @@ export default function DashboardPage() {
         )}
 
         {activeTab === "sales" && (
-          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 18 }}>
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.75fr) minmax(0, 1.55fr)", gap: 18 }}>
             <section style={cardStyle}>
               <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>Catat penjualan</p>
               <h2 style={{ margin: "8px 0" }}>Penjualan otomatis mengurangi stok</h2>
@@ -1333,7 +1346,7 @@ export default function DashboardPage() {
         )}
 
         {activeTab === "ai" && (
-          <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 18 }}>
+          <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "minmax(380px, 0.9fr) minmax(0, 1.1fr)", gap: 18 }}>
             <div style={cardStyle}>
               <p style={{ margin: 0, color: "#86efac", fontWeight: 950 }}>AI CFO</p>
               <h2 style={{ margin: "8px 0" }}>Tanya keputusan bisnis</h2>
