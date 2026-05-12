@@ -832,10 +832,254 @@ export default function DashboardPage() {
     );
   }
 
-  function renderProductTable(mode: "product" | "inventory" = "product") {
-    if (filteredProducts.length === 0) {
-      return <EmptyState title="Belum ada produk" description="Tambahkan produk manual atau import CSV untuk mulai membaca profit dan stok." />;
-    }
+function renderProductTable(mode: "product" | "inventory" = "product") {
+  if (filteredProducts.length === 0) {
+    return (
+      <EmptyState
+        title="Belum ada produk"
+        description="Tambahkan produk manual atau import CSV untuk mulai membaca profit dan stok."
+      />
+    );
+  }
+
+  const columns =
+    mode === "inventory"
+      ? ["Produk", "Harga", "Profit", "Stock", "Sold", "Estimasi", "Status", "Action"]
+      : ["Produk", "Harga", "Profit", "Stock", "Sold", "Margin", "Status", "Action"];
+
+  return (
+    <div
+      style={{
+        overflowX: "auto",
+        borderRadius: 22,
+        border: "1px solid rgba(148,163,184,0.12)",
+        background: "rgba(2,6,23,0.55)",
+      }}
+    >
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          minWidth: mode === "inventory" ? 920 : 980,
+        }}
+      >
+        <thead>
+          <tr
+            style={{
+              background: "rgba(15,23,42,0.92)",
+              textAlign: "left",
+            }}
+          >
+            {columns.map((head) => (
+              <th
+                key={head}
+                style={{
+                  padding: "15px 18px",
+                  color: "#94a3b8",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: "0.02em",
+                  textTransform: "uppercase",
+                  borderBottom: "1px solid rgba(148,163,184,0.08)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {head}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {filteredProducts.map((item) => {
+            const risk = getRiskBadge(item);
+            const stock = getStockStatus(item);
+            const dayLeft = daysUntilOut(item);
+            const action = proActionPlan.find((plan) => plan.id === item.id);
+            const restockText = getRestockRecommendation(item);
+
+            return (
+              <tr
+                key={item.id}
+                style={{
+                  borderBottom: "1px solid rgba(148,163,184,0.06)",
+                }}
+              >
+                <td style={{ padding: 18, minWidth: 220 }}>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <strong style={{ fontSize: 15 }}>{item.name}</strong>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Badge {...risk} />
+                      {mode === "inventory" && <Badge {...stock} />}
+                    </div>
+
+                    {mode === "product" && action && (
+                      <small
+                        style={{
+                          color: "#94a3b8",
+                          lineHeight: 1.5,
+                          display: "block",
+                          maxWidth: 360,
+                        }}
+                      >
+                        AI CFO: {action.decision} · Harga aman{" "}
+                        <b style={{ color: "#cbd5e1" }}>
+                          {money(action.recommendedPrice)}
+                        </b>
+                      </small>
+                    )}
+                  </div>
+                </td>
+
+                <td style={{ padding: 18, whiteSpace: "nowrap" }}>
+                  <small style={{ color: "#64748b" }}>Harga jual</small>
+                  <br />
+                  <strong>{money(item.sellingPrice)}</strong>
+                </td>
+
+                <td style={{ padding: 18, whiteSpace: "nowrap" }}>
+                  <small style={{ color: "#64748b" }}>Profit</small>
+                  <br />
+                  <strong
+                    style={{
+                      color: item.profit >= 0 ? "#86efac" : "#fca5a5",
+                    }}
+                  >
+                    {money(item.profit)}
+                  </strong>
+                </td>
+
+                <td style={{ padding: 18, whiteSpace: "nowrap" }}>
+                  <small style={{ color: "#64748b" }}>Stock</small>
+                  <br />
+                  <strong>{item.stockRemaining}</strong>
+                </td>
+
+                <td style={{ padding: 18, whiteSpace: "nowrap" }}>
+                  <small style={{ color: "#64748b" }}>Sold</small>
+                  <br />
+                  <strong>{item.quantitySold}</strong>
+                </td>
+
+                {mode === "inventory" ? (
+                  <td style={{ padding: 18, whiteSpace: "nowrap" }}>
+                    <small style={{ color: "#64748b" }}>Habis</small>
+                    <br />
+                    <strong
+                      style={{
+                        color:
+                          dayLeft !== null && dayLeft <= 7
+                            ? "#fdba74"
+                            : "#cbd5e1",
+                      }}
+                    >
+                      {dayLeft === null ? "-" : `${dayLeft} hari`}
+                    </strong>
+                  </td>
+                ) : (
+                  <td style={{ padding: 18, width: 170 }}>
+                    <small style={{ color: "#64748b" }}>Margin</small>
+                    <br />
+                    <strong>{percent(item.margin)}</strong>
+                    <div style={{ marginTop: 7 }}>
+                      <MarginBar value={item.margin} />
+                    </div>
+                  </td>
+                )}
+
+                <td style={{ padding: 18, minWidth: 135 }}>
+                  <div style={{ display: "grid", gap: 7 }}>
+                    <Badge {...stock} />
+                    <small
+                      style={{
+                        color:
+                          restockText.toLowerCase().includes("restock")
+                            ? "#86efac"
+                            : "#94a3b8",
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {restockText}
+                    </small>
+                  </div>
+                </td>
+
+                <td style={{ padding: 18, minWidth: 180 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      justifyContent: "flex-start",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setStockMove((prev) => ({
+                          ...prev,
+                          productId: item.id,
+                        }));
+                        setActiveTab("inventory");
+                      }}
+                      style={{
+                        ...ghostButtonStyle,
+                        padding: "8px 12px",
+                        fontSize: 12,
+                      }}
+                    >
+                      Stok
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSaleForm((prev) => ({
+                          ...prev,
+                          productId: item.id,
+                        }));
+                        setActiveTab("sales");
+                      }}
+                      style={{
+                        ...ghostButtonStyle,
+                        padding: "8px 12px",
+                        fontSize: 12,
+                      }}
+                    >
+                      Jual
+                    </button>
+
+                    <button
+                      onClick={() => deleteProduct(item.id)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 12,
+                        border: "1px solid rgba(248,113,113,0.15)",
+                        background: "rgba(127,29,29,0.15)",
+                        color: "#fca5a5",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 800,
+                      }}
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 
     return (
       <div style={{ display: "grid", gap: 12 }}>
