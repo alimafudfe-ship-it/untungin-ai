@@ -1081,8 +1081,6 @@ function renderProductTable(mode: "product" | "inventory" = "product") {
 }
 
 
-  }
-
   if (pageLoading) {
     return (
       <main style={{ minHeight: "100vh", background: "#020617", color: "white", display: "grid", placeItems: "center", fontFamily: "Inter, Arial" }}>
