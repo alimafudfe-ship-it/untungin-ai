@@ -1,31 +1,53 @@
-import PDFDocument from "pdfkit";
 import { NextResponse } from "next/server";
 import { buildReportSummary, rupiah } from "@/lib/reports/reportData";
 
-export async function POST(req: Request) {
-  const payload = await req.json().catch(() => ({}));
-  const { metrics, top, expenses } = buildReportSummary(payload);
-  const doc = new PDFDocument({ margin: 48, size: "A4" });
-  const chunks: Buffer[] = [];
-  doc.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-  const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
-  doc.fontSize(22).text("Untungin.ai Business Report", { align: "left" });
-  doc.moveDown(0.5).fontSize(10).fillColor("#667085").text(`Generated: ${new Date().toLocaleString("id-ID")}`);
-  doc.moveDown().fillColor("#111827").fontSize(14).text("Ringkasan KPI");
-  const lines = [
-    ["Omzet", metrics.totalRevenue],
-    ["Profit", metrics.totalProfit],
-    ["Expenses", metrics.totalExpenses],
-    ["Cashflow Bersih", metrics.netCash],
-    ["Inventory Value", metrics.inventoryValue],
-  ];
-  lines.forEach(([k, v]) => doc.fontSize(11).text(`${k}: ${rupiah(Number(v || 0))}`));
-  doc.moveDown().fontSize(14).text("Top Produk");
-  top.forEach((p: any, i: number) => doc.fontSize(10).text(`${i + 1}. ${p.name} - Profit ${rupiah(Number(p.profit || 0))} - Margin ${Number(p.margin || 0).toFixed(1)}%`));
-  doc.moveDown().fontSize(14).text("Expense Terbaru");
-  expenses.slice(0, 10).forEach((e: any, i: number) => doc.fontSize(10).text(`${i + 1}. ${e.title || e.label} - ${e.category} - ${rupiah(Number(e.amount || 0))}`));
-  doc.moveDown().fontSize(12).fillColor("#0f766e").text("AI Action: scale produk margin sehat, tahan restock produk rugi, dan pantau expense iklan mingguan.");
-  doc.end();
-  const pdf = await done;
-  return new NextResponse(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="untungin-report-${new Date().toISOString().slice(0,10)}.pdf"` } });
+export async function GET() {
+  const report = buildReportSummary();
+
+  const html = `
+  <html>
+    <head>
+      <title>Untungin.ai Report</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 32px; color: #0f172a; }
+        h1 { margin-bottom: 4px; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 24px; }
+        .card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; }
+        .label { color: #64748b; font-size: 13px; }
+        .value { font-size: 28px; font-weight: 800; margin-top: 8px; }
+      </style>
+    </head>
+    <body>
+      <h1>Untungin.ai Business Report</h1>
+      <p>Ringkasan profit, cashflow, expenses, dan inventory.</p>
+
+      <div class="grid">
+        <div class="card">
+          <div class="label">Omzet</div>
+          <div class="value">${rupiah(report.revenue)}</div>
+        </div>
+        <div class="card">
+          <div class="label">Profit</div>
+          <div class="value">${rupiah(report.profit)}</div>
+        </div>
+        <div class="card">
+          <div class="label">Expenses</div>
+          <div class="value">${rupiah(report.expenses)}</div>
+        </div>
+        <div class="card">
+          <div class="label">Net Cashflow</div>
+          <div class="value">${rupiah(report.netCashflow)}</div>
+        </div>
+      </div>
+
+      <script>
+        window.onload = () => window.print();
+      </script>
+    </body>
+  </html>
+  `;
+
+  return new NextResponse(html, {
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
 }
