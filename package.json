@@ -16,7 +16,9 @@
     "papaparse": "^5.5.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "nodemailer": "^6.9.13"
+    "nodemailer": "^6.9.13",
+    "pdfkit": "^0.15.0",
+    "svg-to-pdfkit": "^0.1.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
