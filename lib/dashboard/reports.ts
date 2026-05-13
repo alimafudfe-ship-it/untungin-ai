@@ -109,3 +109,55 @@ export function openPrintableReport(metrics: DashboardMetrics, products: Product
   reportWindow.document.write(html);
   reportWindow.document.close();
 }
+
+function pdfEscape(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+export function exportRealPDF(metrics: DashboardMetrics, products: Product[], expenses: Expense[]) {
+  const date = new Date().toLocaleDateString("id-ID");
+  const topProducts = [...products].sort((a, b) => b.profit - a.profit).slice(0, 5);
+  const lines = [
+    "Untungin.ai Business Report",
+    `Tanggal: ${date}`,
+    "",
+    `Omzet: ${money(metrics.totalRevenue)}`,
+    `Profit produk: ${money(metrics.totalProfit)}`,
+    `Biaya operasional: ${money(metrics.totalExpenses)}`,
+    `Cashflow bersih: ${money(metrics.netCash)}`,
+    `Nilai inventory: ${money(metrics.inventoryValue)}`,
+    `Risk score: ${metrics.riskScore}/100`,
+    "",
+    "Top Products:",
+    ...topProducts.map((item, index) => `${index + 1}. ${item.name} - Profit ${money(item.profit)} - Margin ${percent(item.margin)} - Stok ${item.stockRemaining}`),
+    "",
+    "Expense Breakdown:",
+    ...getExpenseBreakdown(expenses).map((item) => `${item.label}: ${money(item.value)}`),
+  ];
+  const content = lines.map((line, index) => `BT /F1 11 Tf 54 ${780 - index * 18} Td (${pdfEscape(line)}) Tj ET`).join("\n");
+  const objects = [
+    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
+    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
+    `5 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (const obj of objects) {
+    offsets.push(pdf.length);
+    pdf += obj + "\n";
+  }
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= objects.length; i++) pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  const bytes = new Uint8Array([...pdf].map((char) => char.charCodeAt(0)));
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `untungin-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+}

@@ -9,7 +9,7 @@ import type { Expense, ExpenseRow, Goal, Product, ProductFilter, ProductRow, Pro
 import { DEMO_EXPENSES, DEMO_GOALS, DEMO_PRODUCTS, FREE_PRODUCT_LIMIT, LIFETIME_PRICE, MIDTRANS_REVIEW_MODE, MONTHLY_PRICE } from "@/lib/dashboard/constants";
 import { calculateMargin, calculateProfit, getDashboardMetrics, isProfileExpired, isProfilePro, mapExpenseRow, mapProductRow } from "@/lib/dashboard/calculations";
 import { generateInsightText, getOneThingAction, buildInsightCards } from "@/lib/dashboard/insights";
-import { exportCashflowCSV, exportExpensesCSV, exportProductsCSV, exportSummaryJSON, openPrintableReport } from "@/lib/dashboard/reports";
+import { exportCashflowCSV, exportExpensesCSV, exportProductsCSV, exportSummaryJSON, exportRealPDF } from "@/lib/dashboard/reports";
 import { compactMoney, getErrorMessage, money, parseNumber, percent } from "@/lib/dashboard/format";
 import { AppShell } from "@/components/dashboard/AppShell";
 import { Hero } from "@/components/dashboard/Hero";
@@ -19,6 +19,7 @@ import { ProductCards, ProductFilters, ProductTable } from "@/components/dashboa
 import { AnalyticsTable, DonutChartCard, LineChartCard } from "@/components/dashboard/Charts";
 import { ReportsPanel } from "@/components/dashboard/ReportsPanel";
 import { AIRecommendationPanel, ForecastingPanel, MarketplaceSyncPanel } from "@/components/dashboard/AdvancedPanels";
+import { AutomationPanel, FinanceChatPanel, LiveChartsPanel, MarketplaceApiPanel, MidtransSubscriptionPanel, TeamAccessPanel, type ChatMessage } from "@/components/dashboard/Step4Panels";
 import { getCashflowTrend, getExpenseBreakdown, getInventoryAnalytics, getProductAnalytics, getProfitTrend } from "@/lib/dashboard/analytics";
 
 declare global {
@@ -58,6 +59,9 @@ export default function DashboardPage() {
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [aiQuestion, setAiQuestion] = useState("");
   const [aiAnswer, setAiAnswer] = useState("Klik Generate untuk mendapatkan insight berbasis profit, stok, cashflow, margin, dan target.");
+  const [chatQuestion, setChatQuestion] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: "assistant", content: "Saya siap membaca data profit, cashflow, stok, expense, marketplace, dan forecast untuk memberi rekomendasi bisnis." }]);
   const [stockMove, setStockMove] = useState({ productId: "", type: "in" as StockMoveType, qty: "", note: "" });
   const [saleForm, setSaleForm] = useState({ productId: "", qty: "", otherCost: "" });
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(initialExpenseForm);
@@ -360,7 +364,29 @@ export default function DashboardPage() {
 
   function handleExportPDF() {
     if (!isPro) { openUpgradeModal("lifetime"); return; }
-    openPrintableReport(metrics, products, expenses);
+    exportRealPDF(metrics, products, expenses);
+  }
+
+  async function askFinanceAssistant() {
+    const question = chatQuestion.trim();
+    if (!question) return;
+    setChatMessages((prev) => [...prev, { role: "user", content: question }]);
+    setChatQuestion("");
+    setChatLoading(true);
+    try {
+      const res = await fetch("/api/finance-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, metrics, products: products.slice(0, 20), expenses: expenses.slice(0, 20) }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "AI CFO gagal membaca data.");
+      setChatMessages((prev) => [...prev, { role: "assistant", content: data.answer || "Belum ada jawaban." }]);
+    } catch (error) {
+      setChatMessages((prev) => [...prev, { role: "assistant", content: generateInsightText(products, expenses, metrics, question) }]);
+    } finally {
+      setChatLoading(false);
+    }
   }
 
   function askAiCfo() {
@@ -377,7 +403,7 @@ export default function DashboardPage() {
 
     <Hero netCash={metrics.netCash} totalRevenue={metrics.totalRevenue} inventoryValue={metrics.inventoryValue} sparklineData={sparklineData} onAddProduct={() => setActiveTab("products")} onAddCashflow={() => setActiveTab("cashflow")} syncing={syncing} onCSVUpload={handleCSVUpload} />
 
-    {activeTab === "overview" && <div style={{ display: "grid", gap: 18 }}><section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}><StatCard label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" /><StatCard label="Profit produk" value={money(metrics.totalProfit)} helper={`Margin rata-rata ${percent(metrics.avgMargin)}`} tone={metrics.totalProfit >= 0 ? "success" : "danger"} /><StatCard label="Cashflow bersih" value={money(metrics.netCash)} helper={`Biaya operasional ${money(metrics.totalExpenses)}`} tone={metrics.netCash >= 0 ? "success" : "danger"} /><StatCard label="Risk score" value={`${metrics.riskScore}/100`} helper={`Estimasi bocor ${money(metrics.dailyLeakEstimate)} per hari`} tone={metrics.riskScore >= 50 ? "danger" : metrics.riskScore >= 25 ? "warning" : "success"} /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><LineChartCard title="Cashflow Trend" subtitle="Uang masuk vs keluar" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><LineChartCard title="Profit Trend" subtitle="Estimasi profit 7 hari" data={profitTrend} valueLabel="Profit" /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><div style={cardStyle}><Badge label="Rekomendasi Hari Ini" tone="success" /><h2 style={{ margin: "12px 0", lineHeight: 1.35 }}>{getOneThingAction(products)}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Prioritas dihitung dari profit, margin, stok, dan cashflow agar keputusan tidak hanya berdasarkan omzet.</p><button onClick={() => setActiveTab("ai")} style={ctaButtonStyle}>Lihat insight</button></div><div style={cardStyle}><Badge label="Business Health" tone="warning" /><h2 style={{ margin: "12px 0" }}>{money(metrics.inventoryValue)} modal di stok</h2><div style={{ display: "grid", gap: 10, marginTop: 16 }}><div><small>Stock value <b style={{ float: "right" }}>{compactMoney(metrics.inventoryValue)}</b></small><Progress value={100} /></div><div><small>Profit <b style={{ float: "right" }}>{compactMoney(metrics.totalProfit)}</b></small><Progress value={Math.min(100, (metrics.totalProfit / Math.max(metrics.inventoryValue, 1)) * 100)} /></div><div><small>Expenses <b style={{ float: "right" }}>{compactMoney(metrics.totalExpenses)}</b></small><Progress value={Math.min(100, (metrics.totalExpenses / Math.max(metrics.totalProfit, 1)) * 100)} /></div></div></div></section><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}><div><Badge label="Performa Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Profit, risiko, marketplace, dan stok</h2></div><button onClick={() => setActiveTab("products")} style={ghostButtonStyle}>Lihat semua</button></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
+    {activeTab === "overview" && <div style={{ display: "grid", gap: 18 }}><LiveChartsPanel products={products} expenses={expenses} metrics={metrics} /><section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}><StatCard label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" /><StatCard label="Profit produk" value={money(metrics.totalProfit)} helper={`Margin rata-rata ${percent(metrics.avgMargin)}`} tone={metrics.totalProfit >= 0 ? "success" : "danger"} /><StatCard label="Cashflow bersih" value={money(metrics.netCash)} helper={`Biaya operasional ${money(metrics.totalExpenses)}`} tone={metrics.netCash >= 0 ? "success" : "danger"} /><StatCard label="Risk score" value={`${metrics.riskScore}/100`} helper={`Estimasi bocor ${money(metrics.dailyLeakEstimate)} per hari`} tone={metrics.riskScore >= 50 ? "danger" : metrics.riskScore >= 25 ? "warning" : "success"} /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><LineChartCard title="Cashflow Trend" subtitle="Uang masuk vs keluar" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><LineChartCard title="Profit Trend" subtitle="Estimasi profit 7 hari" data={profitTrend} valueLabel="Profit" /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><div style={cardStyle}><Badge label="Rekomendasi Hari Ini" tone="success" /><h2 style={{ margin: "12px 0", lineHeight: 1.35 }}>{getOneThingAction(products)}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Prioritas dihitung dari profit, margin, stok, dan cashflow agar keputusan tidak hanya berdasarkan omzet.</p><button onClick={() => setActiveTab("ai")} style={ctaButtonStyle}>Lihat insight</button></div><div style={cardStyle}><Badge label="Business Health" tone="warning" /><h2 style={{ margin: "12px 0" }}>{money(metrics.inventoryValue)} modal di stok</h2><div style={{ display: "grid", gap: 10, marginTop: 16 }}><div><small>Stock value <b style={{ float: "right" }}>{compactMoney(metrics.inventoryValue)}</b></small><Progress value={100} /></div><div><small>Profit <b style={{ float: "right" }}>{compactMoney(metrics.totalProfit)}</b></small><Progress value={Math.min(100, (metrics.totalProfit / Math.max(metrics.inventoryValue, 1)) * 100)} /></div><div><small>Expenses <b style={{ float: "right" }}>{compactMoney(metrics.totalExpenses)}</b></small><Progress value={Math.min(100, (metrics.totalExpenses / Math.max(metrics.totalProfit, 1)) * 100)} /></div></div></div></section><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}><div><Badge label="Performa Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Profit, risiko, marketplace, dan stok</h2></div><button onClick={() => setActiveTab("products")} style={ghostButtonStyle}>Lihat semua</button></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
 
     {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} onChange={setForm} onSubmit={handleSubmit} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
 
@@ -391,13 +417,19 @@ export default function DashboardPage() {
 
     {activeTab === "reports" && <ReportsPanel metrics={metrics} products={products} expenses={expenses} onExportCSV={handleExport} onExportPDF={handleExportPDF} />}
 
-    {activeTab === "marketplace" && <MarketplaceSyncPanel products={products} />}
+    {activeTab === "marketplace" && <div style={{ display: "grid", gap: 18 }}><MarketplaceSyncPanel products={products} /><MarketplaceApiPanel products={products} /></div>}
 
     {activeTab === "forecast" && <ForecastingPanel products={products} expenses={expenses} metrics={metrics} />}
 
+    {activeTab === "automation" && <AutomationPanel products={products} metrics={metrics} />}
+
+    {activeTab === "team" && <TeamAccessPanel userEmail={userEmail} />}
+
+    {activeTab === "assistant" && <FinanceChatPanel messages={chatMessages} question={chatQuestion} loading={chatLoading} onQuestionChange={setChatQuestion} onAsk={askFinanceAssistant} />}
+
     {activeTab === "goals" && <section style={cardStyle}><Badge label="Goal Tracker" tone="success" /><h2>Target bisnis bulan ini</h2><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>{goals.map((goal) => { const value = (goal.current / Math.max(goal.target, 1)) * 100; return <div key={goal.id} style={{ padding: 18, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}><div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}><div><strong>{goal.label}</strong><div style={{ color: "#64748b", fontSize: 12 }}>{goal.period}</div></div><strong>{Math.round(value)}%</strong></div><div style={{ margin: "18px 0 10px" }}><Progress value={value} /></div><small style={{ color: "#64748b" }}>{money(goal.current)} dari {money(goal.target)}</small></div>; })}</div></section>}
 
-    {activeTab === "pricing" && <section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller online</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, cashflow, AI insights, inventory center, export laporan, dan goal tracker.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{MONTHLY_PRICE}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{LIFETIME_PRICE}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section>}
+    {activeTab === "pricing" && <div style={{ display: "grid", gap: 18 }}><MidtransSubscriptionPanel /><section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller online</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, cashflow, AI insights, inventory center, export laporan, dan goal tracker.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{MONTHLY_PRICE}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{LIFETIME_PRICE}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section></div>}
 
     <footer style={{ marginTop: 30, padding: "24px 0", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", color: "#64748b", fontSize: 14 }}><div>© 2026 Untungin.ai · Built for Indonesian marketplace sellers</div><div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}><span>Privacy</span><span>Terms</span><span>Support</span><span>Midtrans Payment</span></div></footer><div style={{ height: 80 }} />
   </AppShell>;
