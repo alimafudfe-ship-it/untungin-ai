@@ -1,14 +1,13 @@
-# Untungin.ai Modern Indonesia - Iterasi UI v2
+# Untungin.ai Modern Indonesia v3
 
-Perubahan utama dari screenshot terbaru:
+Perubahan utama:
+- Memperbaiki grafik realtime agar label sumbu X tidak bertumpuk dan tidak pernah menampilkan `D+undefined`.
+- Grafik sekarang memakai skala yang sama untuk revenue dan expense, sehingga perbandingan lebih realistis.
+- Label chart dibuat maksimal 4 tick utama agar rapi di desktop, laptop, dan mobile.
+- Data forecast live dipaksa memakai label aman `D1-D14`.
+- UI dashboard tetap menggunakan positioning dan copywriting untuk seller marketplace Indonesia.
 
-- Memperbaiki bug label grafik `D+undefined` pada panel Realtime Revenue vs Expense.
-- Mengurangi label sumbu X pada grafik agar tidak saling menumpuk.
-- Menambahkan area gradient pada line chart agar dashboard terasa lebih premium.
-- Memperbaiki kartu Live Dashboard dengan copy yang lebih actionable untuk owner toko Indonesia.
-- Menjaga mode demo tetap aman saat Supabase ENV belum diset.
-
-Catatan build:
-
-- `package-lock.json` tidak disertakan agar Vercel / local install membuat lockfile baru sesuai `package.json`.
-- Jalankan `npm install`, lalu `npm run dev` untuk preview lokal.
+Catatan deploy:
+1. Jalankan `npm install`.
+2. Jalankan `npm run build` sebelum upload ke Vercel.
+3. Setelah deploy, lakukan hard refresh browser agar file JS lama tidak tersimpan cache.

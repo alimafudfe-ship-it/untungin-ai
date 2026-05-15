@@ -1,10 +1,11 @@
-import type React from "react";
 import type { Tone } from "@/types/dashboard";
 import { money, compactMoney, percent } from "@/lib/dashboard/format";
 import { cardStyle, Badge } from "./ui";
 
 export type LinePoint = { label: string; value: number; secondary?: number };
 export type DonutSegment = { label: string; value: number; tone?: Tone };
+
+type ChartDomain = { min: number; max: number };
 
 const toneColor: Record<Tone, string> = {
   success: "#0f766e",
@@ -15,53 +16,118 @@ const toneColor: Record<Tone, string> = {
   muted: "#94a3b8",
 };
 
-function buildLinePath(points: LinePoint[], key: "value" | "secondary", width: number, height: number, padding = 12) {
-  const values = points.map((point) => Number(point[key] || 0));
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const range = max - min || 1;
-  return values
-    .map((value, index) => {
-      const x = padding + (index / Math.max(values.length - 1, 1)) * (width - padding * 2);
-      const y = height - padding - ((value - min) / range) * (height - padding * 2);
+function normalizeNumber(value: unknown) {
+  const next = Number(value || 0);
+  return Number.isFinite(next) ? next : 0;
+}
+
+function getChartDomain(points: LinePoint[], keys: Array<"value" | "secondary">): ChartDomain {
+  const values = points.flatMap((point) => keys.map((key) => normalizeNumber(point[key])));
+  const maxValue = Math.max(...values, 1);
+  const minValue = Math.min(...values, 0);
+  const range = maxValue - minValue || Math.max(maxValue, 1);
+  const padding = range * 0.1;
+  return {
+    min: minValue >= 0 ? 0 : minValue - padding,
+    max: maxValue + padding,
+  };
+}
+
+function buildLinePath(points: LinePoint[], key: "value" | "secondary", width: number, height: number, padding = 20, domain?: ChartDomain) {
+  const safeDomain = domain || getChartDomain(points, [key]);
+  const range = safeDomain.max - safeDomain.min || 1;
+  return points
+    .map((point, index) => {
+      const value = normalizeNumber(point[key]);
+      const x = padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2);
+      const y = height - padding - ((value - safeDomain.min) / range) * (height - padding * 2);
       return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
     })
     .join(" ");
 }
 
+function buildAreaPath(points: LinePoint[], key: "value" | "secondary", width: number, height: number, padding = 20, domain?: ChartDomain) {
+  if (points.length === 0) return "";
+  const line = buildLinePath(points, key, width, height, padding, domain);
+  const startX = padding;
+  const endX = width - padding;
+  const baseY = height - padding;
+  return `${line} L${endX} ${baseY} L${startX} ${baseY} Z`;
+}
+
+function getTickIndexes(length: number) {
+  if (length <= 1) return new Set<number>([0]);
+  if (length <= 4) return new Set<number>(Array.from({ length }, (_, index) => index));
+  const indexes = [0, Math.round((length - 1) * 0.33), Math.round((length - 1) * 0.66), length - 1];
+  return new Set(indexes);
+}
+
+function formatTickLabel(label: unknown, index: number) {
+  const raw = String(label ?? "").trim();
+  if (!raw || /undefined|null|nan/i.test(raw)) return `D${index + 1}`;
+  const dPlus = raw.match(/^D\+?(\d+)$/i);
+  if (dPlus) return `D${dPlus[1]}`;
+  return raw.length > 10 ? `${raw.slice(0, 10)}…` : raw;
+}
+
+function chartStat(value: number) {
+  return Math.abs(value) >= 1_000_000 ? compactMoney(value) : money(value);
+}
+
 export function LineChartCard({ title, subtitle, data, valueLabel, secondaryLabel }: { title: string; subtitle: string; data: LinePoint[]; valueLabel?: string; secondaryLabel?: string }) {
-  const width = 520;
-  const height = 180;
-  const primaryPath = buildLinePath(data, "value", width, height);
-  const secondaryPath = buildLinePath(data, "secondary", width, height);
-  const total = data.reduce((acc, item) => acc + item.value, 0);
-  const secondaryTotal = data.reduce((acc, item) => acc + Number(item.secondary || 0), 0);
+  const width = 560;
+  const height = 230;
+  const padding = 30;
+  const safeData = data.length > 0 ? data.map((item, index) => ({
+    ...item,
+    label: formatTickLabel(item.label, index),
+    value: normalizeNumber(item.value),
+    secondary: normalizeNumber(item.secondary),
+  })) : [{ label: "D1", value: 0, secondary: 0 }];
+  const secondaryTotal = safeData.reduce((acc, item) => acc + normalizeNumber(item.secondary), 0);
+  const domain = getChartDomain(safeData, secondaryTotal > 0 ? ["value", "secondary"] : ["value"]);
+  const primaryPath = buildLinePath(safeData, "value", width, height, padding, domain);
+  const secondaryPath = buildLinePath(safeData, "secondary", width, height, padding, domain);
+  const primaryArea = buildAreaPath(safeData, "value", width, height, padding, domain);
+  const total = safeData.reduce((acc, item) => acc + item.value, 0);
+  const tickIndexes = getTickIndexes(safeData.length);
+  const gradientId = `chart-area-${title.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`;
+
   return (
-    <section style={cardStyle}>
+    <section style={{ ...cardStyle, overflow: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div>
           <Badge label={title} tone="blue" />
-          <h3 style={{ margin: "10px 0 2px" }}>{subtitle}</h3>
+          <h3 style={{ margin: "10px 0 2px", letterSpacing: -0.2 }}>{subtitle}</h3>
         </div>
         <div style={{ textAlign: "right" }}>
-          <strong style={{ fontSize: 22 }}>{compactMoney(total)}</strong>
-          {secondaryLabel && <div style={{ color: "#64748b", fontSize: 12 }}>Out {compactMoney(secondaryTotal)}</div>}
+          <strong style={{ fontSize: 24, letterSpacing: -0.6 }}>{chartStat(total)}</strong>
+          {secondaryLabel && <div style={{ color: "#64748b", fontSize: 12 }}>Out {chartStat(secondaryTotal)}</div>}
         </div>
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: 210, marginTop: 10 }}>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: 258, marginTop: 8, display: "block" }} aria-label={`${title} chart`}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#14b8a6" stopOpacity="0" />
+          </linearGradient>
+        </defs>
         {[0, 1, 2, 3].map((row) => (
-          <line key={row} x1="12" x2={width - 12} y1={22 + row * 42} y2={22 + row * 42} stroke="#e2e8f0" strokeWidth="1" />
+          <line key={row} x1={padding} x2={width - padding} y1={32 + row * 46} y2={32 + row * 46} stroke="#e2e8f0" strokeWidth="1" />
         ))}
-        {secondaryTotal > 0 && <path d={secondaryPath} fill="none" stroke="#d97706" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" />}
+        <path d={primaryArea} fill={`url(#${gradientId})`} />
+        {secondaryTotal > 0 && <path d={secondaryPath} fill="none" stroke="#d97706" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.86" />}
         <path d={primaryPath} fill="none" stroke="#0f766e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-        {data.map((item, index) => {
-          const x = 12 + (index / Math.max(data.length - 1, 1)) * (width - 24);
-          return <text key={item.label} x={x} y={height - 1} textAnchor={index === 0 ? "start" : index === data.length - 1 ? "end" : "middle"} fill="#64748b" fontSize="12">{item.label}</text>;
+        {safeData.map((item, index) => {
+          if (!tickIndexes.has(index)) return null;
+          const x = padding + (index / Math.max(safeData.length - 1, 1)) * (width - padding * 2);
+          return <text key={`${item.label}-${index}`} x={x} y={height - 5} textAnchor={index === 0 ? "start" : index === safeData.length - 1 ? "end" : "middle"} fill="#64748b" fontSize="10" fontWeight="700">{item.label}</text>;
         })}
       </svg>
-      <div style={{ display: "flex", gap: 16, color: "#64748b", fontSize: 13, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 16, color: "#64748b", fontSize: 13, flexWrap: "wrap", alignItems: "center" }}>
         <span><b style={{ color: "#0f766e" }}>●</b> {valueLabel || "Masuk"}</span>
         {secondaryLabel && <span><b style={{ color: "#d97706" }}>●</b> {secondaryLabel}</span>}
+        <span style={{ marginLeft: "auto", color: "#98a2b3" }}>{safeData.length} titik data</span>
       </div>
     </section>
   );
@@ -79,7 +145,7 @@ export function DonutChartCard({ title, subtitle, segments, centerLabel }: { tit
       <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 18, alignItems: "center" }}>
         <svg viewBox="0 0 120 120" style={{ width: 150, height: 150 }}>
           <circle cx="60" cy="60" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="16" />
-          {segments.map((segment, index) => {
+          {segments.map((segment) => {
             const pct = total > 0 ? segment.value / total : 0;
             const dash = pct * circumference;
             const strokeDasharray = `${dash} ${circumference - dash}`;
@@ -120,7 +186,6 @@ export function AnalyticsTable({ title, rows }: { title: string; rows: { label: 
   );
 }
 
-
 export function MarketplaceBarChart({ title, subtitle, data }: { title: string; subtitle: string; data: LinePoint[] }) {
   const max = Math.max(...data.map((item) => item.value), 1);
   return (
@@ -145,28 +210,37 @@ export function MarketplaceBarChart({ title, subtitle, data }: { title: string; 
 
 export function ForecastChartCard({ title, subtitle, data }: { title: string; subtitle: string; data: { label: string; revenue: number; profit: number; expenses: number; netCash: number }[] }) {
   const width = 620;
-  const height = 220;
-  const points = data.map((item) => ({ label: item.label, value: item.revenue, secondary: item.expenses }));
-  const revenuePath = buildLinePath(points, "value", width, height, 18);
-  const expensePath = buildLinePath(points, "secondary", width, height, 18);
-  const profitPath = buildLinePath(data.map((item) => ({ label: item.label, value: item.profit })), "value", width, height, 18);
+  const height = 250;
+  const padding = 32;
+  const points = data.map((item, index) => ({ label: formatTickLabel(item.label, index), value: item.revenue, secondary: item.expenses }));
+  const profitPoints = data.map((item, index) => ({ label: formatTickLabel(item.label, index), value: item.profit }));
+  const domain = getChartDomain([...points, ...profitPoints], ["value", "secondary"]);
+  const revenuePath = buildLinePath(points, "value", width, height, padding, domain);
+  const expensePath = buildLinePath(points, "secondary", width, height, padding, domain);
+  const profitPath = buildLinePath(profitPoints, "value", width, height, padding, domain);
+  const revenueArea = buildAreaPath(points, "value", width, height, padding, domain);
   const totalRevenue = data.reduce((acc, item) => acc + item.revenue, 0);
   const totalNetCash = data.reduce((acc, item) => acc + item.netCash, 0);
+  const tickIndexes = getTickIndexes(data.length);
   return (
-    <section style={cardStyle}>
+    <section style={{ ...cardStyle, overflow: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div><Badge label={title} tone="success" /><h3 style={{ margin: "10px 0 2px" }}>{subtitle}</h3></div>
         <div style={{ textAlign: "right" }}><strong style={{ fontSize: 22 }}>{compactMoney(totalNetCash)}</strong><div style={{ color: "#64748b", fontSize: 12 }}>Net cash · omzet {compactMoney(totalRevenue)}</div></div>
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: 250, marginTop: 10 }}>
-        {[0, 1, 2, 3].map((row) => <line key={row} x1="18" x2={width - 18} y1={26 + row * 46} y2={26 + row * 46} stroke="#e2e8f0" strokeWidth="1" />)}
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: 276, marginTop: 10, display: "block" }}>
+        <defs>
+          <linearGradient id="forecastRevenueArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2563eb" stopOpacity="0.12" /><stop offset="100%" stopColor="#2563eb" stopOpacity="0" /></linearGradient>
+        </defs>
+        {[0, 1, 2, 3].map((row) => <line key={row} x1={padding} x2={width - padding} y1={34 + row * 48} y2={34 + row * 48} stroke="#e2e8f0" strokeWidth="1" />)}
+        <path d={revenueArea} fill="url(#forecastRevenueArea)" />
         <path d={revenuePath} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
         <path d={profitPath} fill="none" stroke="#0f766e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
         <path d={expensePath} fill="none" stroke="#d97706" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
-        {data.filter((_, index) => index % 5 === 0 || index === data.length - 1).map((item) => {
-          const index = data.findIndex((point) => point.label === item.label);
-          const x = 18 + (index / Math.max(data.length - 1, 1)) * (width - 36);
-          return <text key={item.label} x={x} y={height - 1} textAnchor="middle" fill="#64748b" fontSize="11">{item.label}</text>;
+        {points.map((item, index) => {
+          if (!tickIndexes.has(index)) return null;
+          const x = padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2);
+          return <text key={`${item.label}-${index}`} x={x} y={height - 5} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"} fill="#64748b" fontSize="10" fontWeight="700">{item.label}</text>;
         })}
       </svg>
       <div style={{ display: "flex", gap: 16, color: "#64748b", fontSize: 13, flexWrap: "wrap" }}>

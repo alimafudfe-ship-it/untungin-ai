@@ -7,18 +7,20 @@ import { ForecastChartCard, LineChartCard } from "./Charts";
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export function LiveChartsPanel({ products, expenses, metrics }: { products: Product[]; expenses: Expense[]; metrics: DashboardMetrics }) {
-  const daily = buildForecast(products, expenses, 14).map((item) => ({ label: `D+${item.day}`, value: item.revenue, secondary: item.expenses }));
+  const daily = buildForecast(products, expenses, 14).map((item, index) => ({ label: `D${index + 1}`, value: item.revenue, secondary: item.expenses }));
   return (
     <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 18 }}>
       <LineChartCard title="Realtime Revenue vs Expense" subtitle="Update otomatis dari Supabase Realtime" data={daily} valueLabel="Revenue" secondaryLabel="Expense" />
-      <div style={cardStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}><Badge label="Live Dashboard" tone="success" /><Badge label="Realtime ON" tone="blue" /></div>
-        <h3 style={{ margin: "14px 0" }}>Kondisi sekarang</h3>
-        <div style={{ display: "grid", gap: 12 }}>
+      <div style={{ ...cardStyle, background: "linear-gradient(180deg,#ffffff,#f8fffd)", borderColor: "rgba(15,118,110,0.16)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}><Badge label="Live Dashboard" tone="success" /><Badge label="Realtime ON" tone="blue" /></div>
+        <h3 style={{ margin: "14px 0 4px" }}>Kondisi sekarang</h3>
+        <p style={{ margin: "0 0 16px", color: "#64748b", lineHeight: 1.6 }}>Ringkasan operasional untuk keputusan harian owner toko.</p>
+        <div style={{ display: "grid", gap: 14 }}>
           <div><small>Net cash <b style={{ float: "right" }}>{money(metrics.netCash)}</b></small><Progress value={metrics.totalRevenue > 0 ? (metrics.netCash / metrics.totalRevenue) * 100 : 0} /></div>
           <div><small>Expense pressure <b style={{ float: "right" }}>{compactMoney(metrics.totalExpenses)}</b></small><Progress value={metrics.totalProfit > 0 ? (metrics.totalExpenses / metrics.totalProfit) * 100 : 0} /></div>
           <div><small>Inventory locked <b style={{ float: "right" }}>{compactMoney(metrics.inventoryValue)}</b></small><Progress value={100} /></div>
         </div>
+        <div style={{ marginTop: 18, padding: 14, borderRadius: 18, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#065f46", fontWeight: 800 }}>Prioritas: scale produk margin sehat, tekan biaya iklan yang tidak balik modal.</div>
       </div>
     </section>
   );
