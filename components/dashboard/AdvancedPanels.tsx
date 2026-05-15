@@ -101,7 +101,7 @@ export function ForecastingPanel({ products, expenses, metrics }: { products: Pr
         <StatCard label="Forecast omzet" value={compactMoney(summary.revenue)} helper="Proyeksi 30 hari" tone="blue" />
         <StatCard label="Forecast profit" value={compactMoney(summary.profit)} helper="Sebelum expense" tone="success" />
         <StatCard label="Forecast expense" value={compactMoney(summary.expenses)} helper="Run-rate 30 hari" tone="warning" />
-        <StatCard label="Forecast net cash" value={compactMoney(summary.netCash)} helper={breakEvenDay > 0 ? `Break-even sekitar D+${breakEvenDay}` : "Perlu kontrol expense"} tone={summary.netCash >= 0 ? "success" : "danger"} />
+        <StatCard label="Forecast net cash" value={compactMoney(summary.netCash)} helper={breakEvenDay > 0 ? `Break-even sekitar H+${breakEvenDay}` : "Perlu kontrol expense"} tone={summary.netCash >= 0 ? "success" : "danger"} />
       </section>
       <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}>
         <ForecastChartCard title="30-Day Forecast" subtitle="Revenue, profit, expenses" data={forecast} />

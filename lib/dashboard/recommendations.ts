@@ -155,7 +155,7 @@ export function buildForecast(products: Product[], expenses: Expense[], days = 3
     const profitPoint = Math.max(0, dailyProfit * factor * seasonal);
     const expensePoint = Math.max(0, dailyExpense * (1 + Math.sin(index / 6) * 0.03));
     return {
-      label: `D+${index + 1}`,
+      label: `H+${index + 1}`,
       revenue: Math.round(revenuePoint),
       profit: Math.round(profitPoint),
       expenses: Math.round(expensePoint),

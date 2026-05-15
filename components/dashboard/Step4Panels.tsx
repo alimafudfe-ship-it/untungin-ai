@@ -7,10 +7,14 @@ import { ForecastChartCard, LineChartCard } from "./Charts";
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export function LiveChartsPanel({ products, expenses, metrics }: { products: Product[]; expenses: Expense[]; metrics: DashboardMetrics }) {
-  const daily = buildForecast(products, expenses, 14).map((item, index) => ({ label: `D${index + 1}`, value: item.revenue, secondary: item.expenses }));
+  const daily = buildForecast(products, expenses, 14).map((item, index) => ({
+    label: `H+${index + 1}`,
+    value: item.revenue,
+    secondary: item.expenses,
+  }));
   return (
     <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 18 }}>
-      <LineChartCard title="Realtime Revenue vs Expense" subtitle="Update otomatis dari Supabase Realtime" data={daily} valueLabel="Revenue" secondaryLabel="Expense" />
+      <LineChartCard key={`realtime-revenue-expense-v4-${daily.length}-${metrics.totalRevenue}-${metrics.totalExpenses}`} title="Realtime Revenue vs Expense" subtitle="Update otomatis dari Supabase Realtime" data={daily} valueLabel="Revenue" secondaryLabel="Expense" maxTicks={4} />
       <div style={{ ...cardStyle, background: "linear-gradient(180deg,#ffffff,#f8fffd)", borderColor: "rgba(15,118,110,0.16)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}><Badge label="Live Dashboard" tone="success" /><Badge label="Realtime ON" tone="blue" /></div>
         <h3 style={{ margin: "14px 0 4px" }}>Kondisi sekarang</h3>

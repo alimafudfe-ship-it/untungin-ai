@@ -55,26 +55,26 @@ function buildAreaPath(points: LinePoint[], key: "value" | "secondary", width: n
   return `${line} L${endX} ${baseY} L${startX} ${baseY} Z`;
 }
 
-function getTickIndexes(length: number) {
-  if (length <= 1) return new Set<number>([0]);
-  if (length <= 4) return new Set<number>(Array.from({ length }, (_, index) => index));
-  const indexes = [0, Math.round((length - 1) * 0.33), Math.round((length - 1) * 0.66), length - 1];
-  return new Set(indexes);
+function getTickIndexes(length: number, maxTicks = 4) {
+  if (length <= 0) return [0];
+  if (length <= maxTicks) return Array.from({ length }, (_, index) => index);
+  const step = (length - 1) / (maxTicks - 1);
+  return Array.from({ length: maxTicks }, (_, index) => Math.round(index * step)).filter((value, index, arr) => arr.indexOf(value) === index);
 }
 
 function formatTickLabel(label: unknown, index: number) {
   const raw = String(label ?? "").trim();
-  if (!raw || /undefined|null|nan/i.test(raw)) return `D${index + 1}`;
-  const dPlus = raw.match(/^D\+?(\d+)$/i);
-  if (dPlus) return `D${dPlus[1]}`;
-  return raw.length > 10 ? `${raw.slice(0, 10)}…` : raw;
+  if (!raw || /undefined|null|nan/i.test(raw)) return `H+${index + 1}`;
+  const dayCode = raw.match(/^[DH]\+?(\d+)$/i);
+  if (dayCode) return `H+${dayCode[1]}`;
+  return raw.length > 9 ? `${raw.slice(0, 9)}…` : raw;
 }
 
 function chartStat(value: number) {
   return Math.abs(value) >= 1_000_000 ? compactMoney(value) : money(value);
 }
 
-export function LineChartCard({ title, subtitle, data, valueLabel, secondaryLabel }: { title: string; subtitle: string; data: LinePoint[]; valueLabel?: string; secondaryLabel?: string }) {
+export function LineChartCard({ title, subtitle, data, valueLabel, secondaryLabel, maxTicks = 4 }: { title: string; subtitle: string; data: LinePoint[]; valueLabel?: string; secondaryLabel?: string; maxTicks?: number }) {
   const width = 560;
   const height = 230;
   const padding = 30;
@@ -83,14 +83,14 @@ export function LineChartCard({ title, subtitle, data, valueLabel, secondaryLabe
     label: formatTickLabel(item.label, index),
     value: normalizeNumber(item.value),
     secondary: normalizeNumber(item.secondary),
-  })) : [{ label: "D1", value: 0, secondary: 0 }];
+  })) : [{ label: "H+1", value: 0, secondary: 0 }];
   const secondaryTotal = safeData.reduce((acc, item) => acc + normalizeNumber(item.secondary), 0);
   const domain = getChartDomain(safeData, secondaryTotal > 0 ? ["value", "secondary"] : ["value"]);
   const primaryPath = buildLinePath(safeData, "value", width, height, padding, domain);
   const secondaryPath = buildLinePath(safeData, "secondary", width, height, padding, domain);
   const primaryArea = buildAreaPath(safeData, "value", width, height, padding, domain);
   const total = safeData.reduce((acc, item) => acc + item.value, 0);
-  const tickIndexes = getTickIndexes(safeData.length);
+  const tickIndexes = getTickIndexes(safeData.length, maxTicks);
   const gradientId = `chart-area-${title.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`;
 
   return (
@@ -118,10 +118,10 @@ export function LineChartCard({ title, subtitle, data, valueLabel, secondaryLabe
         <path d={primaryArea} fill={`url(#${gradientId})`} />
         {secondaryTotal > 0 && <path d={secondaryPath} fill="none" stroke="#d97706" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.86" />}
         <path d={primaryPath} fill="none" stroke="#0f766e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-        {safeData.map((item, index) => {
-          if (!tickIndexes.has(index)) return null;
+        {tickIndexes.map((index) => {
+          const item = safeData[index] || safeData[0];
           const x = padding + (index / Math.max(safeData.length - 1, 1)) * (width - padding * 2);
-          return <text key={`${item.label}-${index}`} x={x} y={height - 5} textAnchor={index === 0 ? "start" : index === safeData.length - 1 ? "end" : "middle"} fill="#64748b" fontSize="10" fontWeight="700">{item.label}</text>;
+          return <text key={`tick-${index}`} x={x} y={height - 5} textAnchor={index === 0 ? "start" : index === safeData.length - 1 ? "end" : "middle"} fill="#64748b" fontSize="10" fontWeight="700">{item.label}</text>;
         })}
       </svg>
       <div style={{ display: "flex", gap: 16, color: "#64748b", fontSize: 13, flexWrap: "wrap", alignItems: "center" }}>
@@ -221,7 +221,7 @@ export function ForecastChartCard({ title, subtitle, data }: { title: string; su
   const revenueArea = buildAreaPath(points, "value", width, height, padding, domain);
   const totalRevenue = data.reduce((acc, item) => acc + item.revenue, 0);
   const totalNetCash = data.reduce((acc, item) => acc + item.netCash, 0);
-  const tickIndexes = getTickIndexes(data.length);
+  const tickIndexes = getTickIndexes(data.length, 5);
   return (
     <section style={{ ...cardStyle, overflow: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -237,10 +237,10 @@ export function ForecastChartCard({ title, subtitle, data }: { title: string; su
         <path d={revenuePath} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
         <path d={profitPath} fill="none" stroke="#0f766e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
         <path d={expensePath} fill="none" stroke="#d97706" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
-        {points.map((item, index) => {
-          if (!tickIndexes.has(index)) return null;
+        {tickIndexes.map((index) => {
+          const item = points[index] || points[0];
           const x = padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2);
-          return <text key={`${item.label}-${index}`} x={x} y={height - 5} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"} fill="#64748b" fontSize="10" fontWeight="700">{item.label}</text>;
+          return <text key={`forecast-tick-${index}`} x={x} y={height - 5} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"} fill="#64748b" fontSize="10" fontWeight="700">{item.label}</text>;
         })}
       </svg>
       <div style={{ display: "flex", gap: 16, color: "#64748b", fontSize: 13, flexWrap: "wrap" }}>
