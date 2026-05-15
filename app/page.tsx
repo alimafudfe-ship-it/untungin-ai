@@ -23,6 +23,7 @@ import { SaaSPlatformPanel } from "@/components/dashboard/SaaSPlatformPanel";
 import { AutomationPanel, FinanceChatPanel, LiveChartsPanel, MarketplaceApiPanel, MidtransSubscriptionPanel, TeamAccessPanel, type ChatMessage } from "@/components/dashboard/Step4Panels";
 import { getCashflowTrend, getExpenseBreakdown, getInventoryAnalytics, getProductAnalytics, getProfitTrend } from "@/lib/dashboard/analytics";
 import { parseMarketplaceRow } from "@/lib/dashboard/marketplaceImport";
+import { getOrCreateDefaultWorkspace, listWorkspaceStores, type Store } from "@/lib/saas/workspace";
 
 declare global {
   interface Window {
@@ -50,6 +51,9 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -114,6 +118,9 @@ export default function DashboardPage() {
         setProducts(DEMO_PRODUCTS);
         setExpenses(DEMO_EXPENSES);
         setProfile({ role: "user", plan: "free", pro_until: null, email: null });
+        setWorkspaceId(null);
+        setStores([]);
+        setSelectedStoreId(null);
         setIsDemoMode(true);
         setPageLoading(false);
         return;
@@ -123,6 +130,18 @@ export default function DashboardPage() {
       setCurrentUserId(user.id);
       setUserEmail(user.email ?? null);
       setIsDemoMode(false);
+
+      try {
+        const workspace = await getOrCreateDefaultWorkspace({ id: user.id, email: user.email });
+        if (!isMounted) return;
+        setWorkspaceId(workspace.id);
+        const storeList = await listWorkspaceStores(workspace.id);
+        if (!isMounted) return;
+        setStores(storeList);
+        setSelectedStoreId(storeList[0]?.id ?? null);
+      } catch (workspaceError) {
+        console.warn("Workspace v6 belum siap. Jalankan supabase/production_v6_real_data_schema.sql", workspaceError);
+      }
 
       const { data: profileData } = await db.from("profiles").select("role, plan, pro_until, email").eq("email", user.email).maybeSingle();
       if (!isMounted) return;
@@ -152,7 +171,7 @@ export default function DashboardPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") { loadUserAndData(); return; }
       if (event === "SIGNED_OUT" || !session?.user) {
-        setCurrentUserId("demo-user"); setUserEmail(null); setProducts(DEMO_PRODUCTS); setExpenses(DEMO_EXPENSES); setProfile({ role: "user", plan: "free", pro_until: null, email: null }); setIsDemoMode(true); setPageLoading(false);
+        setCurrentUserId("demo-user"); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts(DEMO_PRODUCTS); setExpenses(DEMO_EXPENSES); setProfile({ role: "user", plan: "free", pro_until: null, email: null }); setIsDemoMode(true); setPageLoading(false);
       }
     });
     return () => { isMounted = false; subscription.unsubscribe(); };
@@ -253,7 +272,7 @@ export default function DashboardPage() {
       if (isDemoMode) {
         setProducts((prev) => [{ id: `demo-${Date.now()}`, name, costPrice, sellingPrice, stockInitial, stockRemaining, quantitySold, otherCost, profit, margin, marketplace: form.marketplace }, ...prev]);
       } else {
-        const { data, error } = await db.from("products").insert([{ user_id: currentUserId, name, cost_price: costPrice, selling_price: sellingPrice, stock_initial: stockInitial, stock_remaining: stockRemaining, quantity_sold: quantitySold, other_cost: otherCost, profit, margin, marketplace: form.marketplace } as any]).select("*").single();
+        const { data, error } = await db.from("products").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, name, cost_price: costPrice, selling_price: sellingPrice, stock_initial: stockInitial, stock_remaining: stockRemaining, quantity_sold: quantitySold, other_cost: otherCost, profit, margin, marketplace: form.marketplace } as any]).select("*").single();
         if (error) throw error;
         if (data) setProducts((prev) => [mapProductRow(data as ProductRow), ...prev]);
       }
@@ -311,7 +330,7 @@ export default function DashboardPage() {
       setExpenseForm(initialExpenseForm);
       return;
     }
-    const { data, error } = await db.from("expenses").insert([{ user_id: currentUserId, title: localExpense.label, category: localExpense.category, amount: localExpense.amount, expense_date: localExpense.date, notes: localExpense.notes }]).select("*").single();
+    const { data, error } = await db.from("expenses").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, title: localExpense.label, label: localExpense.label, category: localExpense.category, amount: localExpense.amount, expense_date: localExpense.date, notes: localExpense.notes }]).select("*").single();
     if (error) {
       console.error(error);
       alert("Gagal menyimpan expense. Pastikan migration expense sudah dijalankan di Supabase.");
@@ -334,12 +353,12 @@ export default function DashboardPage() {
         if (remainingSlot <= 0) { openUpgradeModal("lifetime"); e.target.value = ""; setSyncing(false); return; }
         const imported = rows
           .slice(0, remainingSlot)
-          .map((row, index) => parseMarketplaceRow(row, currentUserId, index))
+          .map((row, index) => ({ ...parseMarketplaceRow(row, currentUserId, index), workspace_id: workspaceId, store_id: selectedStoreId }))
           .filter((row) => row.name.trim().length > 0 && (row.selling_price > 0 || row.cost_price > 0 || row.quantity_sold > 0));
         try {
           if (isDemoMode) setProducts((prev) => [...imported.map((row, index) => mapProductRow({ id: `demo-csv-${Date.now()}-${index}`, ...row } as ProductRow)), ...prev]);
           else { const { data, error } = await db.from("products").insert(imported as any).select("*"); if (error) throw error; if (data) setProducts((prev) => [...(data as ProductRow[]).map(mapProductRow), ...prev]); }
-          setLastSync(new Date().toLocaleString("id-ID")); alert(`Berhasil import ${imported.length} baris marketplace. Profit, fee, stok, dan margin sudah dihitung otomatis.`);
+          setLastSync(new Date().toLocaleString("id-ID")); alert(`Berhasil import ${imported.length} baris marketplace. Profit, fee, stok, margin, dan multi-store sudah dihitung otomatis.`);
         } catch (error) { console.error(error); alert("Gagal import CSV ke database."); } finally { e.target.value = ""; setSyncing(false); }
       },
       error: (error) => { console.error(error); alert("Gagal membaca file CSV."); e.target.value = ""; setSyncing(false); },

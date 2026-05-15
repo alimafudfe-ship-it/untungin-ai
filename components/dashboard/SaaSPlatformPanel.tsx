@@ -14,9 +14,9 @@ type Props = {
 };
 
 const moduleCards = [
-  { title: "Login seller", status: "Supabase Auth", detail: "Email/password + session aman untuk dashboard multi-user." },
-  { title: "Multi-store", status: "Ready schema", detail: "1 akun bisa punya banyak toko: Shopee, Tokopedia, TikTok, reseller." },
-  { title: "CSV marketplace", status: "Live MVP", detail: "Parser Shopee/Tokopedia/TikTok/Lazada dengan mapping kolom fleksibel." },
+  { title: "Login seller", status: "Supabase Auth", detail: "Google/magic link + session Supabase untuk seller dan team workspace." },
+  { title: "Multi-store", status: "Production schema", detail: "1 workspace bisa punya banyak toko: Shopee, Tokopedia, TikTok Shop, Lazada, reseller, dan manual." },
+  { title: "CSV marketplace", status: "Real import", detail: "Parser Shopee/Tokopedia/TikTok/Lazada dengan mapping kolom fleksibel." },
   { title: "AI insight", status: "AI-first", detail: "Rekomendasi restock, pricing, cashflow, dan expense leak." },
   { title: "Midtrans subscription", status: "Payment ready", detail: "Plan Free/PRO, webhook, upgrade, dan billing flow." },
   { title: "Team access", status: "RBAC", detail: "Owner, finance, operator, analyst, dan viewer." },
@@ -31,9 +31,9 @@ export function SaaSPlatformPanel({ products, metrics, userEmail, isPro, lastSyn
         <div style={{ position: "absolute", right: -90, top: -120, width: 360, height: 360, borderRadius: 999, background: "rgba(20,184,166,0.28)", filter: "blur(4px)" }} />
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 22 }} className="main-grid">
           <div>
-            <Badge label="Untungin.ai v5 SaaS Mode" tone="success" />
+            <Badge label="Untungin.ai v6 Real Data" tone="success" />
             <h2 style={{ margin: "14px 0 8px", fontSize: 36, lineHeight: 1.05, letterSpacing: -1.3 }}>AI-first operating system untuk seller marketplace Indonesia.</h2>
-            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 760 }}>Dashboard ini sekarang disiapkan bukan hanya demo: ada login seller, import CSV marketplace, multi-store, AI insight, reports, mobile shell, subscription, dan team workspace.</p>
+            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 760 }}>Dashboard ini sudah disiapkan untuk data real: Supabase Auth, workspace, multi-store, CSV import marketplace, realtime hooks, AI insight generator, subscription, dan team access.</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
               <button onClick={onGoMarketplace} style={{ ...ctaButtonStyle, background: "white", color: "#0f172a" }}>Connect marketplace</button>
               <button onClick={onGoTeam} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.10)", color: "white", borderColor: "rgba(255,255,255,0.22)" }}>Atur team</button>
