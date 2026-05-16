@@ -428,8 +428,7 @@ export default function DashboardPage() {
       setProducts(((productData || []) as ProductRow[]).map(mapProductRow));
       setLastSync(new Date().toLocaleString("id-ID"));
       const insightText = Array.isArray(data?.insights) && data.insights.length
-        ? data.insights.map((item: any, index: number) => `${index + 1}. ${item.title}: ${item.body}`).join("
-")
+        ? data.insights.map((item: any, index: number) => `${index + 1}. ${item.title}: ${item.body}`).join("\n")
         : `Import v11 berhasil: ${data?.successRows || 0} baris. Mapping confidence ${pendingImportPreview.confidence}%.`;
       setAiAnswer(insightText);
       setPendingImportFile(null);
