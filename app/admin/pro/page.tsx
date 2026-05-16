@@ -585,7 +585,7 @@ Silakan refresh dashboard Untungin.ai. Selamat pakai AI CFO PRO.`;
             Kamu login sebagai <b>{adminEmail || "belum login"}</b>. Akun ini belum memiliki role <code>admin</code>.
           </p>
           <p style={{ color: "#fbbf24", lineHeight: 1.7 }}>
-            Buka Supabase lalu set <code>profiles.role = 'admin'</code> untuk akun admin. Akses panel tidak lagi memakai hardcoded email.
+            Buka Supabase lalu set <code>profiles.role = &apos;admin&apos;</code> untuk akun admin. Akses panel tidak lagi memakai hardcoded email.
           </p>
         </div>
       </main>

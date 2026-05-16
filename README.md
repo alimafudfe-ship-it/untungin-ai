@@ -41,3 +41,38 @@ delete from public.activation_events;
 - `components/saas/ImportPreviewModal.tsx` — modal preview sebelum confirm.
 - `app/api/import/marketplace/route.ts` — server import setelah preview confirmed.
 - `public/template-import-marketplace-untungin-v11.csv` — template CSV Indonesia.
+
+## Production readiness update
+
+Perbaikan terbaru membuat repo lebih siap dipasang di Vercel dan lebih aman untuk kolaborasi tim:
+
+1. Jalankan dependency dari lockfile yang sudah disinkronkan:
+
+```bash
+npm install
+```
+
+2. Salin konfigurasi environment:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Isi minimal variabel berikut sebelum deploy:
+
+```text
+NEXT_PUBLIC_APP_URL=https://domain-kamu.com
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+NEXT_PUBLIC_ADMIN_EMAILS=admin@domain-kamu.com
+```
+
+4. Validasi lokal:
+
+```bash
+npm run lint
+NEXT_TELEMETRY_DISABLED=1 npm run build
+```
+
+Catatan: folder `upgrade/` dan file snapshot lama tetap disimpan sebagai arsip, tetapi dikecualikan dari lint karena bukan source app utama yang dipakai Next.js.

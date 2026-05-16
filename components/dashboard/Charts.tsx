@@ -135,7 +135,6 @@ export function LineChartCard({ title, subtitle, data, valueLabel, secondaryLabe
 
 export function DonutChartCard({ title, subtitle, segments, centerLabel }: { title: string; subtitle: string; segments: DonutSegment[]; centerLabel?: string }) {
   const total = segments.reduce((acc, segment) => acc + segment.value, 0);
-  let current = 0;
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   return (
@@ -145,12 +144,14 @@ export function DonutChartCard({ title, subtitle, segments, centerLabel }: { tit
       <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 18, alignItems: "center" }}>
         <svg viewBox="0 0 120 120" style={{ width: 150, height: 150 }}>
           <circle cx="60" cy="60" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="16" />
-          {segments.map((segment) => {
+          {segments.map((segment, index) => {
             const pct = total > 0 ? segment.value / total : 0;
+            const previousPct = segments
+              .slice(0, index)
+              .reduce((acc, item) => acc + (total > 0 ? item.value / total : 0), 0);
             const dash = pct * circumference;
             const strokeDasharray = `${dash} ${circumference - dash}`;
-            const strokeDashoffset = -current * circumference;
-            current += pct;
+            const strokeDashoffset = -previousPct * circumference;
             return <circle key={segment.label} cx="60" cy="60" r={radius} fill="none" stroke={toneColor[segment.tone || "blue"]} strokeWidth="16" strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} transform="rotate(-90 60 60)" strokeLinecap="round" />;
           })}
           <text x="60" y="56" textAnchor="middle" fill="#0f172a" fontSize="14" fontWeight="800">{centerLabel || compactMoney(total)}</text>

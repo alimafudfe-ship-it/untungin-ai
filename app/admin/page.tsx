@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-const db: any = supabase;
+const db = supabase;
 
 type PaymentStatus = "pending" | "approved" | "rejected";
 type UpgradePlan = "monthly" | "lifetime";
@@ -18,7 +18,10 @@ type PaymentRequest = {
   created_at: string;
 };
 
-const ADMIN_EMAILS = ["alimafudfe@gmail.com"];
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 
 function addDays(date: Date, days: number) {
   const next = new Date(date);
@@ -72,7 +75,7 @@ export default function AdminPage() {
     }
 
     const email = userData.user.email;
-    const allowed = ADMIN_EMAILS.includes(email);
+    const allowed = ADMIN_EMAILS.includes(email.toLowerCase());
 
     setAdminEmail(email);
     setIsAllowed(allowed);
