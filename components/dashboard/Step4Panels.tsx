@@ -110,7 +110,7 @@ export function MidtransSubscriptionPanel() {
     <section style={cardStyle}>
       <Badge label="Payment Provider Strategy" tone="success" />
       <h2 style={{ margin: "10px 0 4px" }}>Billing tidak boleh berhenti karena satu gateway ditolak</h2>
-      <p style={{ color: "#64748b", lineHeight: 1.7 }}>v7 menyiapkan pendekatan multi-provider: Xendit sebagai utama, manual transfer untuk validasi market awal, dan Midtrans hanya opsional. ENV utama: PAYMENT_PROVIDER=xendit, XENDIT_SECRET_KEY, XENDIT_CALLBACK_TOKEN.</p>
+      <p style={{ color: "#64748b", lineHeight: 1.7 }}>v8 menyiapkan pendekatan multi-provider: Xendit sebagai utama, manual transfer untuk validasi market awal, dan Midtrans hanya opsional. Growth tidak boleh berhenti karena gateway ditolak. ENV utama: PAYMENT_PROVIDER=xendit, XENDIT_SECRET_KEY, XENDIT_CALLBACK_TOKEN.</p>
       <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginTop: 16 }}>
         {providers.map(([name, status, detail]) => (
           <div key={name} style={{ padding: 16, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}>

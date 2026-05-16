@@ -18,6 +18,7 @@ const navItems: { key: TabKey; label: string; helper: string; icon: string }[] =
   { key: "assistant", label: "AI Chat", helper: "Finance CFO", icon: "🤖" },
   { key: "goals", label: "Target", helper: "Goal tracker", icon: "🎯" },
   { key: "moat", label: "Startup OS", helper: "Moat & growth", icon: "🚀" },
+  { key: "growth", label: "Growth", helper: "Founder OS", icon: "📣" },
   { key: "pricing", label: "Billing", helper: "Xendit/manual", icon: "💎" },
 ];
 
@@ -36,6 +37,7 @@ const meta: Record<TabKey, { title: string; subtitle: string }> = {
   assistant: { title: "AI Finance Chat", subtitle: "Tanya data bisnis dengan bahasa natural" },
   goals: { title: "Target Bisnis", subtitle: "Pantau progress omzet dan profit bulanan" },
   moat: { title: "Startup Operating System", subtitle: "Strategi menang dari kompetitor dengan AI-first workflow" },
+  growth: { title: "Growth Engine", subtitle: "Aktivasi, retention, monetization, dan founder action board" },
   pricing: { title: "Billing & Monetization", subtitle: "Xendit, manual transfer, dan subscription fallback" },
 };
 

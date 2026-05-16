@@ -18,9 +18,9 @@ const moduleCards = [
   { title: "AI CFO Indonesia", status: "Core moat", detail: "Bukan cuma dashboard: sistem memberi keputusan harian tentang profit asli, stok, cashflow, COD, retur, iklan, dan pricing." },
   { title: "Real-data pipeline", status: "CSV + API path", detail: "CSV marketplace langsung dipakai untuk MVP. OAuth/API disiapkan untuk seller/partner yang sudah punya akses resmi." },
   { title: "Multi-store workspace", status: "Production schema", detail: "1 owner bisa mengelola banyak toko, gudang, staff, dan channel tanpa campur data." },
-  { title: "Xendit billing fallback", status: "Midtrans-safe", detail: "Karena Midtrans bisa menolak aktivasi, billing dibuat multi-provider: Xendit, manual transfer, lalu gateway lain." },
+  { title: "Billing anti-blocker", status: "Gateway-safe", detail: "Karena payment gateway bisa menolak aktivasi, billing dibuat multi-provider: Xendit, manual transfer, lalu gateway lain." },
   { title: "Mobile seller command", status: "Indonesia-first", detail: "Bottom navigation dan card view disiapkan untuk seller yang lebih sering buka dari HP." },
-  { title: "Decision speed", status: "Anti-ERP bloat", detail: "Kompetitor kuat di omnichannel; Untungin.ai harus menang di insight cepat dan tindakan yang jelas." },
+  { title: "Growth engine", status: "Founder-ready", detail: "Produk harus mengukur aktivasi, insight pertama, retention, dan upgrade readiness dari user pertama." },
 ];
 
 export function SaaSPlatformPanel({ products, metrics, userEmail, isPro, lastSync, onGoMarketplace, onGoTeam, onUpgrade, onGoMoat }: Props) {
@@ -33,12 +33,12 @@ export function SaaSPlatformPanel({ products, metrics, userEmail, isPro, lastSyn
         <div style={{ position: "absolute", right: -90, top: -120, width: 360, height: 360, borderRadius: 999, background: "rgba(20,184,166,0.24)", filter: "blur(4px)" }} />
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 22 }} className="main-grid">
           <div>
-            <Badge label="Untungin.ai v7 Startup Serious" tone="success" />
+            <Badge label="Untungin.ai v8 Growth Engine" tone="success" />
             <h2 style={{ margin: "14px 0 8px", fontSize: 38, lineHeight: 1.02, letterSpacing: -1.5 }}>AI Profit OS yang harus lebih cepat dari ERP omnichannel biasa.</h2>
-            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>Arah produk sekarang: tidak melawan Jubelio/Ginee/Sirclo hanya dengan jumlah fitur. Untungin.ai menang di profit asli, keputusan harian, AI CFO, cashflow leak, dan action plan untuk seller Indonesia.</p>
+            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>Arah produk sekarang: melampaui dashboard operasional dengan AI decision layer. Untungin.ai menang di aktivasi cepat, profit asli, keputusan harian, cashflow leak, dan action plan yang bisa dieksekusi seller Indonesia.</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
               <button onClick={onGoMarketplace} style={{ ...ctaButtonStyle, background: "white", color: "#0f172a" }}>Import data real</button>
-              <button onClick={onGoMoat || onGoTeam} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.10)", color: "white", borderColor: "rgba(255,255,255,0.22)" }}>Lihat Startup OS</button>
+              <button onClick={onGoMoat || onGoTeam} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.10)", color: "white", borderColor: "rgba(255,255,255,0.22)" }}>Lihat Growth Engine</button>
               {!isPro && <button onClick={onUpgrade} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.10)", color: "white", borderColor: "rgba(255,255,255,0.22)" }}>Aktifkan PRO</button>}
             </div>
           </div>
