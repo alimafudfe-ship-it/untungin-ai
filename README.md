@@ -76,3 +76,22 @@ NEXT_TELEMETRY_DISABLED=1 npm run build
 ```
 
 Catatan: folder `upgrade/` dan file snapshot lama tetap disimpan sebagai arsip, tetapi dikecualikan dari lint karena bukan source app utama yang dipakai Next.js.
+
+## SaaS Professional Dashboard Refresh
+
+Versi ini memperbarui pengalaman utama Untungin.ai agar terasa seperti SaaS B2B profesional:
+
+- Shell aplikasi baru dengan sidebar enterprise, workspace card, plan status, dan topbar global.
+- Overview diubah menjadi Seller Command Center dengan KPI operasional, risk score, net cash position, PRO readiness, dan AI daily decision.
+- Hero lama yang terlalu landing-page diganti menjadi command center yang compact dan decision-oriented.
+- Copywriting diperhalus agar lebih cocok untuk seller marketplace Indonesia dan demo investor/customer.
+- Mobile navigation tetap tersedia untuk layar kecil.
+
+Validasi yang sudah dilakukan:
+
+```bash
+npm run lint
+NEXT_TELEMETRY_DISABLED=1 npm run build
+```
+
+Build production berhasil. Lint tidak memiliki error, hanya warning lama terkait `any` dan unused variable pada modul yang belum disentuh.
