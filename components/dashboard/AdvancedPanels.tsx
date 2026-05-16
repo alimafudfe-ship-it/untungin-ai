@@ -50,7 +50,7 @@ export function MarketplaceSyncPanel({ products, syncing, lastSync, onCSVUpload 
         <div>
           <Badge label="Marketplace Sync Center" tone="blue" />
           <h2 style={{ margin: "10px 0 4px" }}>Multi marketplace import & sync foundation</h2>
-          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.7 }}>Import CSV sudah menghitung omzet, HPP, fee admin, voucher, iklan, stok, margin, dan profit. API official disiapkan untuk seller/partner yang sudah punya akses.</p>
+          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.7 }}>Import CSV v11 membaca header otomatis, menampilkan preview mapping, lalu menghitung omzet, HPP, fee admin, voucher seller, subsidi ongkir, pajak, iklan, stok, margin, dan profit. API official disiapkan untuk seller/partner yang sudah punya akses.</p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <label style={{ ...ctaButtonStyle, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
@@ -59,16 +59,17 @@ export function MarketplaceSyncPanel({ products, syncing, lastSync, onCSVUpload 
           </label>
           <button type="button" onClick={() => {
             const csv = [
-              "Marketplace,Nama Produk,HPP,Harga Jual,Jumlah,Stok Awal,Biaya Admin,Biaya Iklan,Voucher Ditanggung Penjual",
-              "Shopee,Kopi Susu Botol 250ml,8200,18000,48,120,86000,125000,30000",
-              "Tokopedia,Bundling Hampers Mini,41000,89000,12,35,42000,65000,15000"
+              "Marketplace,Nama Produk,HPP,Harga Jual,Jumlah,Stok Awal,Biaya Admin,Biaya Layanan,Voucher Ditanggung Penjual,Subsidi Ongkir,Pajak,Biaya Iklan",
+              "Shopee,Kopi Susu Botol 250ml,8200,18000,48,120,86000,22000,30000,18000,0,125000",
+              "Tokopedia,Bundling Hampers Mini,41000,89000,12,35,42000,14000,15000,25000,0,65000",
+              "Lazada,Serum Brightening 20ml,45000,121000,32,80,96000,30000,0,45000,12000,0"
             ].join("\n");
             const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url; a.download = "template-import-marketplace-untungin.csv"; a.click(); URL.revokeObjectURL(url);
           }} style={ghostButtonStyle}>Download template</button>
-          <small style={{ color: "#64748b" }}>{lastSync ? `Last sync ${lastSync}` : "Shopee/Tokopedia/TikTok/Lazada CSV ready"}</small>
+          <small style={{ color: "#64748b" }}>{lastSync ? `Last sync ${lastSync}` : "Auto mapping Shopee/Tokopedia/TikTok/Lazada CSV ready"}</small>
         </div>
       </section>
       <section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>

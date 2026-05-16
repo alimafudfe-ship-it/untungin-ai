@@ -34,7 +34,7 @@ export async function POST(req: Request) {
           provider: "manual",
           status: "pending",
           amount,
-          admin_notes: `Order ${orderId} dibuat dari v10 Profit Accuracy`,
+          admin_notes: `Order ${orderId} dibuat dari v11 Auto Mapping`,
         });
       }
       return NextResponse.json({

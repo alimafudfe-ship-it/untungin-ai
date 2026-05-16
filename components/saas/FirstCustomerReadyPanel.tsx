@@ -43,11 +43,11 @@ export function FirstCustomerReadyPanel({ products, metrics, stores, workspaceId
     <section style={{ ...cardStyle, padding: 0, overflow: "hidden", border: hasData ? "1px solid rgba(15,118,110,0.18)" : "1px solid rgba(245,158,11,0.25)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 0 }} className="main-grid">
         <div style={{ padding: 24, background: "linear-gradient(135deg,#ffffff,#f8fafc)" }}>
-          <Badge label="v10 Profit Accuracy" tone={hasData ? "success" : "warning"} />
+          <Badge label="v11 Auto Mapping Preview" tone={hasData ? "success" : "warning"} />
           <h2 style={{ margin: "14px 0 8px", fontSize: 32, lineHeight: 1.1, letterSpacing: -1 }}>Ubah dashboard kosong jadi profit pertama seller.</h2>
           <p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820, margin: 0 }}>
             {hasData
-              ? `Data pertama sudah masuk. Fokus berikutnya: baca produk paling untung, stok kritis, dan cashflow leak agar seller langsung merasakan value AI.`
+              ? `Data pertama sudah masuk. Fokus berikutnya: baca produk paling untung, fee admin, voucher, ongkir, pajak, stok kritis, dan cashflow leak agar seller langsung merasakan value AI.`
               : `Belum ada transaksi real. Untuk user pertama, pengalaman terbaik adalah import CSV marketplace lalu langsung melihat profit asli, bukan angka Rp0.`}
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>

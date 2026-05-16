@@ -33,7 +33,7 @@ export function SaaSPlatformPanel({ products, metrics, userEmail, isPro, lastSyn
         <div style={{ position: "absolute", right: -90, top: -120, width: 360, height: 360, borderRadius: 999, background: "rgba(20,184,166,0.24)", filter: "blur(4px)" }} />
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 22 }} className="main-grid">
           <div>
-            <Badge label="Untungin.ai v10 Profit Accuracy" tone="success" />
+            <Badge label="Untungin.ai v11 Auto Mapping" tone="success" />
             <h2 style={{ margin: "14px 0 8px", fontSize: 38, lineHeight: 1.02, letterSpacing: -1.5 }}>AI Profit OS yang harus lebih cepat dari ERP omnichannel biasa.</h2>
             <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>Arah produk sekarang: bukan hanya terlihat premium, tapi membuat seller pertama cepat aktif. Import CSV, lihat profit asli, dapat AI action plan, lalu upgrade manual/Xendit tanpa blocker Midtrans.</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>

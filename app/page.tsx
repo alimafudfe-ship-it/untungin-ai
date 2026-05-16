@@ -23,9 +23,10 @@ import { SaaSPlatformPanel } from "@/components/dashboard/SaaSPlatformPanel";
 import { StartupMoatPanel } from "@/components/dashboard/StartupMoatPanel";
 import { GrowthEnginePanel } from "@/components/dashboard/GrowthEnginePanel";
 import { FirstCustomerReadyPanel } from "@/components/saas/FirstCustomerReadyPanel";
+import { ImportPreviewModal } from "@/components/saas/ImportPreviewModal";
 import { AutomationPanel, FinanceChatPanel, LiveChartsPanel, MarketplaceApiPanel, MidtransSubscriptionPanel, TeamAccessPanel, type ChatMessage } from "@/components/dashboard/Step4Panels";
 import { getCashflowTrend, getExpenseBreakdown, getInventoryAnalytics, getProductAnalytics, getProfitTrend } from "@/lib/dashboard/analytics";
-import { parseMarketplaceRow } from "@/lib/dashboard/marketplaceImport";
+import { createImportPreview, type ImportPreview } from "@/lib/dashboard/marketplaceImport";
 import { getOrCreateDefaultWorkspace, listWorkspaceStores, type Store } from "@/lib/saas/workspace";
 
 declare global {
@@ -75,6 +76,8 @@ export default function DashboardPage() {
   const [saleForm, setSaleForm] = useState({ productId: "", qty: "", otherCost: "" });
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(initialExpenseForm);
   const [form, setForm] = useState<ProductFormState>(initialProductForm);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [pendingImportPreview, setPendingImportPreview] = useState<ImportPreview | null>(null);
 
   const isPro = isProfilePro(profile);
   const proExpired = isProfileExpired(profile);
@@ -363,42 +366,54 @@ export default function DashboardPage() {
 
   async function handleCSVUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (!ensureLoggedIn()) { e.target.value = ""; return; }
+    if (!ensureLoggedIn()) return;
     if (!isDemoMode && (!workspaceId || !currentUserId)) {
       alert("Workspace belum siap. Refresh halaman atau cek Supabase ENV.");
-      e.target.value = "";
       return;
     }
     setSyncing(true);
     try {
+      const text = await file.text();
+      const parsed = Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
+      if (parsed.errors.length) console.warn("CSV parse warnings", parsed.errors);
+      const rows = (parsed.data || []).filter((row) => Object.values(row).some((value) => String(value || "").trim() !== ""));
+      const preview = createImportPreview(rows, currentUserId || "demo-user", "auto");
+      setPendingImportFile(file);
+      setPendingImportPreview(preview);
+      setAiAnswer(`Preview import v11 siap: ${preview.summary.validRows}/${preview.summary.totalRows} baris valid, marketplace ${preview.detectedMarketplace}, confidence ${preview.confidence}%. Cek mapping fee, voucher, ongkir, pajak, dan HPP sebelum confirm.`);
+    } catch (error) {
+      console.error(error);
+      alert(`Gagal membaca CSV: ${getErrorMessage(error)}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function confirmCSVImport() {
+    if (!pendingImportFile || !pendingImportPreview) return;
+    if (!ensureLoggedIn()) return;
+    setSyncing(true);
+    try {
       if (isDemoMode) {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            const rows = results.data as Record<string, unknown>[];
-            const imported = rows
-              .map((row, index) => ({ ...parseMarketplaceRow(row, currentUserId || "demo-user", index), workspace_id: workspaceId, store_id: selectedStoreId }))
-              .filter((row) => row.name.trim().length > 0 && (row.selling_price > 0 || row.cost_price > 0 || row.quantity_sold > 0));
-            setProducts((prev) => [...imported.map((row, index) => mapProductRow({ id: `demo-csv-${Date.now()}-${index}`, ...row } as ProductRow)), ...prev]);
-            setLastSync(new Date().toLocaleString("id-ID"));
-            setAiAnswer(`Import demo berhasil: ${imported.length} baris. Sekarang lihat produk paling profit, stok kritis, dan biaya marketplace sebelum scale.`);
-            setActiveTab("overview");
-            e.target.value = "";
-            setSyncing(false);
-          },
-          error: (error) => { console.error(error); alert("Gagal membaca file CSV."); e.target.value = ""; setSyncing(false); },
-        });
+        const imported = pendingImportPreview.rows.map((row) => ({ ...row, workspace_id: workspaceId, store_id: selectedStoreId }));
+        setProducts((prev) => [...imported.map((row, index) => mapProductRow({ id: `demo-csv-${Date.now()}-${index}`, ...row } as ProductRow)), ...prev]);
+        setLastSync(new Date().toLocaleString("id-ID"));
+        setAiAnswer(`Import demo v11 berhasil: ${imported.length} baris. Auto mapping membaca ${pendingImportPreview.detectedMarketplace}, biaya seller ${money(pendingImportPreview.summary.sellerCosts)}, estimasi profit ${money(pendingImportPreview.summary.estimatedProfit)}.`);
+        setPendingImportFile(null);
+        setPendingImportPreview(null);
+        setActiveTab("overview");
         return;
       }
 
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", pendingImportFile);
       formData.append("workspaceId", workspaceId || "");
       formData.append("storeId", selectedStoreId || "");
       formData.append("userId", currentUserId || "");
-      formData.append("marketplace", "auto");
+      formData.append("marketplace", pendingImportPreview.detectedMarketplace || "auto");
+      formData.append("mappingPreview", JSON.stringify({ confidence: pendingImportPreview.confidence, mappings: pendingImportPreview.mappings, summary: pendingImportPreview.summary, warnings: pendingImportPreview.warnings }));
 
       const res = await fetch("/api/import/marketplace", { method: "POST", body: formData });
       const data = await res.json().catch(() => null);
@@ -413,16 +428,18 @@ export default function DashboardPage() {
       setProducts(((productData || []) as ProductRow[]).map(mapProductRow));
       setLastSync(new Date().toLocaleString("id-ID"));
       const insightText = Array.isArray(data?.insights) && data.insights.length
-        ? data.insights.map((item: any, index: number) => `${index + 1}. ${item.title}: ${item.body}`).join("\n")
-        : `Import berhasil: ${data?.successRows || 0} baris. Dashboard sudah memakai data real.`;
+        ? data.insights.map((item: any, index: number) => `${index + 1}. ${item.title}: ${item.body}`).join("
+")
+        : `Import v11 berhasil: ${data?.successRows || 0} baris. Mapping confidence ${pendingImportPreview.confidence}%.`;
       setAiAnswer(insightText);
+      setPendingImportFile(null);
+      setPendingImportPreview(null);
       setActiveTab("overview");
-      alert(`Berhasil import ${data?.successRows || 0} baris. Orders, produk, import job, activation event, dan AI insight sudah dibuat.`);
+      alert(`Berhasil import ${data?.successRows || 0} baris dengan Auto Mapping v11. Preview sudah dikonfirmasi sebelum data masuk.`);
     } catch (error) {
       console.error(error);
       alert(`Gagal import CSV: ${getErrorMessage(error)}`);
     } finally {
-      e.target.value = "";
       setSyncing(false);
     }
   }
@@ -507,7 +524,9 @@ export default function DashboardPage() {
 
     {activeTab === "growth" && <GrowthEnginePanel products={products} expenses={expenses} metrics={metrics} userEmail={userEmail} onGoMarketplace={() => setActiveTab("marketplace")} onGoAI={() => setActiveTab("ai")} onGoBilling={() => setActiveTab("pricing")} />}
 
-    {activeTab === "pricing" && <div style={{ display: "grid", gap: 18 }}><MidtransSubscriptionPanel /><section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller serius</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, AI CFO, daily briefing, inventory center, export laporan, dan team workspace. Billing v10 mendukung manual request dan Xendit fallback agar user pertama tetap bisa upgrade tanpa Midtrans.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{MONTHLY_PRICE}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{LIFETIME_PRICE}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section></div>}
+    {activeTab === "pricing" && <div style={{ display: "grid", gap: 18 }}><MidtransSubscriptionPanel /><section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller serius</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, AI CFO, daily briefing, inventory center, export laporan, dan team workspace. Billing v11 mendukung manual request dan Xendit fallback agar user pertama tetap bisa upgrade tanpa Midtrans.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{MONTHLY_PRICE}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{LIFETIME_PRICE}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section></div>}
+
+    <ImportPreviewModal preview={pendingImportPreview} loading={syncing} onCancel={() => { setPendingImportFile(null); setPendingImportPreview(null); }} onConfirm={confirmCSVImport} />
 
     <footer style={{ marginTop: 30, padding: "24px 0", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", color: "#64748b", fontSize: 14 }}><div>© 2026 Untungin.ai · Built for Indonesian marketplace sellers</div><div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}><span>Privacy</span><span>Terms</span><span>Support</span><span>Xendit/manual billing</span></div></footer><div style={{ height: 80 }} />
   </AppShell>;

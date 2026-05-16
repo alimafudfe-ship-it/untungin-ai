@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Papa from "papaparse";
 import { createClient } from "@supabase/supabase-js";
-import { detectMarketplace, parseMarketplaceRow } from "@/lib/dashboard/marketplaceImport";
+import { createImportPreview } from "@/lib/dashboard/marketplaceImport";
 import { generateRuleBasedInsights } from "@/lib/saas/aiInsights";
 
 function serverClient() {
@@ -45,19 +45,22 @@ export async function POST(req: Request) {
   const rows: Record<string, unknown>[] = parsed.data.filter((row: Record<string, unknown>) => Object.values(row).some((value) => String(value || "").trim() !== ""));
   const errors = parsed.errors.map((e: { row?: number; message: string }) => ({ row: e.row, message: e.message }));
   const importStartedAt = Date.now();
+  const preview = createImportPreview(rows, userId, selectedMarketplace || "auto");
+  const mappingPreview = (() => {
+    try {
+      const raw = formData.get("mappingPreview");
+      return raw ? JSON.parse(String(raw)) : null;
+    } catch {
+      return null;
+    }
+  })();
 
-  const normalized = rows
-    .map((row: Record<string, unknown>, index: number) => {
-      const detectedMarketplace = detectMarketplace(row, "CSV");
-      const rowMarketplace = selectedMarketplace.toLowerCase() === "auto" ? detectedMarketplace : selectedMarketplace;
-      return {
-        ...parseMarketplaceRow({ ...row, Marketplace: rowMarketplace }, userId, index),
-        workspace_id: workspaceId,
-        store_id: storeId || null,
-        marketplace: rowMarketplace,
-      };
-    })
-    .filter((row: { name: string; selling_price: number; cost_price: number; quantity_sold: number }) => row.name.trim().length > 0 && (row.selling_price > 0 || row.cost_price > 0 || row.quantity_sold > 0));
+  const normalized = preview.rows.map((row) => ({
+    ...row,
+    workspace_id: workspaceId,
+    store_id: storeId || null,
+    marketplace: preview.detectedMarketplace,
+  }));
 
   const supabase = serverClient();
   if (!supabase) {
@@ -66,7 +69,7 @@ export async function POST(req: Request) {
 
   const { data: job } = await supabase
     .from("import_jobs")
-    .insert({ workspace_id: workspaceId, store_id: storeId || null, marketplace: selectedMarketplace, filename: file.name, total_rows: rows.length, status: "processing", created_by: userId })
+    .insert({ workspace_id: workspaceId, store_id: storeId || null, marketplace: preview.detectedMarketplace, filename: file.name, total_rows: rows.length, status: "processing", created_by: userId })
     .select("id")
     .single();
 
@@ -74,7 +77,7 @@ export async function POST(req: Request) {
   const successRows = insertedProducts?.length || 0;
 
   if (productError) {
-    await supabase.from("import_jobs").update({ status: "failed", success_rows: successRows, failed_rows: rows.length, errors: [{ message: productError.message }, ...errors], finished_at: new Date().toISOString() }).eq("id", job?.id);
+    await supabase.from("import_jobs").update({ status: "failed", success_rows: successRows, failed_rows: rows.length, errors: [{ message: productError.message }, ...errors, ...preview.warnings.map((message) => ({ message }))], finished_at: new Date().toISOString() }).eq("id", job?.id);
     return NextResponse.json({ error: productError.message, totalRows: rows.length, successRows, failedRows: rows.length }, { status: 500 });
   }
 
@@ -86,7 +89,7 @@ export async function POST(req: Request) {
     return {
       workspace_id: workspaceId,
       store_id: storeId || null,
-      marketplace: row.marketplace,
+      marketplace: row.marketplace || preview.detectedMarketplace,
       external_order_id: externalId,
       status: valueFrom(raw, ["Status Pesanan", "Status", "Order Status"]) || "completed",
       buyer_name: valueFrom(raw, ["Nama Pembeli", "Buyer Name", "Pembeli"]),
@@ -125,14 +128,14 @@ export async function POST(req: Request) {
 
   const insightInputs = normalized.map((p) => ({ name: p.name, profit: p.profit, margin: p.margin, stockRemaining: p.stock_remaining, stockInitial: p.stock_initial, otherCost: p.other_cost, marketplace: p.marketplace }));
   const insights = generateRuleBasedInsights(insightInputs, []);
-  await supabase.from("ai_insights").insert(insights.map((item) => ({ workspace_id: workspaceId, store_id: storeId || null, severity: item.severity, title: item.title, body: item.body, action_label: item.actionLabel, metric_snapshot: { source: "csv_import", score: item.score, file: file.name, imported_rows: successRows } })));
-  await supabase.from("activation_events").insert({ workspace_id: workspaceId, user_id: userId, event_name: "csv_import_completed", source: "v10_profit_accuracy", metadata: { file: file.name, rows: rows.length, successRows } });
+  await supabase.from("ai_insights").insert(insights.map((item) => ({ workspace_id: workspaceId, store_id: storeId || null, severity: item.severity, title: item.title, body: item.body, action_label: item.actionLabel, metric_snapshot: { source: "csv_import_v11_auto_mapping", score: item.score, file: file.name, imported_rows: successRows, mapping_confidence: preview.confidence, detected_marketplace: preview.detectedMarketplace } })));
+  await supabase.from("activation_events").insert({ workspace_id: workspaceId, user_id: userId, event_name: "csv_import_completed", source: "v11_auto_mapping", metadata: { file: file.name, rows: rows.length, successRows, mappingConfidence: preview.confidence, detectedMarketplace: preview.detectedMarketplace, warnings: preview.warnings } });
   const { error: workspaceMarkError } = await supabase.rpc("mark_workspace_first_import", { target_workspace: workspaceId });
   if (workspaceMarkError) {
     await supabase.from("workspaces").update({ onboarding_step: 4, onboarding_completed: true, updated_at: new Date().toISOString() }).eq("id", workspaceId);
   }
 
-  await supabase.from("import_jobs").update({ status: "completed", success_rows: successRows, failed_rows: errors.length, errors, finished_at: new Date().toISOString() }).eq("id", job?.id);
+  await supabase.from("import_jobs").update({ status: "completed", success_rows: successRows, failed_rows: errors.length, errors: [...errors, ...preview.warnings.map((message) => ({ message }))], finished_at: new Date().toISOString() }).eq("id", job?.id);
 
-  return NextResponse.json({ jobId: job?.id, totalRows: rows.length, successRows, failedRows: errors.length, insights, products: insertedProducts?.slice(0, 20) || [] });
+  return NextResponse.json({ jobId: job?.id, totalRows: rows.length, successRows, failedRows: errors.length, insights, products: insertedProducts?.slice(0, 20) || [], preview: { detectedMarketplace: preview.detectedMarketplace, confidence: preview.confidence, summary: preview.summary, warnings: preview.warnings, mappings: mappingPreview?.mappings || preview.mappings } });
 }
