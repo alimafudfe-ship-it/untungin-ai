@@ -101,11 +101,25 @@ export function FinanceChatPanel({ messages, question, loading, onQuestionChange
 }
 
 export function MidtransSubscriptionPanel() {
+  const providers = [
+    ["Xendit", "Primary", "Invoice, VA, QRIS, e-wallet, dan subscription path. Cocok sebagai pengganti Midtrans ketika aktivasi ditolak."],
+    ["Manual transfer", "Fallback", "Untuk early customer: upload bukti bayar, admin approve, lalu profile/workspace jadi PRO."],
+    ["Midtrans", "Optional", "Tetap bisa dipakai jika akun nanti disetujui, tapi bukan blocking dependency."],
+  ];
   return (
     <section style={cardStyle}>
-      <Badge label="Midtrans Subscription PRO" tone="success" />
-      <h2 style={{ margin: "10px 0 4px" }}>Subscription billing foundation</h2>
-      <p style={{ color: "#64748b", lineHeight: 1.7 }}>Endpoint subscription disiapkan untuk tokenisasi recurring payment, webhook status, dan auto downgrade saat pembayaran gagal. Untuk production, aktifkan MIDTRANS_IS_PRODUCTION dan webhook signature validation.</p>
+      <Badge label="Payment Provider Strategy" tone="success" />
+      <h2 style={{ margin: "10px 0 4px" }}>Billing tidak boleh berhenti karena satu gateway ditolak</h2>
+      <p style={{ color: "#64748b", lineHeight: 1.7 }}>v7 menyiapkan pendekatan multi-provider: Xendit sebagai utama, manual transfer untuk validasi market awal, dan Midtrans hanya opsional. ENV utama: PAYMENT_PROVIDER=xendit, XENDIT_SECRET_KEY, XENDIT_CALLBACK_TOKEN.</p>
+      <div className="three-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginTop: 16 }}>
+        {providers.map(([name, status, detail]) => (
+          <div key={name} style={{ padding: 16, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+            <Badge label={status} tone={status === "Primary" ? "success" : status === "Fallback" ? "warning" : "muted"} />
+            <h3 style={{ margin: "12px 0 6px" }}>{name}</h3>
+            <p style={{ color: "#64748b", lineHeight: 1.6, margin: 0 }}>{detail}</p>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

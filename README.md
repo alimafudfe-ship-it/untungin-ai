@@ -1,3 +1,11 @@
+# Untungin.ai v7 Startup Serious
+
+AI Profit OS untuk seller marketplace Indonesia. Versi ini menambahkan Startup OS, Xendit/manual billing fallback, Supabase v7 migration, dan positioning melawan kompetitor omnichannel dengan AI decision layer.
+
+Lihat `STARTUP_SERIOUS_V7_NOTES.md` untuk instruksi production.
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
