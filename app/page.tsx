@@ -10,7 +10,7 @@ import { DEMO_EXPENSES, DEMO_GOALS, DEMO_PRODUCTS, FREE_PRODUCT_LIMIT, LIFETIME_
 import { calculateMargin, calculateProfit, getDashboardMetrics, isProfileExpired, isProfilePro, mapExpenseRow, mapProductRow } from "@/lib/dashboard/calculations";
 import { generateInsightText, getOneThingAction, buildInsightCards } from "@/lib/dashboard/insights";
 import { exportCashflowCSV, exportExpensesCSV, exportProductsCSV, exportSummaryJSON, exportRealPDF } from "@/lib/dashboard/reports";
-import { compactMoney, getErrorMessage, money, percent } from "@/lib/dashboard/format";
+import { compactMoney, getErrorMessage, money, parseNumber, percent } from "@/lib/dashboard/format";
 import { AppShell } from "@/components/dashboard/AppShell";
 import { Hero } from "@/components/dashboard/Hero";
 import { Badge, cardStyle, ctaButtonStyle, EmptyState, ghostButtonStyle, Progress, StatCard } from "@/components/dashboard/ui";
@@ -22,6 +22,7 @@ import { AIRecommendationPanel, ForecastingPanel, MarketplaceSyncPanel } from "@
 import { SaaSPlatformPanel } from "@/components/dashboard/SaaSPlatformPanel";
 import { StartupMoatPanel } from "@/components/dashboard/StartupMoatPanel";
 import { GrowthEnginePanel } from "@/components/dashboard/GrowthEnginePanel";
+import { FirstCustomerReadyPanel } from "@/components/saas/FirstCustomerReadyPanel";
 import { AutomationPanel, FinanceChatPanel, LiveChartsPanel, MarketplaceApiPanel, MidtransSubscriptionPanel, TeamAccessPanel, type ChatMessage } from "@/components/dashboard/Step4Panels";
 import { getCashflowTrend, getExpenseBreakdown, getInventoryAnalytics, getProductAnalytics, getProfitTrend } from "@/lib/dashboard/analytics";
 import { parseMarketplaceRow } from "@/lib/dashboard/marketplaceImport";
@@ -133,11 +134,13 @@ export default function DashboardPage() {
       setCurrentUserId(user.id);
       setUserEmail(user.email ?? null);
       setIsDemoMode(false);
+      let activeWorkspaceId: string | null = null;
 
       try {
         const workspace = await getOrCreateDefaultWorkspace({ id: user.id, email: user.email });
         if (!isMounted) return;
         setWorkspaceId(workspace.id);
+        activeWorkspaceId = workspace.id;
         const storeList = await listWorkspaceStores(workspace.id);
         if (!isMounted) return;
         setStores(storeList);
@@ -150,7 +153,10 @@ export default function DashboardPage() {
       if (!isMounted) return;
       setProfile((profileData as Profile | null) ?? { role: "user", plan: "free", pro_until: null, email: user.email });
 
-      const { data: productData, error: productError } = await db.from("products").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+      const productQuery = db.from("products").select("*").order("created_at", { ascending: false });
+      const { data: productData, error: productError } = activeWorkspaceId
+        ? await productQuery.eq("workspace_id", activeWorkspaceId)
+        : await productQuery.eq("user_id", user.id);
       if (!isMounted) return;
       if (productError) {
         console.error(productError);
@@ -159,7 +165,10 @@ export default function DashboardPage() {
         setProducts(((productData || []) as ProductRow[]).map(mapProductRow));
       }
 
-      const { data: expenseData, error: expenseError } = await db.from("expenses").select("*").eq("user_id", user.id).order("expense_date", { ascending: false }).limit(100);
+      const expenseQuery = db.from("expenses").select("*").order("expense_date", { ascending: false }).limit(100);
+      const { data: expenseData, error: expenseError } = activeWorkspaceId
+        ? await expenseQuery.eq("workspace_id", activeWorkspaceId)
+        : await expenseQuery.eq("user_id", user.id);
       if (!isMounted) return;
       if (expenseError) {
         console.warn("Expenses table belum tersedia atau belum diberi RLS. Jalankan supabase/migrations/20260513_expense_engine.sql", expenseError);
@@ -223,7 +232,7 @@ export default function DashboardPage() {
     if (!userEmail) { alert("Email user tidak ditemukan. Coba logout lalu login ulang."); return; }
     setUpgradeLoading(true);
     try {
-      const res = await fetch("/api/create-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: userEmail, plan, amount: getPlanAmount(plan) }) });
+      const res = await fetch("/api/create-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: userEmail, plan, amount: getPlanAmount(plan), workspaceId, userId: currentUserId }) });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(getErrorMessage(data?.error || data));
       if (data?.invoice_url) {
@@ -356,25 +365,66 @@ export default function DashboardPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!ensureLoggedIn()) { e.target.value = ""; return; }
+    if (!isDemoMode && (!workspaceId || !currentUserId)) {
+      alert("Workspace belum siap. Refresh halaman atau cek Supabase ENV.");
+      e.target.value = "";
+      return;
+    }
     setSyncing(true);
-    Papa.parse(file, {
-      header: true, skipEmptyLines: true,
-      complete: async (results) => {
-        const rows = results.data as Record<string, unknown>[];
-        const remainingSlot = isPro ? rows.length : FREE_PRODUCT_LIMIT - products.length;
-        if (remainingSlot <= 0) { openUpgradeModal("lifetime"); e.target.value = ""; setSyncing(false); return; }
-        const imported = rows
-          .slice(0, remainingSlot)
-          .map((row, index) => ({ ...parseMarketplaceRow(row, currentUserId, index), workspace_id: workspaceId, store_id: selectedStoreId }))
-          .filter((row) => row.name.trim().length > 0 && (row.selling_price > 0 || row.cost_price > 0 || row.quantity_sold > 0));
-        try {
-          if (isDemoMode) setProducts((prev) => [...imported.map((row, index) => mapProductRow({ id: `demo-csv-${Date.now()}-${index}`, ...row } as ProductRow)), ...prev]);
-          else { const { data, error } = await db.from("products").insert(imported as any).select("*"); if (error) throw error; if (data) setProducts((prev) => [...(data as ProductRow[]).map(mapProductRow), ...prev]); }
-          setLastSync(new Date().toLocaleString("id-ID")); alert(`Berhasil import ${imported.length} baris marketplace. Profit, fee, stok, margin, dan multi-store sudah dihitung otomatis.`);
-        } catch (error) { console.error(error); alert("Gagal import CSV ke database."); } finally { e.target.value = ""; setSyncing(false); }
-      },
-      error: (error) => { console.error(error); alert("Gagal membaca file CSV."); e.target.value = ""; setSyncing(false); },
-    });
+    try {
+      if (isDemoMode) {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            const rows = results.data as Record<string, unknown>[];
+            const imported = rows
+              .map((row, index) => ({ ...parseMarketplaceRow(row, currentUserId || "demo-user", index), workspace_id: workspaceId, store_id: selectedStoreId }))
+              .filter((row) => row.name.trim().length > 0 && (row.selling_price > 0 || row.cost_price > 0 || row.quantity_sold > 0));
+            setProducts((prev) => [...imported.map((row, index) => mapProductRow({ id: `demo-csv-${Date.now()}-${index}`, ...row } as ProductRow)), ...prev]);
+            setLastSync(new Date().toLocaleString("id-ID"));
+            setAiAnswer(`Import demo berhasil: ${imported.length} baris. Sekarang lihat produk paling profit, stok kritis, dan biaya marketplace sebelum scale.`);
+            setActiveTab("overview");
+            e.target.value = "";
+            setSyncing(false);
+          },
+          error: (error) => { console.error(error); alert("Gagal membaca file CSV."); e.target.value = ""; setSyncing(false); },
+        });
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("workspaceId", workspaceId || "");
+      formData.append("storeId", selectedStoreId || "");
+      formData.append("userId", currentUserId || "");
+      formData.append("marketplace", "auto");
+
+      const res = await fetch("/api/import/marketplace", { method: "POST", body: formData });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(getErrorMessage(data?.error || data));
+
+      const { data: productData, error: productError } = await db
+        .from("products")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: false });
+      if (productError) throw productError;
+      setProducts(((productData || []) as ProductRow[]).map(mapProductRow));
+      setLastSync(new Date().toLocaleString("id-ID"));
+      const insightText = Array.isArray(data?.insights) && data.insights.length
+        ? data.insights.map((item: any, index: number) => `${index + 1}. ${item.title}: ${item.body}`).join("\n")
+        : `Import berhasil: ${data?.successRows || 0} baris. Dashboard sudah memakai data real.`;
+      setAiAnswer(insightText);
+      setActiveTab("overview");
+      alert(`Berhasil import ${data?.successRows || 0} baris. Orders, produk, import job, activation event, dan AI insight sudah dibuat.`);
+    } catch (error) {
+      console.error(error);
+      alert(`Gagal import CSV: ${getErrorMessage(error)}`);
+    } finally {
+      e.target.value = "";
+      setSyncing(false);
+    }
   }
 
   function handleExport() {
@@ -427,7 +477,7 @@ export default function DashboardPage() {
 
     <Hero netCash={metrics.netCash} totalRevenue={metrics.totalRevenue} inventoryValue={metrics.inventoryValue} sparklineData={sparklineData} onAddProduct={() => setActiveTab("products")} onAddCashflow={() => setActiveTab("cashflow")} syncing={syncing} onCSVUpload={handleCSVUpload} />
 
-    {activeTab === "overview" && <div style={{ display: "grid", gap: 18 }}><SaaSPlatformPanel products={products} metrics={metrics} userEmail={userEmail} isPro={isPro} lastSync={lastSync} onGoMarketplace={() => setActiveTab("marketplace")} onGoTeam={() => setActiveTab("team")} onUpgrade={() => openUpgradeModal("lifetime")} onGoMoat={() => setActiveTab("growth")} /><LiveChartsPanel products={products} expenses={expenses} metrics={metrics} /><section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}><StatCard label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" /><StatCard label="Profit produk" value={money(metrics.totalProfit)} helper={`Margin rata-rata ${percent(metrics.avgMargin)}`} tone={metrics.totalProfit >= 0 ? "success" : "danger"} /><StatCard label="Cashflow bersih" value={money(metrics.netCash)} helper={`Biaya operasional ${money(metrics.totalExpenses)}`} tone={metrics.netCash >= 0 ? "success" : "danger"} /><StatCard label="Risk score" value={`${metrics.riskScore}/100`} helper={`Estimasi bocor ${money(metrics.dailyLeakEstimate)} per hari`} tone={metrics.riskScore >= 50 ? "danger" : metrics.riskScore >= 25 ? "warning" : "success"} /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><LineChartCard title="Cashflow Trend" subtitle="Uang masuk vs keluar" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><LineChartCard title="Profit Trend" subtitle="Estimasi profit 7 hari" data={profitTrend} valueLabel="Profit" /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><div style={cardStyle}><Badge label="Rekomendasi Hari Ini" tone="success" /><h2 style={{ margin: "12px 0", lineHeight: 1.35 }}>{getOneThingAction(products)}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Prioritas dihitung dari profit, margin, stok, dan cashflow agar keputusan tidak hanya berdasarkan omzet.</p><button onClick={() => setActiveTab("ai")} style={ctaButtonStyle}>Lihat insight</button></div><div style={cardStyle}><Badge label="Business Health" tone="warning" /><h2 style={{ margin: "12px 0" }}>{money(metrics.inventoryValue)} modal di stok</h2><div style={{ display: "grid", gap: 10, marginTop: 16 }}><div><small>Stock value <b style={{ float: "right" }}>{compactMoney(metrics.inventoryValue)}</b></small><Progress value={100} /></div><div><small>Profit <b style={{ float: "right" }}>{compactMoney(metrics.totalProfit)}</b></small><Progress value={Math.min(100, (metrics.totalProfit / Math.max(metrics.inventoryValue, 1)) * 100)} /></div><div><small>Expenses <b style={{ float: "right" }}>{compactMoney(metrics.totalExpenses)}</b></small><Progress value={Math.min(100, (metrics.totalExpenses / Math.max(metrics.totalProfit, 1)) * 100)} /></div></div></div></section><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}><div><Badge label="Performa Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Profit, risiko, marketplace, dan stok</h2></div><button onClick={() => setActiveTab("products")} style={ghostButtonStyle}>Lihat semua</button></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
+    {activeTab === "overview" && <div style={{ display: "grid", gap: 18 }}><FirstCustomerReadyPanel products={products} metrics={metrics} stores={stores} workspaceId={workspaceId} userEmail={userEmail} isDemoMode={isDemoMode} syncing={syncing} lastSync={lastSync} onImportCSV={handleCSVUpload} onGoMarketplace={() => setActiveTab("marketplace")} onGoProducts={() => setActiveTab("products")} onGoAI={() => setActiveTab("ai")} onGoBilling={() => setActiveTab("pricing")} /><SaaSPlatformPanel products={products} metrics={metrics} userEmail={userEmail} isPro={isPro} lastSync={lastSync} onGoMarketplace={() => setActiveTab("marketplace")} onGoTeam={() => setActiveTab("team")} onUpgrade={() => openUpgradeModal("lifetime")} onGoMoat={() => setActiveTab("growth")} /><LiveChartsPanel products={products} expenses={expenses} metrics={metrics} /><section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}><StatCard label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" /><StatCard label="Profit produk" value={money(metrics.totalProfit)} helper={`Margin rata-rata ${percent(metrics.avgMargin)}`} tone={metrics.totalProfit >= 0 ? "success" : "danger"} /><StatCard label="Cashflow bersih" value={money(metrics.netCash)} helper={`Biaya operasional ${money(metrics.totalExpenses)}`} tone={metrics.netCash >= 0 ? "success" : "danger"} /><StatCard label="Risk score" value={`${metrics.riskScore}/100`} helper={`Estimasi bocor ${money(metrics.dailyLeakEstimate)} per hari`} tone={metrics.riskScore >= 50 ? "danger" : metrics.riskScore >= 25 ? "warning" : "success"} /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><LineChartCard title="Cashflow Trend" subtitle="Uang masuk vs keluar" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><LineChartCard title="Profit Trend" subtitle="Estimasi profit 7 hari" data={profitTrend} valueLabel="Profit" /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><div style={cardStyle}><Badge label="Rekomendasi Hari Ini" tone="success" /><h2 style={{ margin: "12px 0", lineHeight: 1.35 }}>{getOneThingAction(products)}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Prioritas dihitung dari profit, margin, stok, dan cashflow agar keputusan tidak hanya berdasarkan omzet.</p><button onClick={() => setActiveTab("ai")} style={ctaButtonStyle}>Lihat insight</button></div><div style={cardStyle}><Badge label="Business Health" tone="warning" /><h2 style={{ margin: "12px 0" }}>{money(metrics.inventoryValue)} modal di stok</h2><div style={{ display: "grid", gap: 10, marginTop: 16 }}><div><small>Stock value <b style={{ float: "right" }}>{compactMoney(metrics.inventoryValue)}</b></small><Progress value={100} /></div><div><small>Profit <b style={{ float: "right" }}>{compactMoney(metrics.totalProfit)}</b></small><Progress value={Math.min(100, (metrics.totalProfit / Math.max(metrics.inventoryValue, 1)) * 100)} /></div><div><small>Expenses <b style={{ float: "right" }}>{compactMoney(metrics.totalExpenses)}</b></small><Progress value={Math.min(100, (metrics.totalExpenses / Math.max(metrics.totalProfit, 1)) * 100)} /></div></div></div></section><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}><div><Badge label="Performa Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Profit, risiko, marketplace, dan stok</h2></div><button onClick={() => setActiveTab("products")} style={ghostButtonStyle}>Lihat semua</button></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
 
     {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} onChange={setForm} onSubmit={handleSubmit} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
 
@@ -457,7 +507,7 @@ export default function DashboardPage() {
 
     {activeTab === "growth" && <GrowthEnginePanel products={products} expenses={expenses} metrics={metrics} userEmail={userEmail} onGoMarketplace={() => setActiveTab("marketplace")} onGoAI={() => setActiveTab("ai")} onGoBilling={() => setActiveTab("pricing")} />}
 
-    {activeTab === "pricing" && <div style={{ display: "grid", gap: 18 }}><MidtransSubscriptionPanel /><section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller serius</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, AI CFO, daily briefing, inventory center, export laporan, dan team workspace. Billing v8 mendukung Xendit/manual agar tidak bergantung Midtrans.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{MONTHLY_PRICE}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{LIFETIME_PRICE}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section></div>}
+    {activeTab === "pricing" && <div style={{ display: "grid", gap: 18 }}><MidtransSubscriptionPanel /><section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller serius</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, AI CFO, daily briefing, inventory center, export laporan, dan team workspace. Billing v9 mendukung manual request dan Xendit fallback agar user pertama tetap bisa upgrade tanpa Midtrans.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{MONTHLY_PRICE}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{LIFETIME_PRICE}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section></div>}
 
     <footer style={{ marginTop: 30, padding: "24px 0", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", color: "#64748b", fontSize: 14 }}><div>© 2026 Untungin.ai · Built for Indonesian marketplace sellers</div><div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}><span>Privacy</span><span>Terms</span><span>Support</span><span>Xendit/manual billing</span></div></footer><div style={{ height: 80 }} />
   </AppShell>;

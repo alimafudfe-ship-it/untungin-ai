@@ -39,9 +39,9 @@ export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGo
       <section style={{ ...cardStyle, color: "white", background: "radial-gradient(circle at top right, rgba(20,184,166,0.38), transparent 34%), linear-gradient(135deg,#020617,#0f172a 58%,#115e59)", border: "1px solid rgba(255,255,255,0.14)", overflow: "hidden" }}>
         <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 22, alignItems: "center" }}>
           <div>
-            <Badge label="Untungin.ai v8 Growth Engine" tone="success" />
+            <Badge label="Untungin.ai v9 First Customer Ready" tone="success" />
             <h2 style={{ margin: "14px 0 10px", fontSize: 42, lineHeight: 1.02, letterSpacing: -1.4 }}>Jadikan produk ini startup serius: aktivasi cepat, insight nyata, upgrade jelas.</h2>
-            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>v8 fokus ke mesin bisnis: user pertama harus upload data real, melihat profit asli, mendapat action plan, lalu punya alasan kuat untuk upgrade. Ini cara melampaui kompetitor yang hanya menampilkan dashboard operasional.</p>
+            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>v9 fokus ke aktivasi user pertama: seller upload CSV, melihat profit asli, mendapat action plan, lalu punya alasan kuat untuk upgrade. Ini cara melampaui kompetitor yang hanya menampilkan dashboard operasional.</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
               <button onClick={onGoMarketplace} style={ctaButtonStyle}>Aktifkan data real</button>
               <button onClick={onGoAI} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.20)" }}>Buat AI plan</button>
@@ -98,7 +98,7 @@ export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGo
           <div style={cardStyle}>
             <Badge label="Billing fallback" tone="warning" />
             <h2 style={{ margin: "12px 0" }}>Jangan berhenti karena gateway</h2>
-            <p style={{ color: "#64748b", lineHeight: 1.7 }}>Midtrans ditolak bukan blocker. v8 tetap siapkan Xendit, manual transfer, dan approval internal untuk early customer.</p>
+            <p style={{ color: "#64748b", lineHeight: 1.7 }}>Midtrans ditolak bukan blocker. v9 tetap siapkan manual transfer, Xendit, dan approval internal untuk early customer.</p>
             <button onClick={onGoBilling} style={{ ...ctaButtonStyle, width: "100%" }}>Cek monetization</button>
           </div>
         </div>

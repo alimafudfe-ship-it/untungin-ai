@@ -33,12 +33,12 @@ export function SaaSPlatformPanel({ products, metrics, userEmail, isPro, lastSyn
         <div style={{ position: "absolute", right: -90, top: -120, width: 360, height: 360, borderRadius: 999, background: "rgba(20,184,166,0.24)", filter: "blur(4px)" }} />
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 22 }} className="main-grid">
           <div>
-            <Badge label="Untungin.ai v8 Growth Engine" tone="success" />
+            <Badge label="Untungin.ai v9 First Customer Ready" tone="success" />
             <h2 style={{ margin: "14px 0 8px", fontSize: 38, lineHeight: 1.02, letterSpacing: -1.5 }}>AI Profit OS yang harus lebih cepat dari ERP omnichannel biasa.</h2>
-            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>Arah produk sekarang: melampaui dashboard operasional dengan AI decision layer. Untungin.ai menang di aktivasi cepat, profit asli, keputusan harian, cashflow leak, dan action plan yang bisa dieksekusi seller Indonesia.</p>
+            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>Arah produk sekarang: bukan hanya terlihat premium, tapi membuat seller pertama cepat aktif. Import CSV, lihat profit asli, dapat AI action plan, lalu upgrade manual/Xendit tanpa blocker Midtrans.</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-              <button onClick={onGoMarketplace} style={{ ...ctaButtonStyle, background: "white", color: "#0f172a" }}>Import data real</button>
-              <button onClick={onGoMoat || onGoTeam} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.10)", color: "white", borderColor: "rgba(255,255,255,0.22)" }}>Lihat Growth Engine</button>
+              <button onClick={onGoMarketplace} style={{ ...ctaButtonStyle, background: "white", color: "#0f172a" }}>Import CSV pertama</button>
+              <button onClick={onGoMoat || onGoTeam} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.10)", color: "white", borderColor: "rgba(255,255,255,0.22)" }}>Lihat Founder OS</button>
               {!isPro && <button onClick={onUpgrade} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.10)", color: "white", borderColor: "rgba(255,255,255,0.22)" }}>Aktifkan PRO</button>}
             </div>
           </div>

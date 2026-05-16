@@ -1,44 +1,58 @@
-# Untungin.ai v7 Startup Serious
+# Untungin.ai v9 — First Customer Ready
 
-AI Profit OS untuk seller marketplace Indonesia. Versi ini menambahkan Startup OS, Xendit/manual billing fallback, Supabase v7 migration, dan positioning melawan kompetitor omnichannel dengan AI decision layer.
+AI Profit OS untuk seller Indonesia. v9 fokus ke user pertama: onboarding, import CSV real, AI insight otomatis, workspace/store activation, dan manual billing fallback.
 
-Lihat `STARTUP_SERIOUS_V7_NOTES.md` untuk instruksi production.
+Lihat `FIRST_CUSTOMER_READY_V9_NOTES.md` untuk instruksi v9.
 
----
+# Untungin.ai v8 Growth Engine (legacy notes)
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+AI Profit OS untuk seller marketplace Indonesia. v9 menambahkan First Customer Ready flow di atas Growth Engine v8: onboarding, import CSV real, AI insight otomatis, dan manual upgrade request.
 
-## Getting Started
+## Core positioning
 
-First, run the development server:
+Bukan ERP biasa. Untungin.ai fokus pada profit asli, cashflow leak, restock decision, daily briefing, dan tindakan harian yang bisa langsung dieksekusi seller Indonesia.
+
+## Quick start
 
 ```bash
+npm install
+npm run build
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Supabase SQL order
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Jalankan di Supabase SQL Editor:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. `supabase/production_v6_real_data_schema.sql`
+2. `supabase/production_v7_startup_serious_schema.sql`
+3. `supabase/production_v8_growth_engine_schema.sql`
 
-## Learn More
+## Environment variables
 
-To learn more about Next.js, take a look at the following resources:
+```env
+NEXT_PUBLIC_APP_URL=https://domain-anda.com
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+OPENAI_API_KEY=
+PAYMENT_PROVIDER=xendit
+NEXT_PUBLIC_PAYMENT_PROVIDER=xendit
+XENDIT_SECRET_KEY=
+XENDIT_CALLBACK_TOKEN=
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Jika Xendit belum aktif, gunakan:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```env
+PAYMENT_PROVIDER=manual
+NEXT_PUBLIC_PAYMENT_PROVIDER=manual
+```
 
-## Deploy on Vercel
+## v8 additions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Growth Engine tab.
+- Founder action board.
+- Growth metrics: activation, AI value, monetization, retention.
+- `/api/growth/action-plan` endpoint.
+- Supabase tables: growth action plans, activation events, billing requests, customer interviews.

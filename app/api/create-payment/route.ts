@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { getPaymentProvider, getPlanAmount, getPlanName } from "@/lib/billing/providers";
 
 function basicAuth(key: string) {
@@ -12,6 +13,8 @@ export async function POST(req: Request) {
     const plan = String(body.plan || "monthly");
     const amount = Number(body.amount || getPlanAmount(plan));
     const provider = getPaymentProvider();
+    const workspaceId = String(body.workspaceId || "");
+    const userId = String(body.userId || "");
 
     if (!email || !plan || !amount) {
       return NextResponse.json({ error: "Data tidak lengkap (email, plan, amount wajib)" }, { status: 400 });
@@ -20,11 +23,26 @@ export async function POST(req: Request) {
     const orderId = `UNT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     if (provider === "manual") {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (supabaseUrl && serviceKey && workspaceId) {
+        const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+        await db.from("billing_requests").insert({
+          workspace_id: workspaceId,
+          user_id: userId || null,
+          plan_code: plan,
+          provider: "manual",
+          status: "pending",
+          amount,
+          admin_notes: `Order ${orderId} dibuat dari v9 First Customer Ready`,
+        });
+      }
       return NextResponse.json({
         provider: "manual",
         order_id: orderId,
         manual: true,
-        message: "Manual transfer aktif. Simpan order_id ini dan approve user dari admin setelah pembayaran diterima.",
+        amount,
+        message: "Manual transfer aktif. Request upgrade sudah dicatat. Admin bisa approve workspace menjadi PRO setelah pembayaran diterima.",
       });
     }
 
