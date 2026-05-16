@@ -12,8 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; max-width: 100%; overflow-x: hidden; }
 body {
+  max-width: 100%;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(20,184,166,0.16), transparent 34rem),
     radial-gradient(circle at top right, rgba(245,158,11,0.12), transparent 30rem),
@@ -28,3 +30,5 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   outline: 3px solid rgba(20,184,166,0.22);
   outline-offset: 2px;
 }
+
+#__next, main { max-width: 100%; }

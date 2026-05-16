@@ -55,8 +55,8 @@ export const ghostButtonStyle: React.CSSProperties = {
   boxShadow: "0 8px 24px rgba(16,24,40,0.04)",
 };
 
-export function Badge({ label, tone = "muted" }: { label: string; tone?: Tone }) {
-  const palette = {
+function tonePalette(tone: Tone) {
+  return {
     success: { color: "#047857", bg: "#ecfdf3", border: "#a7f3d0" },
     warning: { color: "#b45309", bg: "#fffbeb", border: "#fde68a" },
     danger: { color: "#b42318", bg: "#fff1f1", border: "#fecaca" },
@@ -64,6 +64,10 @@ export function Badge({ label, tone = "muted" }: { label: string; tone?: Tone })
     neutral: { color: colors.ink, bg: "#f8fafc", border: "#e2e8f0" },
     muted: { color: colors.muted, bg: "#f8fafc", border: "#e2e8f0" },
   }[tone];
+}
+
+export function Badge({ label, tone = "muted" }: { label: string; tone?: Tone }) {
+  const palette = tonePalette(tone);
   return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 10px", color: palette.color, background: palette.bg, border: `1px solid ${palette.border}`, fontSize: 12, fontWeight: 850, letterSpacing: 0.1 }}>{label}</span>;
 }
 
@@ -76,9 +80,34 @@ export function EmptyState({ title, description }: { title: string; description:
   return <div style={{ padding: 48, textAlign: "center", color: colors.muted }}><h3 style={{ color: colors.ink, margin: "0 0 8px" }}>{title}</h3><p style={{ margin: 0, lineHeight: 1.7 }}>{description}</p></div>;
 }
 
-export function StatCard({ label, value, helper, tone = "success" }: { label: string; value: React.ReactNode; helper: string; tone?: Tone }) {
+export function StatCard({
+  label,
+  value,
+  helper,
+  tone = "success",
+  delta,
+  deltaTone = "muted",
+}: {
+  label: string;
+  value: React.ReactNode;
+  helper: string;
+  tone?: Tone;
+  delta?: string;
+  deltaTone?: Tone;
+}) {
   const color = tone === "danger" ? "#b42318" : tone === "warning" ? "#b45309" : tone === "blue" ? "#175cd3" : tone === "neutral" ? colors.ink : colors.brand;
-  return <div style={{ ...cardStyle, position: "relative", overflow: "hidden" }}><div style={{ position: "absolute", right: -28, top: -32, width: 105, height: 105, borderRadius: 999, background: `${color}12` }} /><p style={{ margin: 0, color: colors.muted, fontSize: 13, fontWeight: 750 }}>{label}</p><h2 style={{ margin: "10px 0", color, fontSize: 29, letterSpacing: -0.9 }}>{value}</h2><small style={{ color: colors.muted, lineHeight: 1.5 }}>{helper}</small></div>;
+  const deltaPalette = tonePalette(deltaTone);
+  return <div style={{ ...cardStyle, position: "relative", overflow: "hidden", minWidth: 0 }}>
+    <div style={{ position: "absolute", right: -28, top: -32, width: 105, height: 105, borderRadius: 999, background: `${color}12` }} />
+    <div style={{ position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+        <p style={{ margin: 0, color: colors.muted, fontSize: 13, fontWeight: 750 }}>{label}</p>
+        {delta ? <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "6px 9px", color: deltaPalette.color, background: deltaPalette.bg, border: `1px solid ${deltaPalette.border}`, fontSize: 11, fontWeight: 850 }}>{delta}</span> : null}
+      </div>
+      <h2 style={{ margin: "10px 0", color, fontSize: 29, letterSpacing: -0.9 }}>{value}</h2>
+      <small style={{ color: colors.muted, lineHeight: 1.5 }}>{helper}</small>
+    </div>
+  </div>;
 }
 
 export function Sparkline({ data }: { data: number[] }) {
