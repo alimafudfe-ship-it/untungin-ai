@@ -24,7 +24,7 @@ type ExecutiveDashboardProps = {
   onGoAI: () => void;
   onGoProducts: () => void;
   onGoMarketplace: () => void;
-  onGoLaporan: () => void;
+  onGoReports: () => void;
   onGoBilling: () => void;
   onStock: (id: string) => void;
   onSale: (id: string) => void;
@@ -76,7 +76,7 @@ export function ExecutiveDashboard({
   onGoAI,
   onGoProducts,
   onGoMarketplace,
-  onGoLaporan,
+  onGoReports,
   onGoBilling,
   onStock,
   onSale,
@@ -104,8 +104,8 @@ export function ExecutiveDashboard({
 
   const checklist = [
     { label: "Tambahkan minimal 3 produk inti", done: products.length >= 3 },
-    { label: "Catat arus kas atau biaya operasional", done: metrics.totalExpenses > 0 || metrics.totalOmzet > 0 },
-    { label: "Sinkronkan marketplace atau import CSV", done: Boolean(lastSync) || products.some((item) => Boolean(item.marketplace)) },
+    { label: "Catat arus kas atau biaya operasional", done: metrics.totalExpenses > 0 || metrics.totalRevenue > 0 },
+    { label: "Sinkronkan marketplace atau impor CSV", done: Boolean(lastSync) || products.some((item) => Boolean(item.marketplace)) },
     { label: "Aktifkan AI report rutin / PRO", done: isPro },
   ];
   const checklistSelesai = checklist.filter((item) => item.done).length;
@@ -123,7 +123,7 @@ export function ExecutiveDashboard({
       time: "Hari ini",
     },
     {
-      title: lossProducts.length > 0 ? `${lossProducts.length} produk margin perlu ditinjau` : "Margin produk dalam batas aman",
+      title: lossProducts.length > 0 ? `${lossProducts.length} produk margin perlu ditinjau` : "Margin produk aman",
       detail: lossProducts.length > 0 ? `Mulai dari ${lossPreview[0]?.name || "SKU prioritas"} untuk evaluasi HPP dan fee.` : "Fokus berikutnya: kembangkan produk dengan margin tertinggi.",
       time: "Insight AI",
     },
@@ -147,6 +147,7 @@ export function ExecutiveDashboard({
         display: grid;
         grid-template-columns: minmax(0, 1.42fr) minmax(300px, 0.58fr);
         gap: 12px;
+        align-items: start;
       }
       .hero-layout {
         display: grid;
@@ -175,6 +176,10 @@ export function ExecutiveDashboard({
         max-width: 720px;
       }
       .command-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+      .hero-fill-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 12px; }
+      .hero-fill-card { padding: 12px; border-radius: 16px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.13); min-width: 0; }
+      .hero-fill-card strong { display: block; color: white; font-size: 13px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .hero-fill-card small { color: #94a3b8; font-size: 11px; line-height: 1.45; }
       .status-mini-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -260,6 +265,7 @@ export function ExecutiveDashboard({
         .overview-grid, .dashboard-grid { grid-template-columns: 1fr; }
         .hero-layout { grid-template-columns: 1fr; }
         .status-mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .hero-fill-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       }
       @media (max-width: 980px) {
         .metrics-grid, .chart-grid { grid-template-columns: 1fr 1fr; }
@@ -268,7 +274,7 @@ export function ExecutiveDashboard({
         .hero-layout { padding: 14px; }
         .command-actions { display: grid; grid-template-columns: 1fr; }
         .command-actions > * { width: 100%; justify-content: center; text-align: center; }
-        .status-mini-grid, .metrics-grid, .chart-grid { grid-template-columns: 1fr; }
+        .status-mini-grid, .metrics-grid, .chart-grid, .hero-fill-grid { grid-template-columns: 1fr; }
         .top-performer-row { grid-template-columns: 30px minmax(0, 1fr); }
         .top-performer-row > :last-child { grid-column: 2; }
       }
@@ -292,9 +298,14 @@ export function ExecutiveDashboard({
             </div>
             <div className="status-mini-grid">
               <MiniMetric label="Skor operasi" value={`${operatingScore}/100`} helper={healthLabel(operatingScore)} />
-              <MiniMetric label="Daya tahan kas" value={getCashRunway(metrics)} helper="Estimasi daya tahan" />
+              <MiniMetric label="Runway kas" value={getCashRunway(metrics)} helper="Estimasi daya tahan kas" />
               <MiniMetric label="Sinkron marketplace" value={lastSync ? "Terhubung" : "Menunggu"} helper={lastSyncText} />
-              <MiniMetric label="Prioritas AI" value={lossProducts.length ? `${lossProducts.length} ditinjau` : "Siap tumbuh"} helper="Fokus harian" />
+              <MiniMetric label="Prioritas AI" value={lossProducts.length ? `${lossProducts.length} perlu ditinjau` : "Siap tumbuh"} helper="Fokus harian" />
+            </div>
+            <div className="hero-fill-grid">
+              <HeroFillCard label="Fokus hari ini" value={lowStockCount > 0 ? `${lowStockCount} stok perlu dicek` : "Operasi aman"} helper={lowStockCount > 0 ? "Mulai dari produk paling laris." : "Siap dorong penjualan."} />
+              <HeroFillCard label="Produk unggulan" value={topProducts[0]?.name || "Belum ada produk"} helper={topProducts[0] ? `${compactMoney(topProducts[0].profit)} profit tercatat` : "Tambah produk untuk ranking."} />
+              <HeroFillCard label="Ritme kerja" value="Cek profit → stok → aksi" helper="Alur harian untuk seller." />
             </div>
           </div>
 
@@ -320,7 +331,7 @@ export function ExecutiveDashboard({
       <aside className="board-stack">
         <section style={{ ...cardStyle, display: "grid", gap: 16, alignContent: "start" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><Badge label="Ringkasan bisnis" tone="blue" /><span style={{ color: "#667085", fontSize: 12 }}>Hari ini</span></div>
-          <BriefRow label="Omzet" value={money(metrics.totalOmzet)} helper={`${metrics.totalUnits} unit terjual`} />
+          <BriefRow label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} />
           <BriefRow label="Profit kotor" value={money(metrics.totalProfit)} helper={`${percent(metrics.avgMargin)} margin rata-rata`} />
           <BriefRow label="Nilai stok" value={money(metrics.inventoryValue)} helper={`${metrics.totalStock} unit tersedia`} />
           <div style={{ padding: 14, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
@@ -355,7 +366,7 @@ export function ExecutiveDashboard({
     </section>
 
     <section className="metrics-grid">
-      <StatCard label="Omzet" value={money(metrics.totalOmzet)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
+      <StatCard label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
       <StatCard label="Profit produk" value={money(metrics.totalProfit)} helper={`Margin rata-rata ${percent(metrics.avgMargin)}`} tone={metrics.totalProfit >= 0 ? "success" : "danger"} delta={profitDelta.text} deltaTone={profitDelta.tone} />
       <StatCard label="Stok kritis" value={lowStockCount} helper={`${metrics.totalStock} unit tersedia`} tone={lowStockCount ? "warning" : "success"} delta={inventoryDelta.text} deltaTone={inventoryDelta.tone} />
       <StatCard label="Skor risiko" value={`${metrics.riskScore}/100`} helper={`Estimasi bocor ${money(metrics.dailyLeakEstimate)} per hari`} tone={riskTone} delta={riskDelta.text} deltaTone={riskDelta.tone} />
@@ -383,7 +394,7 @@ export function ExecutiveDashboard({
           <div style={{ display: "grid", gap: 12, marginTop: 10 }}>
             <ActionItem index="01" title="Tinjau SKU margin rendah" detail={`${lossProducts.length} produk rugi terdeteksi. Cek HPP, voucher, fee admin, dan harga jual.`} cta="Lihat produk" onClick={onGoProducts} />
             <ActionItem index="02" title="Amankan stok cepat habis" detail={`${criticalProducts.length} SKU perlu isi ulang stok atau dipantau agar tidak kehilangan penjualan.`} cta="Stok" onClick={onGoProducts} />
-            <ActionItem index="03" title="Kirim laporan mingguan" detail="Ekspor PDF/CSV untuk pemilik, mitra, atau arsip operasional." cta="Laporan" onClick={onGoLaporan} />
+            <ActionItem index="03" title="Kirim laporan mingguan" detail="Ekspor PDF/CSV untuk pemilik, mitra, atau arsip operasional." cta="Laporan" onClick={onGoReports} />
           </div>
         </section>
 
@@ -405,13 +416,13 @@ export function ExecutiveDashboard({
               <strong style={{ width: 34, height: 34, borderRadius: 12, display: "grid", placeItems: "center", background: "#ecfdf5", color: "#047857" }}>{index + 1}</strong>
               <div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product.name}</strong><div style={{ color: "#64748b", fontSize: 12 }}>{product.marketplace || "Marketplace"} · margin {percent(product.margin)}</div></div>
               <strong style={{ color: product.profit >= 0 ? "#047857" : "#b42318" }}>{compactMoney(product.profit)}</strong>
-            </div>) : <p style={{ color: "#64748b", lineHeight: 1.65 }}>Tambahkan produk atau import CSV untuk melihat ranking profit.</p>}
+            </div>) : <p style={{ color: "#64748b", lineHeight: 1.65 }}>Tambahkan produk atau impor CSV untuk melihat peringkat profit.</p>}
           </div>
         </section>
 
         <section style={{ ...cardStyle, background: "linear-gradient(135deg,#ecfdf5,#ffffff)" }}>
-          <Badge label="Setup Scale" tone="warning" />
-          <h3 style={{ margin: "12px 0 8px", letterSpacing: -0.3 }}>Naikkan level operasional dari pencatatan ke alur kerja SaaS</h3>
+          <Badge label="Setup Tumbuh" tone="warning" />
+          <h3 style={{ margin: "12px 0 8px", letterSpacing: -0.3 }}>Naikkan level dari pencatatan manual ke alur kerja SaaS</h3>
           <p style={{ color: "#64748b", lineHeight: 1.65, marginTop: 0 }}>Hubungkan data marketplace, aktifkan AI CFO, dan jadikan laporan otomatis sebagai ritme operasional harian.</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={onGoMarketplace} style={ghostButtonStyle}>Integrasi</button>
@@ -421,6 +432,10 @@ export function ExecutiveDashboard({
       </aside>
     </section>
   </div>;
+}
+
+function HeroFillCard({ label, value, helper }: { label: string; value: string; helper: string }) {
+  return <div className="hero-fill-card"><small>{label}</small><strong>{value}</strong><small>{helper}</small></div>;
 }
 
 function MiniMetric({ label, value, helper }: { label: string; value: string; helper: string }) {

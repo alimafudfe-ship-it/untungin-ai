@@ -28,9 +28,9 @@ const navGroups: { label: string; items: { key: TabKey; label: string; helper: s
     items: [
       { key: "marketplace", label: "Integrasi", helper: "CSV & API", icon: "M" },
       { key: "automation", label: "Otomasi", helper: "Peringatan", icon: "A" },
-      { key: "team", label: "Tim", helper: "Akses kerja", icon: "T" },
-      { key: "goals", label: "Target", helper: "Bisnis", icon: "G" },
-      { key: "growth", label: "Growth", helper: "Retensi", icon: "GR" },
+      { key: "team", label: "Tim", helper: "Ruang kerja", icon: "T" },
+      { key: "goals", label: "Target", helper: "Target", icon: "G" },
+      { key: "growth", label: "Pertumbuhan", helper: "Retensi", icon: "GR" },
       { key: "pricing", label: "Paket", helper: "Langganan", icon: "B" },
     ],
   },
@@ -145,9 +145,9 @@ export function AppShell({
           <div><strong style={{ fontSize: 16, letterSpacing: -0.3 }}>Untungin.ai</strong><div className="shell-text-muted" style={{ color: "#667085", fontSize: 12, marginTop: 2 }}>Sistem Operasi Seller</div></div>
         </div>
 
-        <div style={{ padding: 12, borderRadius: 18, background: "linear-gradient(135deg,#0f172a,#134e4a)", color: "white", boxShadow: "0 18px 45px rgba(15,23,42,0.16)" }}>
+        <div style={{ padding: 10, borderRadius: 16, background: "linear-gradient(135deg,#0f172a,#134e4a)", color: "white", boxShadow: "0 18px 45px rgba(15,23,42,0.16)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><span style={{ fontSize: 12, color: "#cbd5e1" }}>Ruang kerja</span><Badge label={planLabel} tone={isPro ? "success" : proExpired ? "danger" : "warning"} /></div>
-          <strong style={{ display: "block", marginTop: 9 }}>Toko Utama</strong>
+          <strong style={{ display: "block", marginTop: 6 }}>Toko Utama</strong>
           <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 4 }}>Shopee, Tokopedia, TikTok Shop</div>
         </div>
 
@@ -165,7 +165,7 @@ export function AppShell({
         </div>
 
         <div className="nav-cta-card" style={{ padding: 14, borderRadius: 18, background: "#ffffff", border: "1px solid rgba(15,23,42,0.08)", boxShadow: "0 16px 36px rgba(15,23,42,0.06)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><strong>Pertumbuhan PRO</strong><span style={{ fontSize: 12, color: "#667085" }}>AI + Tim</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><strong>PRO Pertumbuhan</strong><span style={{ fontSize: 12, color: "#667085" }}>AI + Tims</span></div>
           <p style={{ margin: "8px 0 12px", color: "#667085", fontSize: 12, lineHeight: 1.55 }}>Buka SKU tak terbatas, AI CFO, laporan otomatis, dan akses tim.</p>
           <button onClick={onUpgrade} style={{ ...ctaButtonStyle, width: "100%" }}>{isPro ? "Kelola paket" : "Naikkan ke PRO"}</button>
         </div>
@@ -185,11 +185,11 @@ export function AppShell({
                 <span aria-hidden="true" style={{ color: "#98a2b3", fontSize: 14 }}>⌕</span>
                 <input className="search-input" type="text" placeholder="Cari produk, laporan, atau insight..." readOnly />
               </div>
-              <button type="button" aria-label="Notifikasi" style={{ ...ghostButtonStyle, padding: "10px 12px" }}><span className="icon-only">🔔</span></button>
+              <button type="button" aria-label="Notifikasi" style={{ ...ghostButtonStyle, padding: "9px 11px" }}><span className="icon-only">🔔</span></button>
               <button onClick={() => setDarkMode((value) => !value)} style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}><span className="icon-only">{darkMode ? "☀" : "☾"}</span><span>{darkMode ? "Mode terang" : "Mode gelap"}</span></button>
               <button onClick={onExport} style={ghostButtonStyle}>Ekspor</button>
               {!isPro && <button onClick={onUpgrade} style={ctaButtonStyle}>{isPro ? "Kelola paket" : "Naikkan PRO"}</button>}
-              <button type="button" style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 12px" }}><span style={{ width: 28, height: 28, borderRadius: 999, display: "grid", placeItems: "center", background: "#0f172a", color: "#ffffff", fontWeight: 900, fontSize: 12 }}>TA</span><span>Pemilik</span></button>
+              <button type="button" style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 11px" }}><span style={{ width: 28, height: 28, borderRadius: 999, display: "grid", placeItems: "center", background: "#0f172a", color: "#ffffff", fontWeight: 900, fontSize: 12 }}>TA</span><span>Pemilik</span></button>
               <button onClick={onLogout} style={{ ...ghostButtonStyle, color: "#b42318", background: "#fff7f7", borderColor: "#fecaca" }}>Keluar</button>
             </div>
           </div>
