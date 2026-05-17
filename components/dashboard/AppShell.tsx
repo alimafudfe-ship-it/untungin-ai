@@ -24,13 +24,13 @@ const navGroups: { label: string; items: { key: TabKey; label: string; helper: s
     ],
   },
   {
-    label: "Pertumbuhan",
+    label: "Skala",
     items: [
       { key: "marketplace", label: "Integrasi", helper: "CSV & API", icon: "M" },
       { key: "automation", label: "Otomasi", helper: "Peringatan", icon: "A" },
       { key: "team", label: "Tim", helper: "Ruang kerja", icon: "T" },
       { key: "goals", label: "Target", helper: "Target", icon: "G" },
-      { key: "growth", label: "Pertumbuhan", helper: "Retensi", icon: "GR" },
+      { key: "growth", label: "Akselerasi", helper: "Aktivasi & retensi", icon: "AK" },
       { key: "pricing", label: "Paket", helper: "Langganan", icon: "B" },
     ],
   },
@@ -54,7 +54,7 @@ const meta: Record<TabKey, { title: string; subtitle: string; eyebrow: string }>
   assistant: { eyebrow: "AI", title: "Chat Keuangan", subtitle: "Tanya data bisnis dengan bahasa natural." },
   goals: { eyebrow: "Target", title: "Target Bisnis", subtitle: "Pantau progres omzet dan profit bulanan." },
   moat: { eyebrow: "Strategi", title: "Sistem Operasi Startup", subtitle: "Strategi menang dari kompetitor dengan alur kerja berbasis AI." },
-  growth: { eyebrow: "Pertumbuhan", title: "Mesin Pertumbuhan", subtitle: "Aktivasi, retensi, monetisasi, dan papan aksi pendiri." },
+  growth: { eyebrow: "Skala", title: "Akselerasi Bisnis", subtitle: "Aktivasi, retensi, monetisasi, dan papan aksi owner." },
   pricing: { eyebrow: "Langganan", title: "Paket & Pembayaran", subtitle: "Naikkan ke PRO, Xendit, transfer manual, dan cadangan pembayaran." },
 };
 
@@ -165,7 +165,7 @@ export function AppShell({
         </div>
 
         <div className="nav-cta-card" style={{ padding: 14, borderRadius: 18, background: "#ffffff", border: "1px solid rgba(15,23,42,0.08)", boxShadow: "0 16px 36px rgba(15,23,42,0.06)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><strong>PRO Pertumbuhan</strong><span style={{ fontSize: 12, color: "#667085" }}>AI + Tims</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><strong>PRO Skala</strong><span style={{ fontSize: 12, color: "#667085" }}>AI + Tim</span></div>
           <p style={{ margin: "8px 0 12px", color: "#667085", fontSize: 12, lineHeight: 1.55 }}>Buka SKU tak terbatas, AI CFO, laporan otomatis, dan akses tim.</p>
           <button onClick={onUpgrade} style={{ ...ctaButtonStyle, width: "100%" }}>{isPro ? "Kelola paket" : "Naikkan ke PRO"}</button>
         </div>

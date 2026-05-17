@@ -29,11 +29,13 @@ function getLowStock(products: Product[]) {
     .sort((a, b) => a.stockRemaining - b.stockRemaining);
 }
 
-export function buildFounderActionPlan(products: Product[], expenses: Expense[], metrics: DashboardMetrics): FounderAction[] {
+export function buildFounderActionPlan(products: Product[] = [], expenses: Expense[] = [], metrics: DashboardMetrics): FounderAction[] {
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
   const actions: FounderAction[] = [];
-  const topProduct = getTopProduct(products);
-  const lowStock = getLowStock(products)[0];
-  const adsExpense = expenses
+  const topProduct = getTopProduct(safeProducts);
+  const lowStock = getLowStock(safeProducts)[0];
+  const adsExpense = safeExpenses
     .filter((item) => item.category.toLowerCase().includes("ads") || item.label.toLowerCase().includes("iklan"))
     .reduce((sum, item) => sum + item.amount, 0);
   const expensePressure = metrics.totalProfit > 0 ? (metrics.totalExpenses / metrics.totalProfit) * 100 : 0;
@@ -90,7 +92,7 @@ export function buildFounderActionPlan(products: Product[], expenses: Expense[],
     });
   }
 
-  if (products.length === 0) {
+  if (safeProducts.length === 0) {
     actions.push({
       id: "activate-real-data",
       title: "Import CSV marketplace pertama",
@@ -117,16 +119,17 @@ export function buildFounderActionPlan(products: Product[], expenses: Expense[],
   return actions.slice(0, 5);
 }
 
-export function buildGrowthMetrics(products: Product[], metrics: DashboardMetrics): GrowthMetric[] {
-  const activationScore = products.length > 0 ? 84 : 18;
-  const insightScore = products.length > 0 ? Math.max(45, Math.min(96, 100 - metrics.riskScore + 10)) : 25;
-  const monetizationScore = metrics.netCash > 0 && products.length > 1 ? 72 : 38;
+export function buildGrowthMetrics(products: Product[] = [], metrics: DashboardMetrics): GrowthMetric[] {
+  const safeProducts = Array.isArray(products) ? products : [];
+  const activationScore = safeProducts.length > 0 ? 84 : 18;
+  const insightScore = safeProducts.length > 0 ? Math.max(45, Math.min(96, 100 - metrics.riskScore + 10)) : 25;
+  const monetizationScore = metrics.netCash > 0 && safeProducts.length > 1 ? 72 : 38;
   const retentionScore = metrics.lowStockCount > 0 || metrics.totalProfit > 0 ? 68 : 30;
 
   return [
-    { label: "Activation", value: `${activationScore}/100`, helper: "CSV ke insight pertama", tone: activationScore >= 70 ? "success" : "warning" },
-    { label: "AI value", value: `${Math.round(insightScore)}/100`, helper: "Kualitas keputusan harian", tone: insightScore >= 70 ? "success" : "blue" },
-    { label: "Monetization", value: `${monetizationScore}/100`, helper: "Siap upgrade PRO", tone: monetizationScore >= 70 ? "success" : "warning" },
-    { label: "Retention", value: `${retentionScore}/100`, helper: "Alasan balik besok", tone: retentionScore >= 65 ? "success" : "blue" },
+    { label: "Aktivasi", value: `${activationScore}/100`, helper: "CSV ke insight pertama", tone: activationScore >= 70 ? "success" : "warning" },
+    { label: "Nilai AI", value: `${Math.round(insightScore)}/100`, helper: "Kualitas keputusan harian", tone: insightScore >= 70 ? "success" : "blue" },
+    { label: "Monetisasi", value: `${monetizationScore}/100`, helper: "Siap upgrade PRO", tone: monetizationScore >= 70 ? "success" : "warning" },
+    { label: "Retensi", value: `${retentionScore}/100`, helper: "Alasan balik besok", tone: retentionScore >= 65 ? "success" : "blue" },
   ];
 }

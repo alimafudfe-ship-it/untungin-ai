@@ -27,11 +27,13 @@ const founderChecklist = [
   "Setiap fitur punya metrik: activation, retention, revenue",
 ];
 
-export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGoMarketplace, onGoAI, onGoBilling }: Props) {
-  const actions = buildFounderActionPlan(products, expenses, metrics);
-  const growthMetrics = buildGrowthMetrics(products, metrics);
-  const profitableProducts = products.filter((item) => item.profit > 0).length;
-  const realDataReady = products.length > 0;
+export function GrowthEnginePanel({ products = [], expenses = [], metrics, userEmail, onGoMarketplace, onGoAI, onGoBilling }: Props) {
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+  const actions = buildFounderActionPlan(safeProducts, safeExpenses, metrics);
+  const growthMetrics = buildGrowthMetrics(safeProducts, metrics);
+  const profitableProducts = safeProducts.filter((item) => item.profit > 0).length;
+  const realDataReady = safeProducts.length > 0;
   const netMargin = metrics.totalRevenue > 0 ? (metrics.netCash / metrics.totalRevenue) * 100 : 0;
 
   return (
@@ -40,12 +42,12 @@ export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGo
         <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 22, alignItems: "center" }}>
           <div>
             <Badge label="Untungin.ai v11 Auto Mapping" tone="success" />
-            <h2 style={{ margin: "14px 0 10px", fontSize: 42, lineHeight: 1.02, letterSpacing: -1.4 }}>Jadikan produk ini startup serius: aktivasi cepat, insight nyata, upgrade jelas.</h2>
-            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>v11 fokus ke auto mapping dan preview import: seller upload CSV Shopee/Tokopedia/TikTok/Lazada, cek fee admin, voucher, ongkir, pajak, dan HPP sebelum confirm. Ini membuat Untungin.ai lebih aman dipakai untuk data marketplace asli.</p>
+            <h2 style={{ margin: "14px 0 10px", fontSize: 42, lineHeight: 1.02, letterSpacing: -1.4 }}>Akselerasi bisnis dengan data real, keputusan cepat, dan upgrade jelas.</h2>
+            <p style={{ color: "#d1fae5", lineHeight: 1.75, maxWidth: 820 }}>Fokus halaman ini adalah mempercepat operasional: import data marketplace, cek fee, voucher, ongkir, pajak, HPP, lalu ubah insight menjadi aksi yang bisa dieksekusi owner.</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
               <button onClick={onGoMarketplace} style={ctaButtonStyle}>Aktifkan data real</button>
               <button onClick={onGoAI} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.20)" }}>Buat AI plan</button>
-              <button onClick={onGoBilling} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.20)" }}>Setup billing</button>
+              <button onClick={onGoBilling} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.20)" }}>Siapkan pembayaran</button>
             </div>
           </div>
           <div style={{ display: "grid", gap: 12 }}>
@@ -56,7 +58,7 @@ export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGo
             </div>
             <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ padding: 16, borderRadius: 18, background: "rgba(255,255,255,0.10)" }}><small>Net margin</small><h2 style={{ margin: "6px 0" }}>{percent(netMargin)}</h2><Progress value={Math.max(0, Math.min(100, netMargin))} /></div>
-              <div style={{ padding: 16, borderRadius: 18, background: "rgba(255,255,255,0.10)" }}><small>Produk profit</small><h2 style={{ margin: "6px 0" }}>{profitableProducts}/{products.length || 1}</h2><Progress value={(profitableProducts / Math.max(products.length, 1)) * 100} /></div>
+              <div style={{ padding: 16, borderRadius: 18, background: "rgba(255,255,255,0.10)" }}><small>Produk profit</small><h2 style={{ margin: "6px 0" }}>{profitableProducts}/{safeProducts.length || 1}</h2><Progress value={(profitableProducts / Math.max(safeProducts.length, 1)) * 100} /></div>
             </div>
           </div>
         </div>
@@ -68,7 +70,7 @@ export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGo
 
       <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}>
         <div style={cardStyle}>
-          <Badge label="Founder action board" tone="success" />
+          <Badge label="Papan aksi owner" tone="success" />
           <h2 style={{ margin: "12px 0" }}>5 tindakan paling penting minggu ini</h2>
           <div style={{ display: "grid", gap: 12 }}>
             {actions.map((action) => (
@@ -86,8 +88,8 @@ export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGo
 
         <div style={{ display: "grid", gap: 14 }}>
           <div style={cardStyle}>
-            <Badge label="North star" tone="blue" />
-            <h2 style={{ margin: "12px 0" }}>Profit decisions executed</h2>
+            <Badge label="Metrik utama" tone="blue" />
+            <h2 style={{ margin: "12px 0" }}>Keputusan profit yang dieksekusi</h2>
             <p style={{ color: "#64748b", lineHeight: 1.7 }}>Ukuran sukses bukan banyaknya menu, tapi berapa keputusan owner yang terjadi karena Untungin.ai: restock, stop promo, scale produk, atau audit biaya.</p>
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
               <div><small>Real data readiness <b style={{ float: "right" }}>{realDataReady ? "Aktif" : "Belum"}</b></small><Progress value={realDataReady ? 88 : 22} /></div>
@@ -96,10 +98,10 @@ export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGo
             </div>
           </div>
           <div style={cardStyle}>
-            <Badge label="Billing fallback" tone="warning" />
-            <h2 style={{ margin: "12px 0" }}>Jangan berhenti karena gateway</h2>
+            <Badge label="Cadangan pembayaran" tone="warning" />
+            <h2 style={{ margin: "12px 0" }}>Upgrade tetap jalan</h2>
             <p style={{ color: "#64748b", lineHeight: 1.7 }}>Midtrans ditolak bukan blocker. v11 tetap siapkan manual transfer, Xendit, dan approval internal untuk early customer.</p>
-            <button onClick={onGoBilling} style={{ ...ctaButtonStyle, width: "100%" }}>Cek monetization</button>
+            <button onClick={onGoBilling} style={{ ...ctaButtonStyle, width: "100%" }}>Cek paket PRO</button>
           </div>
         </div>
       </section>
@@ -115,8 +117,8 @@ export function GrowthEnginePanel({ products, expenses, metrics, userEmail, onGo
       </section>
 
       <section style={cardStyle}>
-        <Badge label="Serious startup checklist" tone="success" />
-        <h2 style={{ margin: "12px 0" }}>Yang harus benar sebelum cari user berbayar</h2>
+        <Badge label="Checklist bisnis siap skala" tone="success" />
+        <h2 style={{ margin: "12px 0" }}>Yang harus benar sebelum scale lebih jauh</h2>
         <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {founderChecklist.map((item, index) => (
             <div key={item} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: 14, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
