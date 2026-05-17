@@ -2,13 +2,44 @@ import type React from "react";
 import type { Expense, Product, StockMoveType } from "@/types/dashboard";
 import { EXPENSE_CATEGORIES } from "@/lib/dashboard/constants";
 import { money } from "@/lib/dashboard/format";
-import { Badge, cardStyle, ctaButtonStyle, inputStyle, StatCard } from "./ui";
+import { Badge, cardStyle, ctaButtonStyle, ghostButtonStyle, inputStyle, StatCard } from "./ui";
 
 export type ProductFormState = { productName: string; costPrice: string; sellingPrice: string; stockInitial: string; quantitySold: string; otherCost: string; marketplace: string };
 export type ExpenseFormState = { label: string; category: string; amount: string; date: string; notes: string };
 
-export function ProductForm({ form, loading, onChange, onSubmit }: { form: ProductFormState; loading: boolean; onChange: (form: ProductFormState) => void; onSubmit: (event: React.FormEvent) => void }) {
-  return <section style={cardStyle}><Badge label="Input Produk" tone="success" /><h2>Tambah produk</h2><form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}><select value={form.marketplace} onChange={(e) => onChange({ ...form, marketplace: e.target.value })} style={inputStyle}><option>Shopee</option><option>Tokopedia</option><option>TikTok Shop</option><option>Lazada</option><option>Manual</option></select><input value={form.productName} onChange={(e) => onChange({ ...form, productName: e.target.value })} placeholder="Nama produk" style={inputStyle} /><input value={form.costPrice} onChange={(e) => onChange({ ...form, costPrice: e.target.value })} type="number" min="0" placeholder="Modal per produk" style={inputStyle} /><input value={form.sellingPrice} onChange={(e) => onChange({ ...form, sellingPrice: e.target.value })} type="number" min="0" placeholder="Harga jual" style={inputStyle} /><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><input value={form.stockInitial} onChange={(e) => onChange({ ...form, stockInitial: e.target.value })} type="number" min="0" placeholder="Stok awal" style={inputStyle} /><input value={form.quantitySold} onChange={(e) => onChange({ ...form, quantitySold: e.target.value })} type="number" min="0" placeholder="Terjual" style={inputStyle} /></div><input value={form.otherCost} onChange={(e) => onChange({ ...form, otherCost: e.target.value })} type="number" min="0" placeholder="Biaya lain" style={inputStyle} /><button disabled={loading} style={{ ...ctaButtonStyle, opacity: loading ? 0.7 : 1 }}>{loading ? "Menyimpan..." : "Simpan produk"}</button></form></section>;
+export function ProductForm({
+  form,
+  loading,
+  onChange,
+  onSubmit,
+  onFinish,
+}: {
+  form: ProductFormState;
+  loading: boolean;
+  onChange: (form: ProductFormState) => void;
+  onSubmit: (event: React.FormEvent) => void;
+  onFinish: () => void;
+}) {
+  return <section style={cardStyle}>
+    <Badge label="Input Produk" tone="success" />
+    <h2 style={{ marginBottom: 6 }}>Tambah produk</h2>
+    <p style={{ margin: "0 0 14px", color: "#64748b", lineHeight: 1.6, fontSize: 13 }}>Isi beberapa produk dari form ini. Setelah disimpan, form otomatis kosong dan tetap terbuka.</p>
+    <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+      <select value={form.marketplace} onChange={(e) => onChange({ ...form, marketplace: e.target.value })} style={inputStyle}><option>Shopee</option><option>Tokopedia</option><option>TikTok Shop</option><option>Lazada</option><option>Manual</option></select>
+      <input value={form.productName} onChange={(e) => onChange({ ...form, productName: e.target.value })} placeholder="Nama produk" style={inputStyle} />
+      <input value={form.costPrice} onChange={(e) => onChange({ ...form, costPrice: e.target.value })} type="number" min="0" placeholder="Modal per produk" style={inputStyle} />
+      <input value={form.sellingPrice} onChange={(e) => onChange({ ...form, sellingPrice: e.target.value })} type="number" min="0" placeholder="Harga jual" style={inputStyle} />
+      <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <input value={form.stockInitial} onChange={(e) => onChange({ ...form, stockInitial: e.target.value })} type="number" min="0" placeholder="Stok awal" style={inputStyle} />
+        <input value={form.quantitySold} onChange={(e) => onChange({ ...form, quantitySold: e.target.value })} type="number" min="0" placeholder="Terjual" style={inputStyle} />
+      </div>
+      <input value={form.otherCost} onChange={(e) => onChange({ ...form, otherCost: e.target.value })} type="number" min="0" placeholder="Biaya lain" style={inputStyle} />
+      <div style={{ display: "grid", gap: 10 }}>
+        <button type="submit" disabled={loading} style={{ ...ctaButtonStyle, opacity: loading ? 0.7 : 1 }}>{loading ? "Menyimpan..." : "Simpan & tambah lagi"}</button>
+        <button type="button" disabled={loading} onClick={onFinish} style={{ ...ghostButtonStyle, opacity: loading ? 0.7 : 1 }}>Simpan & selesai</button>
+      </div>
+    </form>
+  </section>;
 }
 
 export function ExpensePanel({ expenses, form, metrics, onChange, onSubmit }: { expenses: Expense[]; form: ExpenseFormState; metrics: { totalRevenue: number; totalProfit: number; totalExpenses: number; netCash: number }; onChange: (form: ExpenseFormState) => void; onSubmit: (event: React.FormEvent) => void }) {

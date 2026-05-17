@@ -295,8 +295,7 @@ export default function DashboardPage() {
     setCurrentUserId(null); setUserEmail(null); setProducts([]); setProfile(null); router.replace("/login");
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveProduct(finishAfterSave = false) {
     if (!ensureLoggedIn()) return;
     if (!isPro && products.length >= FREE_PRODUCT_LIMIT) { openUpgradeModal("lifetime"); return; }
     const name = form.productName.trim();
@@ -314,8 +313,18 @@ export default function DashboardPage() {
       const { data, error } = await db.from("products").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, name, cost_price: costPrice, selling_price: sellingPrice, stock_initial: stockInitial, stock_remaining: stockRemaining, quantity_sold: quantitySold, other_cost: otherCost, profit, margin, marketplace: form.marketplace } as any]).select("*").single();
       if (error) throw error;
       if (data) setProducts((prev) => [mapProductRow(data as ProductRow), ...prev]);
-      setForm(initialProductForm); setActiveTab("overview");
+      setForm(initialProductForm);
+      setActiveTab(finishAfterSave ? "overview" : "products");
     } catch (error) { console.error(error); alert("Gagal menyimpan produk."); } finally { setLoading(false); }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await saveProduct(false);
+  }
+
+  async function handleSubmitAndFinish() {
+    await saveProduct(true);
   }
 
   async function recordSale(e: React.FormEvent) {
@@ -492,7 +501,7 @@ export default function DashboardPage() {
 
     {activeTab === "overview" && <ExecutiveDashboard products={products} metrics={metrics} filteredProducts={filteredProducts} cashflowTrend={cashflowTrend} profitTrend={profitTrend} isPro={isPro} isDemoMode={isDemoMode} lastSync={lastSync} onAddProduct={() => setActiveTab("products")} onAddCashflow={() => setActiveTab("cashflow")} onImportCSV={handleCSVUpload} syncing={syncing} onGoAI={() => setActiveTab("ai")} onGoProducts={() => setActiveTab("products")} onGoMarketplace={() => setActiveTab("marketplace")} onGoReports={() => setActiveTab("reports")} onGoBilling={() => setActiveTab("pricing")} onStock={goStock} onSale={goSale} onDelete={deleteProduct} />}
 
-    {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} onChange={setForm} onSubmit={handleSubmit} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
+    {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} onChange={setForm} onSubmit={handleSubmit} onFinish={handleSubmitAndFinish} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
 
     {activeTab === "cashflow" && <div style={{ display: "grid", gap: 18 }}><div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.8fr 1.2fr", gap: 18 }}><ExpensePanel expenses={expenses} form={expenseForm} metrics={{ totalRevenue: metrics.totalRevenue, totalProfit: metrics.totalProfit, totalExpenses: metrics.totalExpenses, netCash: metrics.netCash }} onChange={setExpenseForm} onSubmit={addExpense} /></div><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}><LineChartCard title="Real Cashflow" subtitle="Cash in vs cash out" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><DonutChartCard title="Expense Analytics" subtitle="Biaya berdasarkan kategori" segments={expenseBreakdown} centerLabel={compactMoney(metrics.totalExpenses)} /></section></div>}
 
