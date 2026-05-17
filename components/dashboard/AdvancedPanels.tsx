@@ -12,8 +12,10 @@ const marketplaceGuides = [
   { name: "Lazada", status: "Coming soon", detail: "Mapping CSV dan product sync disiapkan." },
 ];
 
-export function AIRecommendationPanel({ products, expenses, metrics }: { products: Product[]; expenses: Expense[]; metrics: DashboardMetrics }) {
-  const recommendations = buildRecommendations(products, expenses, metrics);
+export function AIRecommendationPanel({ products = [], expenses = [], metrics }: { products?: Product[]; expenses?: Expense[]; metrics: DashboardMetrics }) {
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+  const recommendations = buildRecommendations(safeProducts, safeExpenses, metrics);
   return (
     <section style={cardStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
@@ -102,36 +104,38 @@ export function MarketplaceSyncPanel({ products, syncing, lastSync, onCSVUpload 
   );
 }
 
-export function ForecastingPanel({ products, expenses, metrics }: { products: Product[]; expenses: Expense[]; metrics: DashboardMetrics }) {
-  const forecast = buildForecast(products, expenses, 30);
+export function ForecastingPanel({ products = [], expenses = [], metrics }: { products?: Product[]; expenses?: Expense[]; metrics: DashboardMetrics }) {
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+  const forecast = buildForecast(safeProducts, safeExpenses, 30);
   const summary = getForecastSummary(forecast);
   const breakEvenDay = forecast.findIndex((item, index) => forecast.slice(0, index + 1).reduce((acc, point) => acc + point.netCash, 0) > 0) + 1;
   return (
     <div style={{ display: "grid", gap: 18 }}>
       <section style={{ ...cardStyle, display: "flex", justifyContent: "space-between", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
         <div>
-          <Badge label="AI Forecasting" tone="success" />
-          <h2 style={{ margin: "10px 0 4px" }}>Prediksi cashflow, profit, dan risiko 30 hari</h2>
-          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.7 }}>Forecast berbasis sales velocity, margin, expense run-rate, dan inventory. Model ini rule-based agar murah dan stabil untuk MVP.</p>
+          <Badge label="Proyeksi AI" tone="success" />
+          <h2 style={{ margin: "10px 0 4px" }}>Prediksi arus kas, profit, dan risiko 30 hari</h2>
+          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.7 }}>Proyeksi berbasis kecepatan penjualan, margin, biaya berjalan, dan kondisi stok. Dibuat stabil untuk operasional harian seller.</p>
         </div>
-        <button style={ghostButtonStyle}>Export Forecast</button>
+        <button style={ghostButtonStyle}>Ekspor proyeksi</button>
       </section>
       <section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        <StatCard label="Forecast omzet" value={compactMoney(summary.revenue)} helper="Proyeksi 30 hari" tone="blue" />
-        <StatCard label="Forecast profit" value={compactMoney(summary.profit)} helper="Sebelum expense" tone="success" />
-        <StatCard label="Forecast expense" value={compactMoney(summary.expenses)} helper="Run-rate 30 hari" tone="warning" />
-        <StatCard label="Forecast net cash" value={compactMoney(summary.netCash)} helper={breakEvenDay > 0 ? `Break-even sekitar H+${breakEvenDay}` : "Perlu kontrol expense"} tone={summary.netCash >= 0 ? "success" : "danger"} />
+        <StatCard label="Proyeksi omzet" value={compactMoney(summary.revenue)} helper="Proyeksi 30 hari" tone="blue" />
+        <StatCard label="Proyeksi profit" value={compactMoney(summary.profit)} helper="Sebelum expense" tone="success" />
+        <StatCard label="Proyeksi biaya" value={compactMoney(summary.expenses)} helper="Run-rate 30 hari" tone="warning" />
+        <StatCard label="Proyeksi kas bersih" value={compactMoney(summary.netCash)} helper={breakEvenDay > 0 ? `Break-even sekitar H+${breakEvenDay}` : "Perlu kontrol expense"} tone={summary.netCash >= 0 ? "success" : "danger"} />
       </section>
       <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}>
-        <ForecastChartCard title="30-Day Forecast" subtitle="Revenue, profit, expenses" data={forecast} />
+        <ForecastChartCard title="Proyeksi 30 hari" subtitle="Omzet, profit, dan biaya" data={forecast} />
         <div style={cardStyle}>
-          <Badge label="Forecast Decision" tone={summary.netCash >= 0 ? "success" : "danger"} />
+          <Badge label="Keputusan proyeksi" tone={summary.netCash >= 0 ? "success" : "danger"} />
           <h3 style={{ margin: "12px 0" }}>{summary.label}</h3>
-          <p style={{ color: "#64748b", lineHeight: 1.7 }}>Dengan cashflow sekarang {money(metrics.netCash)}, sistem menyarankan scale hanya untuk produk margin sehat dan stok aman. Produk margin rendah sebaiknya ditahan dari restock sampai harga aman.</p>
+          <p style={{ color: "#64748b", lineHeight: 1.7 }}>Dengan arus kas sekarang {money(metrics?.netCash ?? 0)}, sistem menyarankan scale hanya untuk produk margin sehat dan stok aman. Produk margin rendah sebaiknya ditahan dari restock sampai harga aman.</p>
           <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-            <div><small>Profit forecast <b style={{ float: "right" }}>{compactMoney(summary.profit)}</b></small><Progress value={summary.revenue > 0 ? (summary.profit / summary.revenue) * 100 : 0} /></div>
-            <div><small>Expense pressure <b style={{ float: "right" }}>{compactMoney(summary.expenses)}</b></small><Progress value={summary.profit > 0 ? (summary.expenses / summary.profit) * 100 : 0} /></div>
-            <div><small>Net cash safety <b style={{ float: "right" }}>{compactMoney(summary.netCash)}</b></small><Progress value={summary.netCash > 0 && summary.profit > 0 ? (summary.netCash / summary.profit) * 100 : 0} /></div>
+            <div><small>Proyeksi profit <b style={{ float: "right" }}>{compactMoney(summary.profit)}</b></small><Progress value={summary.revenue > 0 ? (summary.profit / summary.revenue) * 100 : 0} /></div>
+            <div><small>Tekanan biaya <b style={{ float: "right" }}>{compactMoney(summary.expenses)}</b></small><Progress value={summary.profit > 0 ? (summary.expenses / summary.profit) * 100 : 0} /></div>
+            <div><small>Keamanan kas <b style={{ float: "right" }}>{compactMoney(summary.netCash)}</b></small><Progress value={summary.netCash > 0 && summary.profit > 0 ? (summary.netCash / summary.profit) * 100 : 0} /></div>
           </div>
         </div>
       </section>

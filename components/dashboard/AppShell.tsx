@@ -77,7 +77,7 @@ export function AppShell({
   onLogout: () => void;
   children: React.ReactNode;
 }) {
-  const current = meta[activeTab];
+  const current = meta[activeTab] ?? meta.overview;
   const [darkMode, setDarkMode] = useState(false);
   const planLabel = isPro ? "PRO" : proExpired ? "Kedaluwarsa" : "Gratis";
 
