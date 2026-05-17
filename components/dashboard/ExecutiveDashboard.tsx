@@ -24,7 +24,7 @@ type ExecutiveDashboardProps = {
   onGoAI: () => void;
   onGoProducts: () => void;
   onGoMarketplace: () => void;
-  onGoReports: () => void;
+  onGoLaporan: () => void;
   onGoBilling: () => void;
   onStock: (id: string) => void;
   onSale: (id: string) => void;
@@ -44,10 +44,10 @@ function getCashRunway(metrics: DashboardMetrics) {
 }
 
 function healthLabel(score: number) {
-  if (score >= 82) return "Excellent";
-  if (score >= 65) return "Healthy";
-  if (score >= 45) return "Watch";
-  return "At risk";
+  if (score >= 82) return "Sangat baik";
+  if (score >= 65) return "Sehat";
+  if (score >= 45) return "Pantau";
+  return "Berisiko";
 }
 
 function getDelta(current: number, previous: number): { text: string; tone: Tone } {
@@ -76,7 +76,7 @@ export function ExecutiveDashboard({
   onGoAI,
   onGoProducts,
   onGoMarketplace,
-  onGoReports,
+  onGoLaporan,
   onGoBilling,
   onStock,
   onSale,
@@ -90,7 +90,7 @@ export function ExecutiveDashboard({
   const riskTone = getRiskTone(metrics.riskScore);
   const operatingScore = Math.max(0, Math.min(100, 100 - metrics.riskScore));
   const lastSyncText = lastSync ? new Date(lastSync).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "Belum sinkron";
-  const planLabel = isDemoMode ? "Demo workspace" : isPro ? "PRO workspace" : "Free workspace";
+  const planLabel = isDemoMode ? "Ruang kerja demo" : isPro ? "Ruang kerja PRO" : "Ruang kerja gratis";
   const actionText = getOneThingAction(products);
   const revenueNow = cashflowTrend[cashflowTrend.length - 1]?.value || 0;
   const revenuePrev = cashflowTrend[cashflowTrend.length - 2]?.value || 0;
@@ -99,37 +99,37 @@ export function ExecutiveDashboard({
   const revenueDelta = getDelta(revenueNow, revenuePrev);
   const profitDelta = getDelta(profitNow, profitPrev);
   const lowStockCount = metrics.lowStockCount + metrics.outOfStockCount;
-  const inventoryDelta = lowStockCount > 0 ? { text: `${lowStockCount} urgent`, tone: "warning" as Tone } : { text: "Terkendali", tone: "success" as Tone };
-  const riskDelta = metrics.riskScore <= 15 ? { text: "Stabil", tone: "success" as Tone } : metrics.riskScore <= 35 ? { text: "Monitor", tone: "warning" as Tone } : { text: "High", tone: "danger" as Tone };
+  const inventoryDelta = lowStockCount > 0 ? { text: `${lowStockCount} mendesak`, tone: "warning" as Tone } : { text: "Terkendali", tone: "success" as Tone };
+  const riskDelta = metrics.riskScore <= 15 ? { text: "Stabil", tone: "success" as Tone } : metrics.riskScore <= 35 ? { text: "Pantau", tone: "warning" as Tone } : { text: "Tinggi", tone: "danger" as Tone };
 
   const checklist = [
     { label: "Tambahkan minimal 3 produk inti", done: products.length >= 3 },
-    { label: "Catat cashflow atau biaya operasional", done: metrics.totalExpenses > 0 || metrics.totalRevenue > 0 },
+    { label: "Catat arus kas atau biaya operasional", done: metrics.totalExpenses > 0 || metrics.totalOmzet > 0 },
     { label: "Sinkronkan marketplace atau import CSV", done: Boolean(lastSync) || products.some((item) => Boolean(item.marketplace)) },
     { label: "Aktifkan AI report rutin / PRO", done: isPro },
   ];
-  const checklistDone = checklist.filter((item) => item.done).length;
-  const checklistProgress = Math.round((checklistDone / checklist.length) * 100);
+  const checklistSelesai = checklist.filter((item) => item.done).length;
+  const checklistProgress = Math.round((checklistSelesai / checklist.length) * 100);
 
   const activityItems = [
     {
       title: lowStockCount > 0 ? `${lowStockCount} SKU perlu perhatian stok` : "Stok inti terkendali",
-      detail: lowStockCount > 0 ? `Prioritaskan restock untuk ${criticalPreview[0]?.name || "produk utama"}.` : "Belum ada produk yang masuk status kritis.",
+      detail: lowStockCount > 0 ? `Prioritaskan isi ulang stok untuk ${criticalPreview[0]?.name || "produk utama"}.` : "Belum ada produk yang masuk status kritis.",
       time: "Baru saja",
     },
     {
       title: lastSync ? "Marketplace terakhir tersinkron" : "Belum ada sinkronisasi marketplace",
-      detail: lastSync ? `Update terakhir ${lastSyncText}.` : "Import CSV atau hubungkan channel agar data lebih akurat.",
+      detail: lastSync ? `Update terakhir ${lastSyncText}.` : "Impor CSV atau hubungkan channel agar data lebih akurat.",
       time: "Hari ini",
     },
     {
-      title: lossProducts.length > 0 ? `${lossProducts.length} produk margin perlu review` : "Margin produk dalam batas aman",
-      detail: lossProducts.length > 0 ? `Mulai dari ${lossPreview[0]?.name || "SKU prioritas"} untuk evaluasi HPP dan fee.` : "Fokus berikutnya adalah scale produk dengan margin tertinggi.",
+      title: lossProducts.length > 0 ? `${lossProducts.length} produk margin perlu ditinjau` : "Margin produk dalam batas aman",
+      detail: lossProducts.length > 0 ? `Mulai dari ${lossPreview[0]?.name || "SKU prioritas"} untuk evaluasi HPP dan fee.` : "Fokus berikutnya: kembangkan produk dengan margin tertinggi.",
       time: "Insight AI",
     },
   ];
 
-  return <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
+  return <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
     <style>{`
       .overview-grid,
       .hero-layout,
@@ -145,14 +145,14 @@ export function ExecutiveDashboard({
       }
       .overview-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
-        gap: 18px;
+        grid-template-columns: minmax(0, 1.42fr) minmax(300px, 0.58fr);
+        gap: 12px;
       }
       .hero-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
-        gap: 18px;
-        padding: 22px;
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+        gap: 12px;
+        padding: 16px;
         position: relative;
       }
       .hero-copy {
@@ -161,31 +161,31 @@ export function ExecutiveDashboard({
         min-width: 0;
       }
       .hero-title {
-        margin: 12px 0 8px;
-        font-size: clamp(28px, 3vw, 44px);
-        line-height: 1.05;
-        letter-spacing: -1.45px;
+        margin: 8px 0 6px;
+        font-size: clamp(25px, 2.55vw, 36px);
+        line-height: 1.03;
+        letter-spacing: -1.15px;
         max-width: 720px;
       }
       .hero-subtitle {
         margin: 0;
         color: #cbd5e1;
-        font-size: 15px;
-        line-height: 1.72;
+        font-size: 12px;
+        line-height: 1.58;
         max-width: 720px;
       }
-      .command-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+      .command-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
       .status-mini-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 10px;
-        margin-top: 18px;
+        margin-top: 12px;
       }
       .command-side {
         position: relative;
         z-index: 1;
         display: grid;
-        gap: 12px;
+        gap: 10px;
         min-width: 0;
       }
       .kpi-status-grid {
@@ -193,35 +193,35 @@ export function ExecutiveDashboard({
         gap: 10px;
       }
       .compact-panel {
-        padding: 18px;
-        border-radius: 22px;
+        padding: 14px;
+        border-radius: 20px;
         background: rgba(255,255,255,0.10);
         border: 1px solid rgba(255,255,255,0.16);
         backdrop-filter: blur(16px);
       }
       .board-stack {
         display: grid;
-        gap: 16px;
+        gap: 12px;
         align-content: start;
       }
       .metrics-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
+        gap: 12px;
       }
       .dashboard-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
-        gap: 18px;
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+        gap: 12px;
       }
       .chart-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
+        gap: 12px;
       }
       .right-stack {
         display: grid;
-        gap: 18px;
+        gap: 12px;
       }
       .checklist-row {
         display: grid;
@@ -234,7 +234,7 @@ export function ExecutiveDashboard({
       .activity-row {
         display: grid;
         grid-template-columns: 10px 1fr auto;
-        gap: 12px;
+        gap: 10px;
         align-items: start;
         padding: 12px 0;
         border-bottom: 1px solid #edf2f7;
@@ -265,7 +265,7 @@ export function ExecutiveDashboard({
         .metrics-grid, .chart-grid { grid-template-columns: 1fr 1fr; }
       }
       @media (max-width: 720px) {
-        .hero-layout { padding: 18px; }
+        .hero-layout { padding: 14px; }
         .command-actions { display: grid; grid-template-columns: 1fr; }
         .command-actions > * { width: 100%; justify-content: center; text-align: center; }
         .status-mini-grid, .metrics-grid, .chart-grid { grid-template-columns: 1fr; }
@@ -281,37 +281,37 @@ export function ExecutiveDashboard({
           <div className="hero-copy">
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
               <Badge label="Seller OS" tone="success" />
-              <span style={{ color: "#cbd5e1", fontSize: 13 }}>{planLabel}</span>
+              <span style={{ color: "#cbd5e1", fontSize: 12 }}>{planLabel}</span>
             </div>
-            <h1 className="hero-title">Kelola profit, stok, dan cashflow dengan command center yang lebih profesional.</h1>
-            <p className="hero-subtitle">Pantau KPI utama, resiko operasional, performa SKU, dan tindakan AI harian tanpa harus berpindah halaman.</p>
+            <h1 className="hero-title">Kelola profit, stok, dan arus kas dalam satu pusat kontrol premium.</h1>
+            <p className="hero-subtitle">Pantau KPI, risiko stok, performa SKU, dan aksi AI harian tanpa berpindah halaman.</p>
             <div className="command-actions">
               <button onClick={onAddProduct} style={{ ...ctaButtonStyle, background: "linear-gradient(135deg,#ffffff,#ccfbf1)", color: "#0f172a", boxShadow: "0 18px 40px rgba(255,255,255,0.12)" }}>Tambah produk</button>
-              <button onClick={onAddCashflow} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.18)", boxShadow: "none" }}>Catat cashflow</button>
-              <label style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.18)", boxShadow: "none" }}>{syncing ? "Importing..." : "Import CSV"}<input type="file" accept=".csv" onChange={onImportCSV} style={{ display: "none" }} /></label>
+              <button onClick={onAddCashflow} style={{ ...ghostButtonStyle, background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.18)", boxShadow: "none" }}>Catat arus kas</button>
+              <label style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.18)", boxShadow: "none" }}>{syncing ? "Mengimpor..." : "Impor CSV"}<input type="file" accept=".csv" onChange={onImportCSV} style={{ display: "none" }} /></label>
             </div>
             <div className="status-mini-grid">
-              <MiniMetric label="Operating score" value={`${operatingScore}/100`} helper={healthLabel(operatingScore)} />
-              <MiniMetric label="Cash runway" value={getCashRunway(metrics)} helper="Estimated runway" />
-              <MiniMetric label="Marketplace sync" value={lastSync ? "Connected" : "Pending"} helper={lastSyncText} />
-              <MiniMetric label="AI priority" value={lossProducts.length ? `${lossProducts.length} review` : "Scale ready"} helper="Daily focus" />
+              <MiniMetric label="Skor operasi" value={`${operatingScore}/100`} helper={healthLabel(operatingScore)} />
+              <MiniMetric label="Daya tahan kas" value={getCashRunway(metrics)} helper="Estimasi daya tahan" />
+              <MiniMetric label="Sinkron marketplace" value={lastSync ? "Terhubung" : "Menunggu"} helper={lastSyncText} />
+              <MiniMetric label="Prioritas AI" value={lossProducts.length ? `${lossProducts.length} ditinjau` : "Siap tumbuh"} helper="Fokus harian" />
             </div>
           </div>
 
           <div className="command-side">
             <div className="compact-panel">
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><span style={{ color: "#cbd5e1" }}>Net cash position</span><Badge label={metrics.netCash >= 0 ? "Healthy" : "Needs action"} tone={metrics.netCash >= 0 ? "success" : "danger"} /></div>
-              <h2 style={{ margin: "8px 0 14px", fontSize: 34, letterSpacing: -1.1 }}>{money(metrics.netCash)}</h2>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><span style={{ color: "#cbd5e1" }}>Posisi kas bersih</span><Badge label={metrics.netCash >= 0 ? "Sehat" : "Perlu aksi"} tone={metrics.netCash >= 0 ? "success" : "danger"} /></div>
+              <h2 style={{ margin: "8px 0 14px", fontSize: 30, letterSpacing: -1.1 }}>{money(metrics.netCash)}</h2>
               <div className="kpi-status-grid">
-                <HealthRow label="Profit to inventory" value={Math.min(100, (metrics.totalProfit / Math.max(metrics.inventoryValue, 1)) * 100)} right={compactMoney(metrics.totalProfit)} />
-                <HealthRow label="Expense pressure" value={Math.min(100, (metrics.totalExpenses / Math.max(metrics.totalProfit, 1)) * 100)} right={compactMoney(metrics.totalExpenses)} />
-                <HealthRow label="Risk control" value={Math.max(0, 100 - metrics.riskScore)} right={`${metrics.riskScore}/100`} />
+                <HealthRow label="Profit ke stok" value={Math.min(100, (metrics.totalProfit / Math.max(metrics.inventoryValue, 1)) * 100)} right={compactMoney(metrics.totalProfit)} />
+                <HealthRow label="Tekanan biaya" value={Math.min(100, (metrics.totalExpenses / Math.max(metrics.totalProfit, 1)) * 100)} right={compactMoney(metrics.totalExpenses)} />
+                <HealthRow label="Kontrol risiko" value={Math.max(0, 100 - metrics.riskScore)} right={`${metrics.riskScore}/100`} />
               </div>
             </div>
             <div style={{ padding: 17, borderRadius: 22, background: "rgba(255,255,255,0.94)", color: "#111827", border: "1px solid rgba(255,255,255,0.20)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong>AI daily decision</strong><Badge label="Today" tone="blue" /></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}><strong>Keputusan AI hari ini</strong><Badge label="Hari ini" tone="blue" /></div>
               <p style={{ margin: "8px 0 12px", color: "#667085", lineHeight: 1.6, fontSize: 14 }}>{actionText}</p>
-              <button onClick={onGoAI} style={{ ...ghostButtonStyle, padding: "9px 12px" }}>Buka action plan</button>
+              <button onClick={onGoAI} style={{ ...ghostButtonStyle, padding: "9px 12px" }}>Buka rencana aksi</button>
             </div>
           </div>
         </div>
@@ -319,14 +319,14 @@ export function ExecutiveDashboard({
 
       <aside className="board-stack">
         <section style={{ ...cardStyle, display: "grid", gap: 16, alignContent: "start" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><Badge label="Board brief" tone="blue" /><span style={{ color: "#667085", fontSize: 12 }}>Today</span></div>
-          <BriefRow label="Revenue" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit sold`} />
-          <BriefRow label="Gross profit" value={money(metrics.totalProfit)} helper={`${percent(metrics.avgMargin)} avg margin`} />
-          <BriefRow label="Inventory value" value={money(metrics.inventoryValue)} helper={`${metrics.totalStock} units available`} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><Badge label="Ringkasan bisnis" tone="blue" /><span style={{ color: "#667085", fontSize: 12 }}>Hari ini</span></div>
+          <BriefRow label="Omzet" value={money(metrics.totalOmzet)} helper={`${metrics.totalUnits} unit terjual`} />
+          <BriefRow label="Profit kotor" value={money(metrics.totalProfit)} helper={`${percent(metrics.avgMargin)} margin rata-rata`} />
+          <BriefRow label="Nilai stok" value={money(metrics.inventoryValue)} helper={`${metrics.totalStock} unit tersedia`} />
           <div style={{ padding: 14, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><strong>PRO readiness</strong><span style={{ color: "#0f766e", fontWeight: 900 }}>{isPro ? "Active" : `${Math.max(62, checklistProgress)}%`}</span></div>
-            <div style={{ margin: "12px 0" }}><Progress value={isPro ? 100 : Math.max(62, checklistProgress)} /></div>
-            <p style={{ margin: 0, color: "#667085", fontSize: 13, lineHeight: 1.55 }}>{isPro ? "AI CFO, reports, and workspace features are unlocked." : "Lengkapi import data, aktifkan workflow inti, lalu upgrade saat siap scale."}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><strong>Kesiapan PRO</strong><span style={{ color: "#0f766e", fontWeight: 900 }}>{isPro ? "Aktif" : `${Math.max(62, checklistProgress)}%`}</span></div>
+            <div style={{ margin: "10px 0" }}><Progress value={isPro ? 100 : Math.max(62, checklistProgress)} /></div>
+            <p style={{ margin: 0, color: "#667085", fontSize: 12, lineHeight: 1.55 }}>{isPro ? "AI CFO, laporan, dan fitur ruang kerja sudah aktif." : "Lengkapi impor data, aktifkan alur kerja inti, lalu upgrade saat siap tumbuh."}</p>
           </div>
         </section>
 
@@ -334,19 +334,19 @@ export function ExecutiveDashboard({
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <div>
               <Badge label="Onboarding & status" tone="success" />
-              <h3 style={{ margin: "10px 0 0", letterSpacing: -0.4 }}>Operational readiness</h3>
+              <h3 style={{ margin: "10px 0 0", letterSpacing: -0.4 }}>Kesiapan operasional</h3>
             </div>
             <strong style={{ color: "#0f766e" }}>{checklistProgress}%</strong>
           </div>
-          <div style={{ marginTop: 14 }}><Progress value={checklistProgress} /></div>
+          <div style={{ marginTop: 10 }}><Progress value={checklistProgress} /></div>
           <div style={{ display: "grid", gap: 2, marginTop: 10 }}>
             {checklist.map((item) => <div key={item.label} className="checklist-row">
               <span style={{ width: 22, height: 22, borderRadius: 999, display: "grid", placeItems: "center", background: item.done ? "#ecfdf5" : "#f8fafc", color: item.done ? "#047857" : "#98a2b3", border: `1px solid ${item.done ? "#a7f3d0" : "#e2e8f0"}`, fontSize: 12, fontWeight: 900 }}>{item.done ? "✓" : "•"}</span>
-              <span style={{ color: item.done ? "#111827" : "#667085", fontSize: 13 }}>{item.label}</span>
-              <span style={{ color: item.done ? "#047857" : "#98a2b3", fontSize: 12, fontWeight: 800 }}>{item.done ? "Done" : "Open"}</span>
+              <span style={{ color: item.done ? "#111827" : "#667085", fontSize: 12 }}>{item.label}</span>
+              <span style={{ color: item.done ? "#047857" : "#98a2b3", fontSize: 12, fontWeight: 800 }}>{item.done ? "Selesai" : "Belum"}</span>
             </div>)}
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
             <button onClick={onGoMarketplace} style={ghostButtonStyle}>Hubungkan data</button>
             {!isPro && <button onClick={onGoBilling} style={ctaButtonStyle}>Aktifkan PRO</button>}
           </div>
@@ -355,21 +355,21 @@ export function ExecutiveDashboard({
     </section>
 
     <section className="metrics-grid">
-      <StatCard label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
+      <StatCard label="Omzet" value={money(metrics.totalOmzet)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
       <StatCard label="Profit produk" value={money(metrics.totalProfit)} helper={`Margin rata-rata ${percent(metrics.avgMargin)}`} tone={metrics.totalProfit >= 0 ? "success" : "danger"} delta={profitDelta.text} deltaTone={profitDelta.tone} />
       <StatCard label="Stok kritis" value={lowStockCount} helper={`${metrics.totalStock} unit tersedia`} tone={lowStockCount ? "warning" : "success"} delta={inventoryDelta.text} deltaTone={inventoryDelta.tone} />
-      <StatCard label="Risk score" value={`${metrics.riskScore}/100`} helper={`Estimasi bocor ${money(metrics.dailyLeakEstimate)} per hari`} tone={riskTone} delta={riskDelta.text} deltaTone={riskDelta.tone} />
+      <StatCard label="Skor risiko" value={`${metrics.riskScore}/100`} helper={`Estimasi bocor ${money(metrics.dailyLeakEstimate)} per hari`} tone={riskTone} delta={riskDelta.text} deltaTone={riskDelta.tone} />
     </section>
 
     <section className="dashboard-grid">
       <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
         <div className="chart-grid">
-          <LineChartCard title="Cashflow trend" subtitle="Cash in vs cash out" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" />
-          <LineChartCard title="Profit trend" subtitle="Estimasi profit 7 hari" data={profitTrend} valueLabel="Profit" />
+          <LineChartCard title="Tren arus kas" subtitle="Kas masuk vs keluar" data={cashflowTrend} valueLabel="Kas masuk" secondaryLabel="Kas keluar" />
+          <LineChartCard title="Tren profit" subtitle="Estimasi profit 7 hari" data={profitTrend} valueLabel="Profit" />
         </div>
         <section style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
-            <div><Badge label="SKU performance" tone="blue" /><h2 style={{ margin: "8px 0 0", letterSpacing: -0.5 }}>Priority products</h2></div>
+            <div><Badge label="Performa SKU" tone="blue" /><h2 style={{ margin: "8px 0 0", letterSpacing: -0.5 }}>Produk prioritas</h2></div>
             <button onClick={onGoProducts} style={ghostButtonStyle}>Kelola produk</button>
           </div>
           <div className="desktop-table"><ProductTable products={filteredProducts.slice(0, 6)} onStock={onStock} onSale={onSale} onDelete={onDelete} /></div>
@@ -379,28 +379,28 @@ export function ExecutiveDashboard({
 
       <aside className="right-stack">
         <section style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}><Badge label="Next best actions" tone="success" /><button onClick={onGoAI} style={{ ...ghostButtonStyle, padding: "8px 11px" }}>AI detail</button></div>
-          <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
-            <ActionItem index="01" title="Review SKU margin rendah" detail={`${lossProducts.length} produk rugi terdeteksi. Cek HPP, voucher, fee admin, dan harga jual.`} cta="Lihat produk" onClick={onGoProducts} />
-            <ActionItem index="02" title="Amankan stok cepat habis" detail={`${criticalProducts.length} SKU perlu restock atau monitoring supaya tidak kehilangan penjualan.`} cta="Inventory" onClick={onGoProducts} />
-            <ActionItem index="03" title="Kirim laporan mingguan" detail="Export PDF/CSV untuk owner, investor kecil, atau partner operasional." cta="Reports" onClick={onGoReports} />
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}><Badge label="Aksi terbaik berikutnya" tone="success" /><button onClick={onGoAI} style={{ ...ghostButtonStyle, padding: "8px 11px" }}>Detail AI</button></div>
+          <div style={{ display: "grid", gap: 12, marginTop: 10 }}>
+            <ActionItem index="01" title="Tinjau SKU margin rendah" detail={`${lossProducts.length} produk rugi terdeteksi. Cek HPP, voucher, fee admin, dan harga jual.`} cta="Lihat produk" onClick={onGoProducts} />
+            <ActionItem index="02" title="Amankan stok cepat habis" detail={`${criticalProducts.length} SKU perlu isi ulang stok atau dipantau agar tidak kehilangan penjualan.`} cta="Stok" onClick={onGoProducts} />
+            <ActionItem index="03" title="Kirim laporan mingguan" detail="Ekspor PDF/CSV untuk pemilik, mitra, atau arsip operasional." cta="Laporan" onClick={onGoLaporan} />
           </div>
         </section>
 
         <section style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}><Badge label="Activity feed" tone="neutral" /><button onClick={onGoMarketplace} style={{ ...ghostButtonStyle, padding: "8px 11px" }}>Data status</button></div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}><Badge label="Aktivitas terbaru" tone="neutral" /><button onClick={onGoMarketplace} style={{ ...ghostButtonStyle, padding: "8px 11px" }}>Status data</button></div>
           <div style={{ display: "grid", marginTop: 10 }}>
             {activityItems.map((item) => <div key={item.title} className="activity-row">
               <span className="activity-dot" />
-              <div><strong>{item.title}</strong><div style={{ color: "#64748b", fontSize: 13, lineHeight: 1.55, marginTop: 4 }}>{item.detail}</div></div>
+              <div><strong>{item.title}</strong><div style={{ color: "#64748b", fontSize: 12, lineHeight: 1.55, marginTop: 4 }}>{item.detail}</div></div>
               <span style={{ color: "#98a2b3", fontSize: 12, fontWeight: 800 }}>{item.time}</span>
             </div>)}
           </div>
         </section>
 
         <section style={cardStyle}>
-          <Badge label="Top performers" tone="blue" />
-          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+          <Badge label="Produk terbaik" tone="blue" />
+          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             {topProducts.length ? topProducts.map((product, index) => <div key={product.id} className="top-performer-row">
               <strong style={{ width: 34, height: 34, borderRadius: 12, display: "grid", placeItems: "center", background: "#ecfdf5", color: "#047857" }}>{index + 1}</strong>
               <div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product.name}</strong><div style={{ color: "#64748b", fontSize: 12 }}>{product.marketplace || "Marketplace"} · margin {percent(product.margin)}</div></div>
@@ -410,12 +410,12 @@ export function ExecutiveDashboard({
         </section>
 
         <section style={{ ...cardStyle, background: "linear-gradient(135deg,#ecfdf5,#ffffff)" }}>
-          <Badge label="Scale setup" tone="warning" />
-          <h3 style={{ margin: "12px 0 8px", letterSpacing: -0.3 }}>Naikkan level operasional dari pencatatan ke workflow SaaS</h3>
-          <p style={{ color: "#64748b", lineHeight: 1.65, marginTop: 0 }}>Hubungkan data marketplace, aktifkan AI CFO, dan jadikan report otomatis sebagai ritme operasional harian.</p>
+          <Badge label="Setup Scale" tone="warning" />
+          <h3 style={{ margin: "12px 0 8px", letterSpacing: -0.3 }}>Naikkan level operasional dari pencatatan ke alur kerja SaaS</h3>
+          <p style={{ color: "#64748b", lineHeight: 1.65, marginTop: 0 }}>Hubungkan data marketplace, aktifkan AI CFO, dan jadikan laporan otomatis sebagai ritme operasional harian.</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={onGoMarketplace} style={ghostButtonStyle}>Integrasi</button>
-            <button onClick={onGoBilling} style={ctaButtonStyle}>{isPro ? "Manage plan" : "Lihat PRO"}</button>
+            <button onClick={onGoBilling} style={ctaButtonStyle}>{isPro ? "Kelola paket" : "Lihat PRO"}</button>
           </div>
         </section>
       </aside>
@@ -424,20 +424,20 @@ export function ExecutiveDashboard({
 }
 
 function MiniMetric({ label, value, helper }: { label: string; value: string; helper: string }) {
-  return <div style={{ padding: 13, borderRadius: 18, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", minWidth: 0 }}><small style={{ color: "#cbd5e1" }}>{label}</small><br /><strong style={{ display: "block", marginTop: 4, color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</strong><small style={{ color: "#94a3b8" }}>{helper}</small></div>;
+  return <div style={{ padding: 10, borderRadius: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", minWidth: 0 }}><small style={{ color: "#cbd5e1" }}>{label}</small><br /><strong style={{ display: "block", marginTop: 4, color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</strong><small style={{ color: "#94a3b8" }}>{helper}</small></div>;
 }
 
 function HealthRow({ label, value, right }: { label: string; value: number; right: string }) {
-  return <div><div style={{ display: "flex", justifyContent: "space-between", gap: 10, color: "#cbd5e1", fontSize: 13, marginBottom: 7 }}><span>{label}</span><strong style={{ color: "white" }}>{right}</strong></div><Progress value={value} /></div>;
+  return <div><div style={{ display: "flex", justifyContent: "space-between", gap: 10, color: "#cbd5e1", fontSize: 12, marginBottom: 7 }}><span>{label}</span><strong style={{ color: "white" }}>{right}</strong></div><Progress value={value} /></div>;
 }
 
 function BriefRow({ label, value, helper }: { label: string; value: string; helper: string }) {
-  return <div style={{ paddingBottom: 14, borderBottom: "1px solid #e5e7eb" }}><div style={{ color: "#667085", fontSize: 12, fontWeight: 800 }}>{label}</div><strong style={{ display: "block", marginTop: 5, fontSize: 24, letterSpacing: -0.7 }}>{value}</strong><small style={{ color: "#667085" }}>{helper}</small></div>;
+  return <div style={{ paddingBottom: 10, borderBottom: "1px solid #e5e7eb" }}><div style={{ color: "#667085", fontSize: 12, fontWeight: 800 }}>{label}</div><strong style={{ display: "block", marginTop: 5, fontSize: 21, letterSpacing: -0.7 }}>{value}</strong><small style={{ color: "#667085" }}>{helper}</small></div>;
 }
 
 function ActionItem({ index, title, detail, cta, onClick }: { index: string; title: string; detail: string; cta: string; onClick: () => void }) {
   return <div style={{ display: "grid", gridTemplateColumns: "34px 1fr", gap: 12, padding: 14, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
     <strong style={{ width: 34, height: 34, borderRadius: 12, display: "grid", placeItems: "center", background: "#0f172a", color: "white", fontSize: 12 }}>{index}</strong>
-    <div><strong>{title}</strong><p style={{ margin: "6px 0 12px", color: "#64748b", lineHeight: 1.55, fontSize: 13 }}>{detail}</p><button onClick={onClick} style={{ ...ghostButtonStyle, padding: "8px 11px" }}>{cta}</button></div>
+    <div><strong>{title}</strong><p style={{ margin: "6px 0 12px", color: "#64748b", lineHeight: 1.55, fontSize: 12 }}>{detail}</p><button onClick={onClick} style={{ ...ghostButtonStyle, padding: "8px 11px" }}>{cta}</button></div>
   </div>;
 }

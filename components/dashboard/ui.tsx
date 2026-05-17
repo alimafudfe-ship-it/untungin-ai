@@ -15,7 +15,7 @@ export const colors = {
 export const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "13px 14px",
-  borderRadius: 16,
+  borderRadius: 14,
   border: "1px solid rgba(16,24,40,0.12)",
   background: "rgba(255,255,255,0.92)",
   color: colors.ink,
@@ -27,17 +27,17 @@ export const inputStyle: React.CSSProperties = {
 export const cardStyle: React.CSSProperties = {
   background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.92))",
   border: "1px solid rgba(16,24,40,0.09)",
-  borderRadius: 28,
-  padding: 22,
-  boxShadow: "0 20px 70px rgba(16,24,40,0.08)",
+  borderRadius: 24,
+  padding: 18,
+  boxShadow: "0 16px 52px rgba(16,24,40,0.07)",
 };
 
 export const ctaButtonStyle: React.CSSProperties = {
-  padding: "12px 17px",
+  padding: "10px 15px",
   background: "linear-gradient(135deg,#0f766e,#14b8a6)",
   color: "#ffffff",
   border: "0",
-  borderRadius: 16,
+  borderRadius: 14,
   cursor: "pointer",
   fontWeight: 900,
   fontSize: 14,
@@ -45,11 +45,11 @@ export const ctaButtonStyle: React.CSSProperties = {
 };
 
 export const ghostButtonStyle: React.CSSProperties = {
-  padding: "10px 14px",
+  padding: "9px 12px",
   background: "rgba(255,255,255,0.86)",
   color: colors.ink,
   border: "1px solid rgba(16,24,40,0.12)",
-  borderRadius: 15,
+  borderRadius: 13,
   cursor: "pointer",
   fontWeight: 800,
   boxShadow: "0 8px 24px rgba(16,24,40,0.04)",
@@ -68,12 +68,12 @@ function tonePalette(tone: Tone) {
 
 export function Badge({ label, tone = "muted" }: { label: string; tone?: Tone }) {
   const palette = tonePalette(tone);
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 10px", color: palette.color, background: palette.bg, border: `1px solid ${palette.border}`, fontSize: 12, fontWeight: 850, letterSpacing: 0.1 }}>{label}</span>;
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "5px 9px", color: palette.color, background: palette.bg, border: `1px solid ${palette.border}`, fontSize: 12, fontWeight: 850, letterSpacing: 0.1 }}>{label}</span>;
 }
 
 export function Progress({ value }: { value: number }) {
   const width = clamp(value, 0, 100);
-  return <div style={{ height: 9, borderRadius: 999, background: "#edf2f7", overflow: "hidden" }}><div style={{ width: `${width}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg,#0f766e,#14b8a6,#f59e0b)" }} /></div>;
+  return <div style={{ height: 8, borderRadius: 999, background: "#edf2f7", overflow: "hidden" }}><div style={{ width: `${width}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg,#0f766e,#14b8a6,#f59e0b)" }} /></div>;
 }
 
 export function EmptyState({ title, description }: { title: string; description: string }) {
@@ -104,7 +104,7 @@ export function StatCard({
         <p style={{ margin: 0, color: colors.muted, fontSize: 13, fontWeight: 750 }}>{label}</p>
         {delta ? <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "6px 9px", color: deltaPalette.color, background: deltaPalette.bg, border: `1px solid ${deltaPalette.border}`, fontSize: 11, fontWeight: 850 }}>{delta}</span> : null}
       </div>
-      <h2 style={{ margin: "10px 0", color, fontSize: 29, letterSpacing: -0.9 }}>{value}</h2>
+      <h2 style={{ margin: "8px 0", color, fontSize: 27, letterSpacing: -0.9 }}>{value}</h2>
       <small style={{ color: colors.muted, lineHeight: 1.5 }}>{helper}</small>
     </div>
   </div>;
