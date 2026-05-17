@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Papa from "papaparse";
 import { createClient } from "@supabase/supabase-js";
 import { createImportPreview } from "@/lib/dashboard/marketplaceImport";
+import { calculateMargin, calculateProfit } from "@/lib/dashboard/calculations";
 import { generateRuleBasedInsights } from "@/lib/saas/aiInsights";
 
 function serverClient() {
@@ -26,6 +27,29 @@ function valueFrom(row: Record<string, unknown>, keys: string[]) {
   }
   return "";
 }
+
+function toNumber(value: unknown) {
+  const numeric = Number(value || 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function productKey(name: string, marketplace: string, storeId: string | null) {
+  return `${storeId || "main"}::${marketplace || "Manual"}::${name}`.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+type SavedProduct = {
+  id: string;
+  name: string;
+  cost_price: number;
+  selling_price: number;
+  quantity_sold: number;
+  stock_initial: number;
+  stock_remaining: number;
+  other_cost: number;
+  profit: number;
+  margin: number;
+  marketplace?: string | null;
+};
 
 export async function POST(req: Request) {
   const formData = await req.formData().catch(() => null);
@@ -73,16 +97,85 @@ export async function POST(req: Request) {
     .select("id")
     .single();
 
-  const { data: insertedProducts, error: productError } = await supabase.from("products").insert(normalized).select("*");
-  const successRows = insertedProducts?.length || 0;
+  const existingQuery = supabase
+    .from("products")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId);
 
-  if (productError) {
-    await supabase.from("import_jobs").update({ status: "failed", success_rows: successRows, failed_rows: rows.length, errors: [{ message: productError.message }, ...errors, ...preview.warnings.map((message) => ({ message }))], finished_at: new Date().toISOString() }).eq("id", job?.id);
-    return NextResponse.json({ error: productError.message, totalRows: rows.length, successRows, failedRows: rows.length }, { status: 500 });
+  if (storeId) existingQuery.eq("store_id", storeId);
+
+  const { data: existingProducts } = await existingQuery;
+  const productMap = new Map<string, SavedProduct>();
+  (existingProducts || []).forEach((item: any) => {
+    productMap.set(productKey(String(item.name || ""), String(item.marketplace || "Manual"), item.store_id || null), item as SavedProduct);
+  });
+
+  const savedProducts: SavedProduct[] = [];
+  const saleResults: { product: SavedProduct; normalized: any; raw: Record<string, unknown>; stockBefore: number; stockAfter: number }[] = [];
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    const row: any = normalized[index];
+    const raw = rows[index] || {};
+    const key = productKey(row.name, row.marketplace || preview.detectedMarketplace, storeId || null);
+    const existing = productMap.get(key);
+
+    if (existing) {
+      const stockBefore = toNumber(existing.stock_remaining);
+      const existingSold = toNumber(existing.quantity_sold);
+      const existingCost = toNumber(existing.cost_price);
+      const existingSell = toNumber(existing.selling_price);
+      const existingOtherCost = toNumber(existing.other_cost);
+      const latestCostPrice = row.cost_price > 0 ? row.cost_price : existingCost;
+      const latestSellingPrice = row.selling_price > 0 ? row.selling_price : existingSell;
+      const quantitySold = existingSold + row.quantity_sold;
+      const stockRemaining = Math.max(stockBefore - row.quantity_sold, 0);
+      const stockInitial = Math.max(toNumber(existing.stock_initial), stockRemaining + quantitySold, row.stock_initial || 0);
+      const otherCost = existingOtherCost + row.other_cost;
+      const profit = calculateProfit({ costPrice: latestCostPrice, sellingPrice: latestSellingPrice, quantitySold, otherCost });
+      const margin = calculateMargin(latestCostPrice, latestSellingPrice);
+      const patch = {
+        cost_price: latestCostPrice,
+        selling_price: latestSellingPrice,
+        quantity_sold: quantitySold,
+        stock_initial: stockInitial,
+        stock_remaining: stockRemaining,
+        other_cost: otherCost,
+        profit,
+        margin,
+        marketplace: row.marketplace,
+      };
+      const { data: updated, error } = await supabase.from("products").update(patch).eq("id", existing.id).eq("user_id", userId).select("*").single();
+      if (error) {
+        errors.push({ row: index + 1, message: `Gagal update stok ${row.name}: ${error.message}` });
+        continue;
+      }
+      const saved = updated as SavedProduct;
+      productMap.set(key, saved);
+      savedProducts.push(saved);
+      saleResults.push({ product: saved, normalized: row, raw, stockBefore, stockAfter: stockRemaining });
+    } else {
+      const payload = { ...row, stock_remaining: Math.max(row.stock_initial - row.quantity_sold, 0) };
+      const { data: inserted, error } = await supabase.from("products").insert(payload).select("*").single();
+      if (error) {
+        errors.push({ row: index + 1, message: `Gagal tambah produk ${row.name}: ${error.message}` });
+        continue;
+      }
+      const saved = inserted as SavedProduct;
+      productMap.set(key, saved);
+      savedProducts.push(saved);
+      saleResults.push({ product: saved, normalized: row, raw, stockBefore: row.stock_initial, stockAfter: payload.stock_remaining });
+    }
   }
 
-  const orderRows = normalized.map((row, index: number) => {
-    const raw = rows[index] || {};
+  const successRows = savedProducts.length;
+
+  if (!successRows && errors.length) {
+    await supabase.from("import_jobs").update({ status: "failed", success_rows: 0, failed_rows: rows.length, errors: [...errors, ...preview.warnings.map((message) => ({ message }))], finished_at: new Date().toISOString() }).eq("id", job?.id);
+    return NextResponse.json({ error: "Import gagal. Tidak ada produk yang tersimpan.", totalRows: rows.length, successRows: 0, failedRows: rows.length, errors }, { status: 500 });
+  }
+
+  const orderRows = saleResults.map(({ normalized: row, raw }, index: number) => {
     const grossRevenue = row.selling_price * row.quantity_sold;
     const rawExternalId = valueFrom(raw, ["No. Pesanan", "Nomor Invoice", "Order ID", "Order Id", "Invoice", "Nomor Pesanan"]);
     const externalId = `${rawExternalId || file.name}-${importStartedAt}-${index + 1}`;
@@ -106,30 +199,29 @@ export async function POST(req: Request) {
 
   const { data: insertedOrders } = orderRows.length ? await supabase.from("orders").insert(orderRows).select("id") : { data: [] as { id: string }[] };
 
-  if (insertedOrders?.length && insertedProducts?.length) {
+  if (insertedOrders?.length) {
     const orderItems = insertedOrders.map((order: { id: string }, index: number) => {
-      const product = insertedProducts[index];
-      const normalizedProduct = normalized[index];
+      const result = saleResults[index];
       return {
         order_id: order.id,
-        product_id: product?.id || null,
-        sku: valueFrom(rows[index] || {}, ["SKU", "SKU Induk", "Seller SKU", "Kode SKU"]),
-        product_name: normalizedProduct.name,
-        quantity: normalizedProduct.quantity_sold,
-        unit_price: normalizedProduct.selling_price,
-        cost_price: normalizedProduct.cost_price,
-        total_fee: normalizedProduct.other_cost,
-        profit: normalizedProduct.profit,
-        raw: rows[index] || {},
+        product_id: result.product.id,
+        sku: valueFrom(result.raw, ["SKU", "SKU Induk", "Seller SKU", "Kode SKU"]),
+        product_name: result.normalized.name,
+        quantity: result.normalized.quantity_sold,
+        unit_price: result.normalized.selling_price,
+        cost_price: result.normalized.cost_price,
+        total_fee: result.normalized.other_cost,
+        profit: result.normalized.profit,
+        raw: { ...result.raw, stock_before: result.stockBefore, stock_after: result.stockAfter, auto_stock_deducted: true },
       };
     });
     await supabase.from("order_items").insert(orderItems);
   }
 
-  const insightInputs = normalized.map((p) => ({ name: p.name, profit: p.profit, margin: p.margin, stockRemaining: p.stock_remaining, stockInitial: p.stock_initial, otherCost: p.other_cost, marketplace: p.marketplace }));
+  const insightInputs = savedProducts.map((p) => ({ name: p.name, profit: p.profit, margin: p.margin, stockRemaining: p.stock_remaining, stockInitial: p.stock_initial, otherCost: p.other_cost, marketplace: p.marketplace || preview.detectedMarketplace }));
   const insights = generateRuleBasedInsights(insightInputs, []);
-  await supabase.from("ai_insights").insert(insights.map((item) => ({ workspace_id: workspaceId, store_id: storeId || null, severity: item.severity, title: item.title, body: item.body, action_label: item.actionLabel, metric_snapshot: { source: "csv_import_v11_auto_mapping", score: item.score, file: file.name, imported_rows: successRows, mapping_confidence: preview.confidence, detected_marketplace: preview.detectedMarketplace } })));
-  await supabase.from("activation_events").insert({ workspace_id: workspaceId, user_id: userId, event_name: "csv_import_completed", source: "v11_auto_mapping", metadata: { file: file.name, rows: rows.length, successRows, mappingConfidence: preview.confidence, detectedMarketplace: preview.detectedMarketplace, warnings: preview.warnings } });
+  await supabase.from("ai_insights").insert(insights.map((item) => ({ workspace_id: workspaceId, store_id: storeId || null, severity: item.severity, title: item.title, body: item.body, action_label: item.actionLabel, metric_snapshot: { source: "csv_import_v12_auto_stock", score: item.score, file: file.name, imported_rows: successRows, stock_updates: saleResults.length, mapping_confidence: preview.confidence, detected_marketplace: preview.detectedMarketplace } })));
+  await supabase.from("activation_events").insert({ workspace_id: workspaceId, user_id: userId, event_name: "marketplace_sales_import_completed", source: "v12_auto_stock", metadata: { file: file.name, rows: rows.length, successRows, stockUpdates: saleResults.length, mappingConfidence: preview.confidence, detectedMarketplace: preview.detectedMarketplace, warnings: preview.warnings } });
   const { error: workspaceMarkError } = await supabase.rpc("mark_workspace_first_import", { target_workspace: workspaceId });
   if (workspaceMarkError) {
     await supabase.from("workspaces").update({ onboarding_step: 4, onboarding_completed: true, updated_at: new Date().toISOString() }).eq("id", workspaceId);
@@ -137,5 +229,14 @@ export async function POST(req: Request) {
 
   await supabase.from("import_jobs").update({ status: "completed", success_rows: successRows, failed_rows: errors.length, errors: [...errors, ...preview.warnings.map((message) => ({ message }))], finished_at: new Date().toISOString() }).eq("id", job?.id);
 
-  return NextResponse.json({ jobId: job?.id, totalRows: rows.length, successRows, failedRows: errors.length, insights, products: insertedProducts?.slice(0, 20) || [], preview: { detectedMarketplace: preview.detectedMarketplace, confidence: preview.confidence, summary: preview.summary, warnings: preview.warnings, mappings: mappingPreview?.mappings || preview.mappings } });
+  return NextResponse.json({
+    jobId: job?.id,
+    totalRows: rows.length,
+    successRows,
+    failedRows: errors.length,
+    stockUpdates: saleResults.length,
+    insights,
+    products: savedProducts.slice(0, 20),
+    preview: { detectedMarketplace: preview.detectedMarketplace, confidence: preview.confidence, summary: preview.summary, warnings: preview.warnings, mappings: mappingPreview?.mappings || preview.mappings },
+  });
 }

@@ -341,7 +341,44 @@ export default function DashboardPage() {
     const profit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold, otherCost });
     const margin = calculateMargin(product.costPrice, product.sellingPrice);
     const ok = await persistProductUpdate(product.id, { quantitySold, stockRemaining, otherCost, profit, margin });
-    if (ok) { setSaleForm({ productId: product.id, qty: "", otherCost: "" }); alert("Penjualan tersimpan. Stok otomatis berkurang dan profit ikut update."); }
+    if (ok) {
+      try {
+        const saleProfit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold: qty, otherCost: extraCost });
+        const grossRevenue = product.sellingPrice * qty;
+        const { data: order } = await db.from("orders").insert({
+          workspace_id: workspaceId,
+          store_id: selectedStoreId,
+          marketplace: product.marketplace || "Manual",
+          external_order_id: `manual-${product.id}-${Date.now()}`,
+          status: "completed",
+          gross_revenue: grossRevenue,
+          marketplace_fee: 0,
+          ads_cost: 0,
+          voucher_cost: 0,
+          affiliate_cost: 0,
+          net_revenue: grossRevenue - extraCost,
+          source_file: "manual-sale",
+          raw: { source: "manual_input", auto_stock_deducted: true, stock_before: product.stockRemaining, stock_after: stockRemaining },
+        }).select("id").single();
+        if (order?.id) {
+          await db.from("order_items").insert({
+            order_id: order.id,
+            product_id: product.id,
+            product_name: product.name,
+            quantity: qty,
+            unit_price: product.sellingPrice,
+            cost_price: product.costPrice,
+            total_fee: extraCost,
+            profit: saleProfit,
+            raw: { source: "manual_input", marketplace: product.marketplace || "Manual" },
+          });
+        }
+      } catch (orderError) {
+        console.warn("Order log belum tersimpan, tapi stok sudah otomatis berkurang.", orderError);
+      }
+      setSaleForm({ productId: product.id, qty: "", otherCost: "" });
+      alert("Penjualan tersimpan. Stok otomatis berkurang dan histori order ikut dicatat.");
+    }
   }
 
   async function applyStockMove(e: React.FormEvent) {
@@ -399,7 +436,7 @@ export default function DashboardPage() {
       const preview = createImportPreview(rows, currentUserId, "auto");
       setPendingImportFile(file);
       setPendingImportPreview(preview);
-      setAiAnswer(`Preview import v11 siap: ${preview.summary.validRows}/${preview.summary.totalRows} baris valid, marketplace ${preview.detectedMarketplace}, confidence ${preview.confidence}%. Cek mapping fee, voucher, ongkir, pajak, dan HPP sebelum confirm.`);
+      setAiAnswer(`Preview import marketplace siap: ${preview.summary.validRows}/${preview.summary.totalRows} baris valid, marketplace ${preview.detectedMarketplace}, confidence ${preview.confidence}%. Cek mapping fee, voucher, ongkir, pajak, dan HPP sebelum confirm.`);
     } catch (error) {
       console.error(error);
       alert(`Gagal membaca CSV: ${getErrorMessage(error)}`);
@@ -435,12 +472,12 @@ export default function DashboardPage() {
       setLastSync(new Date().toLocaleString("id-ID"));
       const insightText = Array.isArray(data?.insights) && data.insights.length
         ? data.insights.map((item: any, index: number) => `${index + 1}. ${item.title}: ${item.body}`).join("\n")
-        : `Import v11 berhasil: ${data?.successRows || 0} baris. Mapping confidence ${pendingImportPreview.confidence}%.`;
+        : `Import marketplace berhasil: ${data?.successRows || 0} baris. Mapping confidence ${pendingImportPreview.confidence}%.`;
       setAiAnswer(insightText);
       setPendingImportFile(null);
       setPendingImportPreview(null);
       setActiveTab("overview");
-      alert(`Berhasil import ${data?.successRows || 0} baris dengan Auto Mapping v11. Preview sudah dikonfirmasi sebelum data masuk.`);
+      alert(`Berhasil import ${data?.successRows || 0} baris. Stok produk otomatis dikurangi untuk ${data?.stockUpdates || 0} transaksi marketplace.`);
     } catch (error) {
       console.error(error);
       alert(`Gagal import CSV: ${getErrorMessage(error)}`);
