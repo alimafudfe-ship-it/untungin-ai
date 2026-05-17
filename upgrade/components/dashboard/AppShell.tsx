@@ -1,62 +1,305 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import type { TabKey } from "@/types/dashboard";
 import { Badge, ctaButtonStyle, ghostButtonStyle } from "./ui";
+import { LOCALE_EVENT, localeTag, normalizeLocale, type Locale } from "@/lib/dashboard/i18n";
 
-const navItems: { key: TabKey; label: string; helper: string; icon: string }[] = [
-  { key: "overview", label: "Overview", helper: "Kondisi bisnis", icon: "🏠" },
-  { key: "products", label: "Produk", helper: "HPP & margin", icon: "📦" },
-  { key: "cashflow", label: "Cashflow", helper: "Masuk keluar", icon: "💸" },
-  { key: "inventory", label: "Inventory", helper: "Stok & restock", icon: "🏷️" },
-  { key: "sales", label: "Penjualan", helper: "Catat order", icon: "🛒" },
-  { key: "ai", label: "Insight", helper: "Action plan", icon: "✨" },
-  { key: "reports", label: "Reports", helper: "PDF & CSV", icon: "📊" },
-  { key: "marketplace", label: "Marketplace", helper: "CSV & API", icon: "🛍️" },
-  { key: "forecast", label: "Forecast", helper: "30 hari", icon: "📈" },
-  { key: "automation", label: "Automation", helper: "Alert & report", icon: "⚡" },
-  { key: "team", label: "Team", helper: "Multi-user", icon: "👥" },
-  { key: "assistant", label: "AI Chat", helper: "Finance CFO", icon: "🤖" },
-  { key: "goals", label: "Target", helper: "Goal tracker", icon: "🎯" },
-  { key: "moat", label: "Startup OS", helper: "Moat & growth", icon: "🚀" },
-  { key: "growth", label: "Growth", helper: "Founder OS", icon: "📣" },
-  { key: "pricing", label: "Billing", helper: "Xendit/manual", icon: "💎" },
+type NavGroup = { label: string; items: { key: TabKey; label: string; helper: string; icon: string }[] };
+type MetaMap = Record<TabKey, { title: string; subtitle: string; eyebrow: string }>;
+
+const LOCALES: { key: Locale; label: string; short: string }[] = [
+  { key: "id", label: "Indonesia", short: "ID" },
+  { key: "en", label: "English", short: "EN" },
+  { key: "ms", label: "Melayu", short: "MY" },
 ];
 
-const meta: Record<TabKey, { title: string; subtitle: string }> = {
-  overview: { title: "Business Command Center", subtitle: "Ringkasan profit, cashflow, stok, dan risiko" },
-  products: { title: "Produk & Margin", subtitle: "Kelola HPP, harga jual, fee, dan performa SKU" },
-  cashflow: { title: "Cashflow", subtitle: "Pantau uang masuk, biaya, dan kebocoran harian" },
-  inventory: { title: "Inventory", subtitle: "Pantau stok kritis dan keputusan restock" },
-  sales: { title: "Penjualan", subtitle: "Catat order cepat dan update stok otomatis" },
-  ai: { title: "AI Insight", subtitle: "Rekomendasi tindakan berdasarkan data bisnis" },
-  reports: { title: "Reports", subtitle: "Export laporan untuk owner, partner, dan arsip" },
-  marketplace: { title: "Marketplace", subtitle: "Import dan sinkronisasi channel penjualan" },
-  forecast: { title: "Forecast", subtitle: "Prediksi profit, cashflow, dan risiko 30 hari" },
-  automation: { title: "Automation", subtitle: "Daily report, WhatsApp alert, dan workflow" },
-  team: { title: "Team Workspace", subtitle: "Akses admin, finance, dan operator toko" },
-  assistant: { title: "AI Finance Chat", subtitle: "Tanya data bisnis dengan bahasa natural" },
-  goals: { title: "Target Bisnis", subtitle: "Pantau progress omzet dan profit bulanan" },
-  moat: { title: "Startup Operating System", subtitle: "Strategi menang dari kompetitor dengan AI-first workflow" },
-  growth: { title: "Growth Engine", subtitle: "Aktivasi, retention, monetization, dan founder action board" },
-  pricing: { title: "Billing & Monetization", subtitle: "Xendit, manual transfer, dan subscription fallback" },
+const NAV: Record<Locale, NavGroup[]> = {
+  id: [
+    { label: "Operasional", items: [
+      { key: "overview", label: "Pusat Kontrol", helper: "KPI & aksi", icon: "O" },
+      { key: "products", label: "Produk", helper: "HPP & margin", icon: "P" },
+      { key: "cashflow", label: "Arus Kas", helper: "Masuk / keluar", icon: "C" },
+      { key: "inventory", label: "Stok", helper: "Kontrol stok", icon: "I" },
+      { key: "sales", label: "Penjualan", helper: "Input order", icon: "S" },
+    ] },
+    { label: "Analitik", items: [
+      { key: "ai", label: "Insight AI", helper: "Rencana aksi", icon: "AI" },
+      { key: "assistant", label: "Chat Keuangan", helper: "Tanya data", icon: "FC" },
+      { key: "forecast", label: "Proyeksi", helper: "30 hari", icon: "F" },
+      { key: "reports", label: "Laporan", helper: "PDF & CSV", icon: "R" },
+    ] },
+    { label: "Skala", items: [
+      { key: "marketplace", label: "Integrasi", helper: "CSV & API", icon: "M" },
+      { key: "automation", label: "Otomasi", helper: "Peringatan", icon: "A" },
+      { key: "team", label: "Tim", helper: "Ruang kerja", icon: "T" },
+      { key: "goals", label: "Target", helper: "Target", icon: "G" },
+      { key: "growth", label: "Akselerasi", helper: "Aktivasi & retensi", icon: "AK" },
+      { key: "pricing", label: "Paket", helper: "Langganan", icon: "B" },
+    ] },
+  ],
+  en: [
+    { label: "Operations", items: [
+      { key: "overview", label: "Command Center", helper: "KPIs & actions", icon: "O" },
+      { key: "products", label: "Products", helper: "COGS & margin", icon: "P" },
+      { key: "cashflow", label: "Cash Flow", helper: "In / out", icon: "C" },
+      { key: "inventory", label: "Inventory", helper: "Stock control", icon: "I" },
+      { key: "sales", label: "Orders", helper: "Sales entry", icon: "S" },
+    ] },
+    { label: "Intelligence", items: [
+      { key: "ai", label: "AI Insights", helper: "Action plan", icon: "AI" },
+      { key: "assistant", label: "Finance Copilot", helper: "Ask your data", icon: "FC" },
+      { key: "forecast", label: "Forecast", helper: "30 days", icon: "F" },
+      { key: "reports", label: "Reports", helper: "PDF & CSV", icon: "R" },
+    ] },
+    { label: "Scale", items: [
+      { key: "marketplace", label: "Integrations", helper: "CSV & API", icon: "M" },
+      { key: "automation", label: "Automation", helper: "Alerts", icon: "A" },
+      { key: "team", label: "Team", helper: "Workspace", icon: "T" },
+      { key: "goals", label: "Goals", helper: "Targets", icon: "G" },
+      { key: "growth", label: "Acceleration", helper: "Activation & retention", icon: "AK" },
+      { key: "pricing", label: "Plans", helper: "Billing", icon: "B" },
+    ] },
+  ],
+  ms: [
+    { label: "Operasi", items: [
+      { key: "overview", label: "Pusat Kawalan", helper: "KPI & tindakan", icon: "O" },
+      { key: "products", label: "Produk", helper: "Kos & margin", icon: "P" },
+      { key: "cashflow", label: "Aliran Tunai", helper: "Masuk / keluar", icon: "C" },
+      { key: "inventory", label: "Inventori", helper: "Kawalan stok", icon: "I" },
+      { key: "sales", label: "Jualan", helper: "Input pesanan", icon: "S" },
+    ] },
+    { label: "Analitik", items: [
+      { key: "ai", label: "Insight AI", helper: "Pelan tindakan", icon: "AI" },
+      { key: "assistant", label: "Copilot Kewangan", helper: "Tanya data", icon: "FC" },
+      { key: "forecast", label: "Ramalan", helper: "30 hari", icon: "F" },
+      { key: "reports", label: "Laporan", helper: "PDF & CSV", icon: "R" },
+    ] },
+    { label: "Skala", items: [
+      { key: "marketplace", label: "Integrasi", helper: "CSV & API", icon: "M" },
+      { key: "automation", label: "Automasi", helper: "Amaran", icon: "A" },
+      { key: "team", label: "Pasukan", helper: "Ruang kerja", icon: "T" },
+      { key: "goals", label: "Sasaran", helper: "Target", icon: "G" },
+      { key: "growth", label: "Akselerasi", helper: "Aktivasi & retensi", icon: "AK" },
+      { key: "pricing", label: "Pelan", helper: "Bil", icon: "B" },
+    ] },
+  ],
 };
 
-export function AppShell({ activeTab, onTabChange, isPro, proExpired, onExport, onUpgrade, onLogout, children }: { activeTab: TabKey; onTabChange: (tab: TabKey) => void; isPro: boolean; proExpired: boolean; onExport: () => void; onUpgrade: () => void; onLogout: () => void; children: React.ReactNode }) {
-  const current = meta[activeTab];
+const META: Record<Locale, MetaMap> = {
+  id: {
+    overview: { eyebrow: "Ruang kerja", title: "Pusat Kontrol Seller", subtitle: "Satu layar untuk profit, arus kas, risiko stok, dan keputusan harian." },
+    products: { eyebrow: "Katalog", title: "Profitabilitas Produk", subtitle: "Kelola HPP, harga jual, fee, margin, dan performa SKU." },
+    cashflow: { eyebrow: "Keuangan", title: "Kontrol Arus Kas", subtitle: "Pantau uang masuk, biaya, kebocoran, dan daya tahan kas." },
+    inventory: { eyebrow: "Operasional", title: "Kontrol Stok", subtitle: "Prioritaskan stok kritis dan isi ulang stok berbasis profit." },
+    sales: { eyebrow: "Order", title: "Input Penjualan", subtitle: "Catat order cepat dan update stok otomatis." },
+    ai: { eyebrow: "AI CFO", title: "Rencana Aksi AI", subtitle: "Rekomendasi berdasarkan profit, stok, biaya, dan target." },
+    reports: { eyebrow: "Pelaporan", title: "Laporan Eksekutif", subtitle: "Ekspor laporan untuk owner, mitra, dan arsip bisnis." },
+    marketplace: { eyebrow: "Data", title: "Integrasi Marketplace", subtitle: "Impor dan sinkronisasi channel penjualan." },
+    forecast: { eyebrow: "Perencanaan", title: "Proyeksi Bisnis", subtitle: "Prediksi profit, arus kas, dan risiko 30 hari." },
+    automation: { eyebrow: "Alur kerja", title: "Pusat Otomasi", subtitle: "Laporan harian, WhatsApp alert, dan operasi otomatis." },
+    team: { eyebrow: "Ruang kerja", title: "Akses Tim", subtitle: "Akses admin, finance, dan operator toko." },
+    assistant: { eyebrow: "AI", title: "Chat Keuangan", subtitle: "Tanya data bisnis dengan bahasa natural." },
+    goals: { eyebrow: "Target", title: "Target Bisnis", subtitle: "Pantau progres omzet dan profit bulanan." },
+    moat: { eyebrow: "Strategi", title: "Sistem Operasi Startup", subtitle: "Strategi menang dengan alur kerja berbasis AI." },
+    growth: { eyebrow: "Skala", title: "Akselerasi Bisnis", subtitle: "Aktivasi, retensi, monetisasi, dan papan aksi owner." },
+    pricing: { eyebrow: "Langganan", title: "Paket & Pembayaran", subtitle: "Upgrade ke PRO, invoice, dan cadangan pembayaran." },
+  },
+  en: {
+    overview: { eyebrow: "Workspace", title: "Seller Command Center", subtitle: "One operating layer for profit, cash flow, inventory risk, and daily decisions." },
+    products: { eyebrow: "Catalog", title: "Product Profitability", subtitle: "Manage COGS, price, fees, margin, and SKU performance." },
+    cashflow: { eyebrow: "Finance", title: "Cash Flow Control", subtitle: "Track inflows, expenses, leakage, and cash runway." },
+    inventory: { eyebrow: "Operations", title: "Inventory Control", subtitle: "Prioritize critical stock and profit-based restock decisions." },
+    sales: { eyebrow: "Orders", title: "Sales Entry", subtitle: "Record orders quickly and update inventory automatically." },
+    ai: { eyebrow: "AI CFO", title: "AI Action Plan", subtitle: "Recommendations based on profit, stock, expenses, and goals." },
+    reports: { eyebrow: "Reporting", title: "Executive Reports", subtitle: "Export reports for owners, partners, and business archives." },
+    marketplace: { eyebrow: "Data", title: "Marketplace Integrations", subtitle: "Import and sync sales channels." },
+    forecast: { eyebrow: "Planning", title: "Business Forecast", subtitle: "Forecast profit, cash flow, and risk for the next 30 days." },
+    automation: { eyebrow: "Workflow", title: "Automation Center", subtitle: "Daily reports, WhatsApp alerts, and automated operations." },
+    team: { eyebrow: "Workspace", title: "Team Access", subtitle: "Admin, finance, and store-operator access." },
+    assistant: { eyebrow: "AI", title: "Finance Copilot", subtitle: "Ask your business data in natural language." },
+    goals: { eyebrow: "Goals", title: "Business Goals", subtitle: "Track monthly revenue and profit progress." },
+    moat: { eyebrow: "Strategy", title: "Startup Operating System", subtitle: "Win with AI-powered operating workflows." },
+    growth: { eyebrow: "Scale", title: "Business Acceleration", subtitle: "Activation, retention, monetization, and owner action board." },
+    pricing: { eyebrow: "Billing", title: "Plans & Payments", subtitle: "Upgrade to PRO, invoice, and payment fallback." },
+  },
+  ms: {
+    overview: { eyebrow: "Ruang kerja", title: "Pusat Kawalan Seller", subtitle: "Satu lapisan operasi untuk untung, tunai, risiko stok, dan keputusan harian." },
+    products: { eyebrow: "Katalog", title: "Keuntungan Produk", subtitle: "Urus kos, harga jual, fi, margin, dan prestasi SKU." },
+    cashflow: { eyebrow: "Kewangan", title: "Kawalan Aliran Tunai", subtitle: "Pantau wang masuk, belanja, kebocoran, dan ketahanan tunai." },
+    inventory: { eyebrow: "Operasi", title: "Kawalan Inventori", subtitle: "Utamakan stok kritikal dan restock berdasarkan profit." },
+    sales: { eyebrow: "Pesanan", title: "Input Jualan", subtitle: "Catat pesanan cepat dan kemas kini stok automatik." },
+    ai: { eyebrow: "AI CFO", title: "Pelan Tindakan AI", subtitle: "Cadangan berdasarkan untung, stok, belanja, dan sasaran." },
+    reports: { eyebrow: "Laporan", title: "Laporan Eksekutif", subtitle: "Eksport laporan untuk pemilik, rakan niaga, dan arkib." },
+    marketplace: { eyebrow: "Data", title: "Integrasi Marketplace", subtitle: "Import dan sinkronkan channel jualan." },
+    forecast: { eyebrow: "Perancangan", title: "Ramalan Bisnes", subtitle: "Ramalan untung, tunai, dan risiko 30 hari." },
+    automation: { eyebrow: "Alur kerja", title: "Pusat Automasi", subtitle: "Laporan harian, WhatsApp alert, dan operasi automatik." },
+    team: { eyebrow: "Ruang kerja", title: "Akses Pasukan", subtitle: "Akses admin, kewangan, dan operator toko." },
+    assistant: { eyebrow: "AI", title: "Copilot Kewangan", subtitle: "Tanya data bisnes dengan bahasa natural." },
+    goals: { eyebrow: "Sasaran", title: "Sasaran Bisnes", subtitle: "Pantau progres omzet dan untung bulanan." },
+    moat: { eyebrow: "Strategi", title: "Sistem Operasi Startup", subtitle: "Menang dengan alur kerja berbasis AI." },
+    growth: { eyebrow: "Skala", title: "Akselerasi Bisnes", subtitle: "Aktivasi, retensi, monetisasi, dan papan tindakan owner." },
+    pricing: { eyebrow: "Bil", title: "Pelan & Pembayaran", subtitle: "Upgrade ke PRO, invoice, dan fallback pembayaran." },
+  },
+};
+
+const UI = {
+  id: { system: "Sistem Operasi Seller", workspace: "Ruang kerja", mainStore: "Toko Utama", channels: "Shopee, Tokopedia, TikTok Shop", scalePro: "PRO Skala", proHelper: "Buka SKU tak terbatas, AI CFO, laporan otomatis, dan akses tim.", managePlan: "Kelola paket", upgrade: "Naikkan ke PRO", search: "Cari produk, laporan, atau insight...", dark: "Mode gelap", light: "Mode terang", export: "Ekspor", owner: "Pemilik", logout: "Keluar", language: "Bahasa", expired: "Kedaluwarsa", free: "Gratis" },
+  en: { system: "Seller Operating System", workspace: "Workspace", mainStore: "Main Store", channels: "Shopee, Tokopedia, TikTok Shop", scalePro: "Scale PRO", proHelper: "Unlock unlimited SKUs, AI CFO, automated reports, and team access.", managePlan: "Manage plan", upgrade: "Upgrade to PRO", search: "Search products, reports, or insights...", dark: "Dark mode", light: "Light mode", export: "Export", owner: "Owner", logout: "Logout", language: "Language", expired: "Expired", free: "Free" },
+  ms: { system: "Sistem Operasi Seller", workspace: "Ruang kerja", mainStore: "Toko Utama", channels: "Shopee, Tokopedia, TikTok Shop", scalePro: "PRO Skala", proHelper: "Buka SKU tanpa had, AI CFO, laporan automatik, dan akses pasukan.", managePlan: "Urus pelan", upgrade: "Naik taraf PRO", search: "Cari produk, laporan, atau insight...", dark: "Mode gelap", light: "Mode terang", export: "Eksport", owner: "Pemilik", logout: "Keluar", language: "Bahasa", expired: "Tamat tempoh", free: "Percuma" },
+};
+
+const mobileKeys: TabKey[] = ["overview", "products", "cashflow", "ai", "reports"];
+
+export function AppShell({
+  activeTab,
+  onTabChange,
+  isPro,
+  proExpired,
+  onExport,
+  onUpgrade,
+  onLogout,
+  children,
+}: {
+  activeTab: TabKey;
+  onTabChange: (tab: TabKey) => void;
+  isPro: boolean;
+  proExpired: boolean;
+  onExport: () => void;
+  onUpgrade: () => void;
+  onLogout: () => void;
+  children: React.ReactNode;
+}) {
   const [darkMode, setDarkMode] = useState(false);
-  return <main className={darkMode ? "dark-preview" : ""} style={{ minHeight: "100vh", color: darkMode ? "#e5e7eb" : "#101828", background: darkMode ? "radial-gradient(circle at top right,#134e4a 0,#020617 42%,#0f172a 100%)" : "linear-gradient(135deg,#f7fafc,#eef6f5)", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif" }}><style>{`
-    * { box-sizing: border-box; } button { transition: 160ms ease; } button:hover { transform: translateY(-1px); filter: brightness(1.02); } input::placeholder, textarea::placeholder { color: #98a2b3; } select { color-scheme: light; } .dark-preview .content > div, .dark-preview section, .dark-preview aside, .dark-preview nav { box-shadow: 0 18px 55px rgba(0,0,0,0.18); }
-    .sidebar-scroll::-webkit-scrollbar, .mobile-nav::-webkit-scrollbar { height: 7px; width: 7px; } .sidebar-scroll::-webkit-scrollbar-thumb, .mobile-nav::-webkit-scrollbar-thumb { background: rgba(16,24,40,0.16); border-radius: 999px; }
-    @media (max-width: 980px) { .app-shell { grid-template-columns: 1fr !important; } .sidebar { display: none !important; } .mobile-nav { display: flex !important; } .content { padding: 14px !important; } .hero-grid, .main-grid, .metrics-grid, .two-grid, .three-grid { grid-template-columns: 1fr !important; } .hero-title { font-size: 36px !important; letter-spacing: -1.1px !important; } .desktop-table { display: none !important; } .mobile-cards { display: grid !important; } .topbar { position: sticky !important; top: 10px; z-index: 20; } .content { padding-bottom: 112px !important; } .nav-actions { width: 100%; justify-content: flex-start !important; } }
-  `}</style><div className="app-shell" style={{ display: "grid", gridTemplateColumns: "292px 1fr", minHeight: "100vh" }}>
-    <aside className="sidebar" style={{ position: "sticky", top: 0, height: "100vh", padding: 18, background: "rgba(255,255,255,0.82)", borderRight: "1px solid rgba(16,24,40,0.09)", backdropFilter: "blur(18px)", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
-      <div className="sidebar-scroll" style={{ overflowY: "auto", paddingRight: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "8px 8px 22px" }}><div style={{ width: 46, height: 46, borderRadius: 16, display: "grid", placeItems: "center", background: "linear-gradient(135deg,#0f766e,#14b8a6)", color: "white", fontWeight: 950, boxShadow: "0 16px 34px rgba(15,118,110,0.24)" }}>U</div><div><strong style={{ fontSize: 18 }}>Untungin.ai</strong><div style={{ color: "#667085", fontSize: 12 }}>Seller OS Indonesia</div></div></div>
-        <nav style={{ display: "grid", gap: 7 }}>{navItems.map((item) => <button key={item.key} onClick={() => onTabChange(item.key)} style={{ display: "grid", gridTemplateColumns: "36px 1fr", alignItems: "center", gap: 10, textAlign: "left", border: activeTab === item.key ? "1px solid rgba(15,118,110,0.18)" : "1px solid transparent", borderRadius: 17, padding: "10px 11px", background: activeTab === item.key ? "linear-gradient(135deg,#0f766e,#14b8a6)" : "transparent", color: activeTab === item.key ? "white" : "#475467", cursor: "pointer", fontWeight: 850, boxShadow: activeTab === item.key ? "0 14px 30px rgba(15,118,110,0.20)" : "none" }}><span style={{ width: 31, height: 31, borderRadius: 12, display: "grid", placeItems: "center", background: activeTab === item.key ? "rgba(255,255,255,0.14)" : "#f2f4f7" }}>{item.icon}</span><span>{item.label}<br /><small style={{ color: activeTab === item.key ? "#dcfffb" : "#667085", fontWeight: 650 }}>{item.helper}</small></span></button>)}</nav>
-      </div>
-      <div style={{ padding: 15, borderRadius: 20, background: "linear-gradient(180deg,#ffffff,#f8fafc)", border: "1px solid rgba(16,24,40,0.10)", boxShadow: "0 18px 45px rgba(16,24,40,0.07)" }}><small style={{ color: "#667085" }}>Status akun</small><br /><strong>{isPro ? "PRO aktif" : proExpired ? "PRO expired" : "Free plan"}</strong><p style={{ margin: "8px 0 0", color: "#667085", fontSize: 12, lineHeight: 1.55 }}>Upgrade untuk AI CFO, multi-store, reports, dan insight lengkap.</p><button onClick={onUpgrade} style={{ ...ctaButtonStyle, width: "100%", marginTop: 12 }}>Upgrade PRO</button></div>
-    </aside>
-    <section className="content" style={{ padding: 24, maxWidth: 1560, width: "100%" }}>
-      <div className="topbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", background: "rgba(255,255,255,0.84)", border: "1px solid rgba(16,24,40,0.09)", borderRadius: 24, padding: "13px 16px", marginBottom: 18, backdropFilter: "blur(16px)", boxShadow: "0 18px 55px rgba(16,24,40,0.06)" }}><div><strong style={{ fontSize: 18 }}>{current.title}</strong><div style={{ color: "#667085", fontSize: 12, marginTop: 2 }}>{current.subtitle} · {new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}</div></div><div className="nav-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}><Badge label={isPro ? "PRO" : proExpired ? "Expired" : "Free"} tone={isPro ? "success" : proExpired ? "danger" : "warning"} /><button onClick={() => setDarkMode((value) => !value)} style={ghostButtonStyle}>{darkMode ? "Light" : "Dark"}</button><button onClick={onExport} style={ghostButtonStyle}>Export data</button>{!isPro && <button onClick={onUpgrade} style={ctaButtonStyle}>Upgrade</button>}<button onClick={onLogout} style={{ ...ghostButtonStyle, color: "#b42318", background: "#fff7f7", borderColor: "#fecaca" }}>Logout</button></div></div>{children}</section>
-  </div><nav className="mobile-nav" style={{ display: "none", position: "fixed", left: 12, right: 12, bottom: 12, zIndex: 30, gap: 8, overflowX: "auto", padding: 8, borderRadius: 22, background: "rgba(255,255,255,0.94)", border: "1px solid rgba(16,24,40,0.10)", boxShadow: "0 18px 50px rgba(16,24,40,0.16)", backdropFilter: "blur(18px)" }}>{navItems.map((item) => <button key={item.key} onClick={() => onTabChange(item.key)} style={{ ...ghostButtonStyle, whiteSpace: "nowrap", background: activeTab === item.key ? "linear-gradient(135deg,#0f766e,#14b8a6)" : "white", color: activeTab === item.key ? "white" : "#101828" }}>{item.icon} {item.label}</button>)}</nav></main>;
+  const [locale, setLocale] = useState<Locale>("id");
+
+  useEffect(() => {
+    const saved = normalizeLocale(window.localStorage.getItem("untungin_locale"));
+    setLocale(saved);
+    document.documentElement.lang = localeTag(saved);
+  }, []);
+
+  const navGroups = NAV[locale];
+  const navItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
+  const current = META[locale][activeTab] ?? META[locale].overview;
+  const copy = UI[locale];
+  const planLabel = isPro ? "PRO" : proExpired ? copy.expired : copy.free;
+  const today = new Date().toLocaleDateString(localeTag(locale), { day: "2-digit", month: "short", year: "numeric" });
+
+  function changeLocale(value: Locale) {
+    const nextLocale = normalizeLocale(value);
+    setLocale(nextLocale);
+    window.localStorage.setItem("untungin_locale", nextLocale);
+    document.documentElement.lang = localeTag(nextLocale);
+    window.dispatchEvent(new CustomEvent(LOCALE_EVENT, { detail: nextLocale }));
+  }
+
+  return <main className={darkMode ? "dark-preview" : ""} style={{ minHeight: "100vh", color: darkMode ? "#e5e7eb" : "#111827", background: darkMode ? "#020617" : "#f3f6fb", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif", overflowX: "hidden" }}>
+    <style>{`
+      * { box-sizing: border-box; }
+      html, body { overflow-x: hidden; }
+      button, label, select { transition: 160ms ease; }
+      button:hover, label:hover { transform: translateY(-1px); filter: brightness(1.02); }
+      input::placeholder, textarea::placeholder { color: #98a2b3; }
+      .sidebar-scroll::-webkit-scrollbar, .mobile-nav::-webkit-scrollbar { height: 7px; width: 7px; }
+      .sidebar-scroll::-webkit-scrollbar-thumb, .mobile-nav::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.18); border-radius: 999px; }
+      .dark-preview .shell-panel, .dark-preview .topbar, .dark-preview .search-shell, .dark-preview .language-select { background: rgba(15,23,42,0.78) !important; border-color: rgba(148,163,184,0.18) !important; }
+      .dark-preview .shell-text-muted { color: #94a3b8 !important; }
+      .dark-preview .search-input, .dark-preview .language-select { color: #e2e8f0 !important; }
+      .dark-preview .nav-cta-card { background: rgba(15,23,42,0.72) !important; border-color: rgba(148,163,184,0.18) !important; }
+      .dark-preview .nav-selected { background: rgba(255,255,255,0.04) !important; }
+      .app-shell { display: grid; grid-template-columns: 258px minmax(0, 1fr); min-height: 100vh; }
+      .content-shell { min-width: 0; overflow-x: hidden; }
+      .topbar-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; min-width: 0; }
+      .search-shell { display: flex; align-items: center; gap: 10px; min-width: min(280px, 100%); padding: 0 12px; border-radius: 16px; border: 1px solid rgba(15,23,42,0.08); background: rgba(255,255,255,0.86); box-shadow: 0 8px 24px rgba(15,23,42,0.04); }
+      .search-input { border: 0; outline: none; background: transparent; width: 100%; color: #111827; font-size: 14px; font-weight: 600; padding: 10px 0; }
+      .language-select { border: 1px solid rgba(15,23,42,0.08); outline: none; border-radius: 15px; background: #fff; color: #111827; padding: 10px 11px; font-weight: 900; cursor: pointer; }
+      .sidebar-section-title { padding: 0 10px; color: #98a2b3; font-size: 10px; font-weight: 900; letter-spacing: 0.7px; text-transform: uppercase; }
+      .sidebar-item { display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 10px; text-align: left; border: 1px solid transparent; border-radius: 14px; padding: 7px 8px; background: transparent; color: #475467; cursor: pointer; font-weight: 850; min-width: 0; }
+      .sidebar-item strong, .sidebar-item small, .sidebar-item span { min-width: 0; }
+      .sidebar-item small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sidebar-item .sidebar-icon { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: #f2f4f7; color: #475467; font-size: 11px; font-weight: 950; }
+      .sidebar-item.nav-selected { border-color: rgba(15,118,110,0.18); background: #ffffff; color: #0f766e; box-shadow: 0 14px 34px rgba(15,23,42,0.08); }
+      .sidebar-item.nav-selected .sidebar-icon { background: linear-gradient(135deg,#0f766e,#14b8a6); color: white; }
+      .mobile-nav { display: none; }
+      .nav-mini-button { white-space: nowrap; border: 1px solid #e5e7eb; background: white; color: #475467; border-radius: 14px; padding: 10px 12px; font-weight: 850; }
+      .nav-mini-button.active { border-color: rgba(15,118,110,0.22); background: #ecfdf5; color: #0f766e; }
+      .topbar-title { display: block; font-size: 20px; letter-spacing: -0.55px; margin-top: 3px; }
+      .icon-only { font-size: 15px; line-height: 1; }
+      @media (max-width: 1320px) { .search-shell { min-width: 260px; } }
+      @media (max-width: 1180px) { .app-shell { grid-template-columns: 1fr !important; } .sidebar { display: none !important; } .mobile-nav { display: flex !important; } .content-shell { padding: 14px !important; padding-bottom: 104px !important; } }
+      @media (max-width: 900px) { .topbar { grid-template-columns: 1fr !important; } .topbar-actions { justify-content: flex-start !important; } }
+      @media (max-width: 720px) { .topbar { padding: 14px !important; border-radius: 22px !important; } .topbar-title { font-size: 19px !important; } .topbar-actions { display: grid !important; grid-template-columns: 1fr 1fr; width: 100%; } .topbar-actions .search-shell { grid-column: 1 / -1; min-width: 100%; } .topbar-actions .full-span { grid-column: 1 / -1; } .content-shell { padding: 12px !important; } }
+      @media (max-width: 520px) { .topbar-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mobile-nav { left: 8px !important; right: 8px !important; bottom: 8px !important; } }
+    `}</style>
+    <div className="app-shell">
+      <aside className="sidebar shell-panel" style={{ position: "sticky", top: 0, height: "100vh", padding: 12, background: "rgba(255,255,255,0.86)", borderRight: "1px solid rgba(15,23,42,0.08)", backdropFilter: "blur(20px)", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 6px 14px", borderBottom: "1px solid rgba(15,23,42,0.08)" }}>
+          <div style={{ width: 38, height: 38, borderRadius: 12, display: "grid", placeItems: "center", background: "linear-gradient(135deg,#0f766e,#14b8a6)", color: "white", fontWeight: 950, boxShadow: "0 16px 30px rgba(15,118,110,0.24)" }}>U</div>
+          <div><strong style={{ fontSize: 16, letterSpacing: -0.3 }}>Untungin.ai</strong><div className="shell-text-muted" style={{ color: "#667085", fontSize: 12, marginTop: 2 }}>{copy.system}</div></div>
+        </div>
+
+        <div style={{ padding: 10, borderRadius: 16, background: "linear-gradient(135deg,#0f172a,#134e4a)", color: "white", boxShadow: "0 18px 45px rgba(15,23,42,0.16)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><span style={{ fontSize: 12, color: "#cbd5e1" }}>{copy.workspace}</span><Badge label={planLabel} tone={isPro ? "success" : proExpired ? "danger" : "warning"} /></div>
+          <strong style={{ display: "block", marginTop: 6 }}>{copy.mainStore}</strong>
+          <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 4 }}>{copy.channels}</div>
+        </div>
+
+        <div className="sidebar-scroll" style={{ overflowY: "auto", paddingRight: 4, flex: 1 }}>
+          <nav style={{ display: "grid", gap: 10 }}>{navGroups.map((group) => <div key={group.label} style={{ display: "grid", gap: 6 }}>
+            <div className="sidebar-section-title shell-text-muted">{group.label}</div>
+            {group.items.map((item) => {
+              const selected = activeTab === item.key;
+              return <button key={item.key} className={`sidebar-item ${selected ? "nav-selected" : ""}`} onClick={() => onTabChange(item.key)} style={{ color: selected ? "#0f766e" : darkMode ? "#cbd5e1" : "#475467" }}>
+                <span className="sidebar-icon">{item.icon}</span>
+                <span>{item.label}<br /><small style={{ color: selected ? "#0f766e" : "#667085", fontWeight: 650 }}>{item.helper}</small></span>
+              </button>;
+            })}
+          </div>)}</nav>
+        </div>
+
+        <div className="nav-cta-card" style={{ padding: 14, borderRadius: 18, background: "#ffffff", border: "1px solid rgba(15,23,42,0.08)", boxShadow: "0 16px 36px rgba(15,23,42,0.06)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><strong>{copy.scalePro}</strong><span style={{ fontSize: 12, color: "#667085" }}>AI + Team</span></div>
+          <p style={{ margin: "8px 0 12px", color: "#667085", fontSize: 12, lineHeight: 1.55 }}>{copy.proHelper}</p>
+          <button onClick={onUpgrade} style={{ ...ctaButtonStyle, width: "100%" }}>{isPro ? copy.managePlan : copy.upgrade}</button>
+        </div>
+      </aside>
+
+      <section className="content-shell" style={{ padding: 18, minWidth: 0, width: "100%" }}>
+        <div style={{ maxWidth: 1500, margin: "0 auto", width: "100%" }}>
+          <div className="topbar" style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 14, background: "rgba(255,255,255,0.90)", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 22, padding: "12px 14px", marginBottom: 14, backdropFilter: "blur(18px)", boxShadow: "0 18px 55px rgba(15,23,42,0.06)" }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="shell-text-muted" style={{ color: "#667085", fontSize: 12, fontWeight: 850, letterSpacing: 0.3, textTransform: "uppercase" }}>{current.eyebrow}</div>
+              <strong className="topbar-title">{current.title}</strong>
+              <div className="shell-text-muted" style={{ color: "#667085", fontSize: 13, marginTop: 4 }}>{current.subtitle} {today}</div>
+            </div>
+
+            <div className="topbar-actions">
+              <div className="search-shell full-span">
+                <span aria-hidden="true" style={{ color: "#98a2b3", fontSize: 14 }}>⌕</span>
+                <input className="search-input" type="text" placeholder={copy.search} readOnly />
+              </div>
+              <select className="language-select" aria-label={copy.language} value={locale} onChange={(event) => changeLocale(event.target.value as Locale)}>
+                {LOCALES.map((item) => <option key={item.key} value={item.key}>{item.short}</option>)}
+              </select>
+              <button type="button" aria-label="Notifications" style={{ ...ghostButtonStyle, padding: "9px 11px" }}><span className="icon-only">🔔</span></button>
+              <button onClick={() => setDarkMode((value) => !value)} style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}><span className="icon-only">{darkMode ? "☀" : "☾"}</span><span>{darkMode ? copy.light : copy.dark}</span></button>
+              <button onClick={onExport} style={ghostButtonStyle}>{copy.export}</button>
+              {!isPro && <button onClick={onUpgrade} style={ctaButtonStyle}>{copy.upgrade}</button>}
+              <button type="button" style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 11px" }}><span style={{ width: 28, height: 28, borderRadius: 999, display: "grid", placeItems: "center", background: "#0f172a", color: "#ffffff", fontWeight: 900, fontSize: 12 }}>TA</span><span>{copy.owner}</span></button>
+              <button onClick={onLogout} style={{ ...ghostButtonStyle, color: "#b42318", background: "#fff7f7", borderColor: "#fecaca" }}>{copy.logout}</button>
+            </div>
+          </div>
+          {children}
+        </div>
+      </section>
+    </div>
+
+    <nav className="mobile-nav" style={{ position: "fixed", left: 12, right: 12, bottom: 12, zIndex: 30, gap: 8, overflowX: "auto", padding: 8, borderRadius: 22, background: "rgba(255,255,255,0.94)", border: "1px solid rgba(15,23,42,0.10)", boxShadow: "0 18px 50px rgba(15,23,42,0.16)", backdropFilter: "blur(18px)" }}>
+      {mobileKeys.map((key) => {
+        const item = navItems.find((entry) => entry.key === key);
+        if (!item) return null;
+        return <button key={item.key} className={`nav-mini-button ${activeTab === item.key ? "active" : ""}`} onClick={() => onTabChange(item.key)}>{item.label}</button>;
+      })}
+    </nav>
+  </main>;
 }

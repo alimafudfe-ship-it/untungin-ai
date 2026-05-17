@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import type { TabKey } from "@/types/dashboard";
 import { Badge, ctaButtonStyle, ghostButtonStyle } from "./ui";
+import { LOCALE_EVENT, localeTag, normalizeLocale, type Locale } from "@/lib/dashboard/i18n";
 
-type Locale = "id" | "en" | "ms";
 type NavGroup = { label: string; items: { key: TabKey; label: string; helper: string; icon: string }[] };
 type MetaMap = Record<TabKey, { title: string; subtitle: string; eyebrow: string }>;
 
@@ -173,8 +173,9 @@ export function AppShell({
   const [locale, setLocale] = useState<Locale>("id");
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("untungin_locale") as Locale | null;
-    if (saved === "id" || saved === "en" || saved === "ms") setLocale(saved);
+    const saved = normalizeLocale(window.localStorage.getItem("untungin_locale"));
+    setLocale(saved);
+    document.documentElement.lang = localeTag(saved);
   }, []);
 
   const navGroups = NAV[locale];
@@ -182,11 +183,14 @@ export function AppShell({
   const current = META[locale][activeTab] ?? META[locale].overview;
   const copy = UI[locale];
   const planLabel = isPro ? "PRO" : proExpired ? copy.expired : copy.free;
-  const today = new Date().toLocaleDateString(locale === "en" ? "en-US" : locale === "ms" ? "ms-MY" : "id-ID", { day: "2-digit", month: "short", year: "numeric" });
+  const today = new Date().toLocaleDateString(localeTag(locale), { day: "2-digit", month: "short", year: "numeric" });
 
   function changeLocale(value: Locale) {
-    setLocale(value);
-    window.localStorage.setItem("untungin_locale", value);
+    const nextLocale = normalizeLocale(value);
+    setLocale(nextLocale);
+    window.localStorage.setItem("untungin_locale", nextLocale);
+    document.documentElement.lang = localeTag(nextLocale);
+    window.dispatchEvent(new CustomEvent(LOCALE_EVENT, { detail: nextLocale }));
   }
 
   return <main className={darkMode ? "dark-preview" : ""} style={{ minHeight: "100vh", color: darkMode ? "#e5e7eb" : "#111827", background: darkMode ? "#020617" : "#f3f6fb", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif", overflowX: "hidden" }}>
