@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type React from "react";
 import type { Expense, Product, StockMoveType } from "@/types/dashboard";
 import { EXPENSE_CATEGORIES } from "@/lib/dashboard/constants";
@@ -22,16 +23,17 @@ export function ProductForm({
   onSubmit: (event: React.FormEvent) => void;
   onFinish: () => void;
 }) {
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
   const normalizedName = form.productName.trim().toLowerCase();
-  const matchedProduct = products.find((item) => item.name.trim().toLowerCase() === normalizedName);
-  const productOptions = Array.from(new Map(products.map((item) => [`${item.name.trim().toLowerCase()}-${item.marketplace || "Manual"}`, item])).values());
+  const productOptions = useMemo(() => Array.from(new Map(products.map((item) => [`${item.name.trim().toLowerCase()}-${item.marketplace || "Manual"}`, item])).values()), [products]);
+  const matchedProduct = productOptions.find((item) => item.name.trim().toLowerCase() === normalizedName && (item.marketplace || "Manual") === form.marketplace)
+    || productOptions.find((item) => item.name.trim().toLowerCase() === normalizedName);
+  const filteredProductOptions = productOptions
+    .filter((item) => !form.marketplace || (item.marketplace || "Manual") === form.marketplace || !form.productName.trim())
+    .filter((item) => !normalizedName || item.name.toLowerCase().includes(normalizedName) || (item.marketplace || "Manual").toLowerCase().includes(normalizedName))
+    .slice(0, 6);
 
-  function selectExistingProduct(name: string) {
-    const selected = products.find((item) => item.name.trim().toLowerCase() === name.trim().toLowerCase());
-    if (!selected) {
-      onChange({ ...form, productName: name });
-      return;
-    }
+  function applySelectedProduct(selected: Product) {
     onChange({
       ...form,
       productName: selected.name,
@@ -42,19 +44,64 @@ export function ProductForm({
       quantitySold: "",
       otherCost: "",
     });
+    setProductPickerOpen(false);
+  }
+
+  function selectExistingProduct(name: string) {
+    const selected = productOptions.find((item) => item.name.trim().toLowerCase() === name.trim().toLowerCase() && (item.marketplace || "Manual") === form.marketplace)
+      || productOptions.find((item) => item.name.trim().toLowerCase() === name.trim().toLowerCase());
+    if (!selected) {
+      onChange({ ...form, productName: name });
+      setProductPickerOpen(true);
+      return;
+    }
+    applySelectedProduct(selected);
   }
 
   return <section style={cardStyle}>
     <Badge label="Input Produk" tone="success" />
     <h2 style={{ marginBottom: 6 }}>Tambah / catat penjualan produk</h2>
-    <p style={{ margin: "0 0 14px", color: "#64748b", lineHeight: 1.6, fontSize: 13 }}>Ketik atau pilih nama produk lama. Jika produk sudah ada, isi qty terjual untuk mengurangi stok otomatis tanpa membuat produk dobel.</p>
+    <p style={{ margin: "0 0 14px", color: "#64748b", lineHeight: 1.6, fontSize: 13 }}>Ketik produk baru, atau pilih produk tersimpan di bawah agar stok dan profit tersambung otomatis.</p>
     <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
       <select value={form.marketplace} onChange={(e) => onChange({ ...form, marketplace: e.target.value })} style={inputStyle}><option>Shopee</option><option>Tokopedia</option><option>TikTok Shop</option><option>Lazada</option><option>Manual</option></select>
-      <input list="existing-product-names" value={form.productName} onChange={(e) => selectExistingProduct(e.target.value)} placeholder="Nama produk" style={inputStyle} autoComplete="off" />
-      <datalist id="existing-product-names">
-        {productOptions.map((item) => <option key={`${item.id}-${item.marketplace}`} value={item.name}>{`${item.marketplace || "Manual"} · stok ${item.stockRemaining} · terjual ${item.quantitySold}`}</option>)}
-      </datalist>
-      {matchedProduct ? <div style={{ padding: 12, borderRadius: 14, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", fontSize: 13, lineHeight: 1.55 }}><strong>Produk ditemukan:</strong> {matchedProduct.name} · stok tersedia {matchedProduct.stockRemaining}. Isi kolom <b>Terjual</b>, lalu simpan untuk mengurangi stok otomatis.</div> : null}
+      <div style={{ position: "relative", display: "grid", gap: 8 }}>
+        <input value={form.productName} onFocus={() => setProductPickerOpen(true)} onChange={(e) => selectExistingProduct(e.target.value)} placeholder="Nama produk" style={inputStyle} autoComplete="off" />
+        {productOptions.length ? <div style={{ display: "grid", gap: 8, padding: 10, borderRadius: 16, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <small style={{ color: "#64748b", fontWeight: 850 }}>Produk tersimpan</small>
+            <small style={{ color: "#94a3b8" }}>{filteredProductOptions.length ? "Klik untuk pilih" : "Tidak ada yang cocok"}</small>
+          </div>
+          {filteredProductOptions.length ? <div style={{ display: "grid", gap: 6, maxHeight: productPickerOpen ? 230 : 112, overflowY: "auto" }}>
+            {filteredProductOptions.map((item) => <button
+              key={`${item.id}-${item.marketplace}`}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => applySelectedProduct(item)}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0,1fr) auto",
+                gap: 8,
+                alignItems: "center",
+                width: "100%",
+                textAlign: "left",
+                border: "1px solid #e2e8f0",
+                background: matchedProduct?.id === item.id ? "#ecfdf5" : "#ffffff",
+                color: "#0f172a",
+                borderRadius: 13,
+                padding: "9px 10px",
+                cursor: "pointer",
+                boxShadow: "0 8px 18px rgba(15,23,42,0.04)",
+              }}>
+              <span style={{ minWidth: 0 }}>
+                <strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13 }}>{item.name}</strong>
+                <small style={{ color: "#64748b" }}>{item.marketplace || "Manual"} · stok {item.stockRemaining} · terjual {item.quantitySold}</small>
+              </span>
+              <span style={{ color: "#0f766e", fontWeight: 900, fontSize: 12 }}>Pilih</span>
+            </button>)}
+          </div> : <small style={{ color: "#94a3b8", lineHeight: 1.5 }}>Ketik nama lain atau ubah marketplace untuk mencari produk tersimpan.</small>}
+        </div> : <div style={{ padding: 10, borderRadius: 14, background: "#f8fafc", border: "1px dashed #cbd5e1", color: "#64748b", fontSize: 12, lineHeight: 1.5 }}>Belum ada produk tersimpan. Setelah produk pertama disimpan, namanya akan muncul otomatis di sini.</div>}
+      </div>
+      {matchedProduct ? <div style={{ padding: 12, borderRadius: 14, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", fontSize: 13, lineHeight: 1.55 }}><strong>Produk dipilih:</strong> {matchedProduct.name} · stok tersedia {matchedProduct.stockRemaining}. Isi kolom <b>Terjual</b>, lalu simpan untuk mengurangi stok otomatis.</div> : null}
       <input value={form.costPrice} onChange={(e) => onChange({ ...form, costPrice: e.target.value })} type="number" min="0" placeholder="Modal per produk" style={inputStyle} />
       <input value={form.sellingPrice} onChange={(e) => onChange({ ...form, sellingPrice: e.target.value })} type="number" min="0" placeholder="Harga jual" style={inputStyle} />
       <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
