@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getPlanPriceLabel } from "@/lib/dashboard/constants";
+import { money } from "@/lib/dashboard/format";
+import { useDashboardLocale } from "@/lib/dashboard/i18n";
 
 type UpgradePlan = "monthly" | "lifetime";
 
-const MONTHLY_PRICE = "Rp29.000/bulan";
-const LIFETIME_PRICE = "Rp99.000 sekali bayar";
 const WHATSAPP_NUMBER = "6285697834766";
 const EARLY_USER_SLOT_LEFT = 37;
 
 export default function UpgradePage() {
+  const locale = useDashboardLocale();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -50,7 +52,7 @@ useEffect(() => {
 }, [router]);
 
   function getPlanText(plan: UpgradePlan = selectedPlan) {
-    return plan === "monthly" ? `PRO Bulanan ${MONTHLY_PRICE}` : `PRO Lifetime ${LIFETIME_PRICE}`;
+    return plan === "monthly" ? `PRO Bulanan ${getPlanPriceLabel("monthly", locale)}` : `PRO Lifetime ${getPlanPriceLabel("lifetime", locale)}`;
   }
 
   function openWhatsApp(planText: string, email?: string | null) {
@@ -262,8 +264,8 @@ const { error } = await (supabase as any)
             </p>
 
             <div style={{ marginBottom: 18 }}>
-              <p style={{ color: "#94a3b8", textDecoration: "line-through", margin: 0 }}>Rp299.000</p>
-              <h2 style={{ color: "#86efac", fontSize: 36, margin: "4px 0" }}>{LIFETIME_PRICE}</h2>
+              <p style={{ color: "#94a3b8", textDecoration: "line-through", margin: 0 }}>{money(299000, locale)}</p>
+              <h2 style={{ color: "#86efac", fontSize: 36, margin: "4px 0" }}>{getPlanPriceLabel("lifetime", locale)}</h2>
               <p style={{ color: "#94a3b8", margin: 0 }}>Sekali bayar untuk akses PRO early user.</p>
             </div>
 
@@ -284,7 +286,7 @@ const { error } = await (supabase as any)
         <div className="upgrade-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 26 }}>
           <button onClick={() => setSelectedPlan("monthly")} style={planButtonStyle("monthly")}>
             <strong style={{ fontSize: 18 }}>PRO Bulanan</strong>
-            <h2 style={{ color: "#86efac", margin: "8px 0" }}>{MONTHLY_PRICE}</h2>
+            <h2 style={{ color: "#86efac", margin: "8px 0" }}>{getPlanPriceLabel("monthly", locale)}</h2>
             <p style={{ color: "#94a3b8", marginBottom: 0 }}>
               Cocok untuk mulai validasi profit dan kontrol produk.
             </p>
@@ -292,7 +294,7 @@ const { error } = await (supabase as any)
 
           <button onClick={() => setSelectedPlan("lifetime")} style={planButtonStyle("lifetime")}>
             <strong style={{ fontSize: 18 }}>Lifetime 🔥</strong>
-            <h2 style={{ color: "#86efac", margin: "8px 0" }}>{LIFETIME_PRICE}</h2>
+            <h2 style={{ color: "#86efac", margin: "8px 0" }}>{getPlanPriceLabel("lifetime", locale)}</h2>
             <p style={{ color: "#fbbf24", marginBottom: 0, fontWeight: 800 }}>
               Best deal untuk early user. Harga bisa naik kapan saja.
             </p>

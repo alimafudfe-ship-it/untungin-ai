@@ -1,16 +1,40 @@
-export function money(value: number) {
-  const abs = Math.abs(Math.round(value || 0));
-  const formatted = abs.toLocaleString("id-ID");
-  return `${value < 0 ? "-" : ""}Rp${formatted}`;
+import { getStoredLocale, localeTag, normalizeLocale, type Locale } from "@/lib/dashboard/i18n";
+
+function getCurrencyCode(locale: Locale) {
+  if (locale === "en") return "USD";
+  if (locale === "ms") return "MYR";
+  return "IDR";
 }
 
-export function compactMoney(value: number) {
-  const abs = Math.abs(value || 0);
-  const sign = value < 0 ? "-" : "";
-  if (abs >= 1_000_000_000) return `${sign}Rp${(abs / 1_000_000_000).toFixed(1).replace(".0", "")}M`;
-  if (abs >= 1_000_000) return `${sign}Rp${(abs / 1_000_000).toFixed(1).replace(".0", "")}jt`;
-  if (abs >= 1_000) return `${sign}Rp${Math.round(abs / 1_000)}rb`;
-  return `${sign}Rp${Math.round(abs)}`;
+function resolveLocale(locale?: Locale): Locale {
+  if (locale) return normalizeLocale(locale);
+  if (typeof document !== "undefined") {
+    const lang = document.documentElement.lang;
+    if (lang.startsWith("en")) return "en";
+    if (lang.startsWith("ms")) return "ms";
+    if (lang.startsWith("id")) return "id";
+  }
+  return getStoredLocale();
+}
+
+export function money(value: number, locale?: Locale) {
+  const activeLocale = resolveLocale(locale);
+  return new Intl.NumberFormat(localeTag(activeLocale), {
+    style: "currency",
+    currency: getCurrencyCode(activeLocale),
+    maximumFractionDigits: 0,
+  }).format(Math.round(value || 0));
+}
+
+export function compactMoney(value: number, locale?: Locale) {
+  const activeLocale = resolveLocale(locale);
+  return new Intl.NumberFormat(localeTag(activeLocale), {
+    style: "currency",
+    currency: getCurrencyCode(activeLocale),
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 1,
+  }).format(value || 0);
 }
 
 export function percent(value: number) {
@@ -22,6 +46,10 @@ export function parseNumber(value: unknown) {
   let cleaned = String(value)
     .replace(/Rp/gi, "")
     .replace(/idr/gi, "")
+    .replace(/rm/gi, "")
+    .replace(/myr/gi, "")
+    .replace(/usd/gi, "")
+    .replace(/\$/g, "")
     .replace(/[^0-9,.-]/g, "")
     .trim();
   if (!cleaned || cleaned === "-" || cleaned === "," || cleaned === ".") return 0;
@@ -30,7 +58,6 @@ export function parseNumber(value: unknown) {
   const lastDot = cleaned.lastIndexOf(".");
 
   if (lastComma >= 0 && lastDot >= 0) {
-    // 18.000,00 -> 18000.00, 18,000.00 -> 18000.00
     cleaned = lastComma > lastDot ? cleaned.replace(/\./g, "").replace(/,/g, ".") : cleaned.replace(/,/g, "");
   } else if (lastComma >= 0) {
     const fraction = cleaned.slice(lastComma + 1);

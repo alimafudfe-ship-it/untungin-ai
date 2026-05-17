@@ -1,9 +1,21 @@
 import type { Expense, Goal, Product } from "@/types/dashboard";
+import { money } from "@/lib/dashboard/format";
+import type { Locale } from "@/lib/dashboard/i18n";
 
 export const FREE_PRODUCT_LIMIT = 5;
+export const MONTHLY_PRICE_AMOUNT = 49000;
+export const LIFETIME_PRICE_AMOUNT = 299000;
 export const MONTHLY_PRICE = "Rp49.000/bulan";
 export const LIFETIME_PRICE = "Rp299.000 sekali bayar";
 export const MIDTRANS_REVIEW_MODE = false;
+
+export function getPlanPriceLabel(plan: "monthly" | "lifetime", locale?: Locale) {
+  const amount = plan === "monthly" ? MONTHLY_PRICE_AMOUNT : LIFETIME_PRICE_AMOUNT;
+  const price = money(amount, locale);
+  if (locale === "en") return plan === "monthly" ? `${price}/month` : `${price} one-time`;
+  if (locale === "ms") return plan === "monthly" ? `${price}/bulan` : `${price} sekali bayar`;
+  return plan === "monthly" ? `${price}/bulan` : `${price} sekali bayar`;
+}
 
 export const EXPENSE_CATEGORIES = [
   "Ads",
