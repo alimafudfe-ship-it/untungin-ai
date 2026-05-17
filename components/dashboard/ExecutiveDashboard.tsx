@@ -518,6 +518,16 @@ export function ExecutiveDashboard({
       </aside>
     </section>
 
+    <GlobalSaaSPanel
+      isPro={isPro}
+      products={products}
+      lowStockCount={lowStockCount}
+      lossCount={lossProducts.length}
+      onGoMarketplace={onGoMarketplace}
+      onGoReports={onGoReports}
+      onGoBilling={onGoBilling}
+    />
+
     <section className="metrics-grid">
       <StatCard label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
       <StatCard label="Profit produk" value={money(metrics.totalProfit)} helper={`Margin rata-rata ${percent(metrics.avgMargin)}`} tone={metrics.totalProfit >= 0 ? "success" : "danger"} delta={profitDelta.text} deltaTone={profitDelta.tone} />
@@ -617,4 +627,83 @@ function ActionItem({ index, title, detail, cta, onClick }: { index: string; tit
     <strong style={{ width: 34, height: 34, borderRadius: 12, display: "grid", placeItems: "center", background: "#0f172a", color: "white", fontSize: 12 }}>{index}</strong>
     <div><strong>{title}</strong><p style={{ margin: "6px 0 12px", color: "#64748b", lineHeight: 1.55, fontSize: 12 }}>{detail}</p><button onClick={onClick} style={{ ...ghostButtonStyle, padding: "8px 11px" }}>{cta}</button></div>
   </div>;
+}
+
+
+function GlobalSaaSPanel({
+  isPro,
+  products,
+  lowStockCount,
+  lossCount,
+  onGoMarketplace,
+  onGoReports,
+  onGoBilling,
+}: {
+  isPro: boolean;
+  products: Product[];
+  lowStockCount: number;
+  lossCount: number;
+  onGoMarketplace: () => void;
+  onGoReports: () => void;
+  onGoBilling: () => void;
+}) {
+  const activeMarketplaces = Array.from(new Set(products.map((item) => item.marketplace).filter(Boolean))).length;
+  const readiness = Math.min(100,
+    (products.length > 0 ? 24 : 0) +
+    (products.length >= 3 ? 18 : 0) +
+    (activeMarketplaces > 0 ? 18 : 0) +
+    (lowStockCount === 0 && products.length > 0 ? 14 : 0) +
+    (lossCount === 0 && products.length > 0 ? 14 : 0) +
+    (isPro ? 12 : 0)
+  );
+
+  const regions = [
+    { code: "ID", label: "Indonesia", status: "Live" },
+    { code: "MY", label: "Malaysia", status: "Ready" },
+    { code: "SG", label: "Singapore", status: "Next" },
+  ];
+
+  const pillars = [
+    { title: "Multi-language UI", detail: "ID, EN, dan MY siap sebagai dasar ekspansi regional.", done: true },
+    { title: "Marketplace data layer", detail: "CSV/API siap untuk Shopee, Tokopedia, TikTok Shop, dan channel baru.", done: activeMarketplaces > 0 },
+    { title: "Operating intelligence", detail: "Profit, stok, cash runway, risiko, dan rekomendasi AI dalam satu command center.", done: products.length > 0 },
+    { title: "Pro monetization", detail: "Limit Free, PRO, team, automation, dan report sebagai jalur SaaS revenue.", done: isPro },
+  ];
+
+  return <section style={{ ...cardStyle, padding: 0, overflow: "hidden", background: "linear-gradient(135deg,#ffffff,#f8fafc)" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.05fr) minmax(280px,0.95fr)", gap: 0 }}>
+      <div style={{ padding: 18, borderRight: "1px solid #e2e8f0", minWidth: 0 }}>
+        <Badge label="Global SaaS readiness" tone="blue" />
+        <h2 style={{ margin: "10px 0 6px", letterSpacing: -0.7 }}>Siap dibangun sebagai seller OS internasional</h2>
+        <p style={{ margin: 0, color: "#64748b", lineHeight: 1.65 }}>
+          Untungin.ai sekarang diarahkan sebagai command center multi-bahasa untuk seller marketplace: profit, inventory, cash flow, forecast, report, dan AI action plan dalam satu ruang kerja.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10, marginTop: 14 }}>
+          {pillars.map((item) => <div key={item.title} style={{ padding: 12, borderRadius: 16, background: item.done ? "#ecfdf5" : "#f8fafc", border: `1px solid ${item.done ? "#a7f3d0" : "#e2e8f0"}` }}>
+            <strong style={{ display: "block", fontSize: 13, color: item.done ? "#047857" : "#0f172a" }}>{item.title}</strong>
+            <small style={{ display: "block", color: "#64748b", lineHeight: 1.45, marginTop: 5 }}>{item.detail}</small>
+          </div>)}
+        </div>
+      </div>
+      <div style={{ padding: 18, minWidth: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div><small style={{ color: "#64748b", fontWeight: 800 }}>Expansion readiness</small><strong style={{ display: "block", fontSize: 28, letterSpacing: -1, marginTop: 2 }}>{readiness}%</strong></div>
+          <Badge label={readiness >= 70 ? "Scale-ready" : "Build phase"} tone={readiness >= 70 ? "success" : "warning"} />
+        </div>
+        <div style={{ marginTop: 10 }}><Progress value={readiness} /></div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 8, marginTop: 14 }}>
+          {regions.map((region) => <div key={region.code} style={{ padding: 12, borderRadius: 16, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+            <strong>{region.code}</strong>
+            <div style={{ color: "#64748b", fontSize: 12, marginTop: 3 }}>{region.label}</div>
+            <small style={{ color: region.status === "Live" ? "#047857" : "#0f766e", fontWeight: 900 }}>{region.status}</small>
+          </div>)}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+          <button onClick={onGoMarketplace} style={ghostButtonStyle}>Hubungkan data</button>
+          <button onClick={onGoReports} style={ghostButtonStyle}>Lihat laporan</button>
+          {!isPro && <button onClick={onGoBilling} style={ctaButtonStyle}>Aktifkan PRO</button>}
+        </div>
+      </div>
+    </div>
+  </section>;
 }
