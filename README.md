@@ -113,3 +113,9 @@ Behavior baru:
 - Jika ENV Supabase kosong, app menampilkan layar setup, bukan dashboard demo.
 - Produk, arus kas, stok, import CSV, workspace, dan plan memakai tabel Supabase.
 - Data demo hanya boleh dipakai kalau nanti dibuat flow demo terpisah, bukan default production dashboard.
+
+## Marketplace-wide Trend Intelligence
+
+This build adds a marketplace-wide trend explorer that is intentionally not based on the seller's internal products. It provides a market intelligence layer for public marketplace trend research across products, categories, keywords, countries, and marketplaces.
+
+Current implementation includes a seeded marketplace trend dataset for UI and workflow validation. For production-grade real-time trends, replace or enrich the dataset through compliant data providers, marketplace APIs, Google Trends, keyword tools, or uploaded public trend datasets.
