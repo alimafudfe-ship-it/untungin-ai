@@ -129,6 +129,39 @@ export function ExecutiveDashboard({
     },
   ];
 
+  const opsSignals = [
+    {
+      label: "Anomali margin",
+      value: lossProducts.length ? `${lossProducts.length} SKU` : "Aman",
+      helper: lossProducts.length ? "Cek HPP, voucher, dan biaya admin." : "Tidak ada margin negatif aktif.",
+      tone: lossProducts.length ? "danger" as Tone : "success" as Tone,
+    },
+    {
+      label: "Risiko restock",
+      value: lowStockCount ? `${lowStockCount} SKU` : "Terkendali",
+      helper: lowStockCount ? `Prioritas: ${criticalPreview[0]?.name || "produk cepat habis"}.` : "Stok inti masih aman untuk dijual.",
+      tone: lowStockCount ? "warning" as Tone : "success" as Tone,
+    },
+    {
+      label: "Kas operasional",
+      value: metrics.netCash >= 0 ? "Positif" : "Defisit",
+      helper: metrics.dailyLeakEstimate > 0 ? `Estimasi bocor ${money(metrics.dailyLeakEstimate)}/hari.` : "Belum ada tekanan biaya harian.",
+      tone: metrics.netCash >= 0 ? "success" as Tone : "danger" as Tone,
+    },
+  ];
+
+  const workflowSteps = [
+    { step: "1", title: "Validasi order", detail: `${metrics.totalUnits} unit terjual tercatat`, active: metrics.totalUnits > 0 },
+    { step: "2", title: "Update stok", detail: `${metrics.totalStock} unit tersedia lintas produk`, active: products.length > 0 },
+    { step: "3", title: "Tinjau profit", detail: `${percent(metrics.avgMargin)} margin rata-rata`, active: metrics.totalProfit !== 0 },
+    { step: "4", title: "Ambil aksi", detail: actionText, active: true },
+  ];
+
+  const nextBestActions = [
+    { title: lowStockCount ? "Buat rencana restock cepat" : "Dorong produk margin terbaik", detail: lowStockCount ? "Amankan SKU yang mulai menipis sebelum kampanye berikutnya." : "Pakai produk profit tertinggi sebagai fokus iklan dan bundling." },
+    { title: lossProducts.length ? "Perbaiki harga rugi" : "Jaga ritme input data", detail: lossProducts.length ? "Sesuaikan harga jual atau kurangi promo yang menekan margin." : "Catat order dan biaya harian agar insight tetap akurat." },
+  ];
+
   return <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
     <style>{`
       .overview-grid,
@@ -261,11 +294,86 @@ export function ExecutiveDashboard({
         background: #f8fafc;
         border: 1px solid #e2e8f0;
       }
+      .ops-suite {
+        display: grid;
+        grid-template-columns: minmax(0, 1.22fr) minmax(260px, 0.78fr);
+        gap: 12px;
+        padding: 0 16px 16px;
+        position: relative;
+        z-index: 1;
+      }
+      .ops-suite-card {
+        min-width: 0;
+        border-radius: 22px;
+        background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.13);
+        padding: 14px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .ops-suite-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .ops-signal-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .ops-signal-card {
+        min-width: 0;
+        padding: 12px;
+        border-radius: 18px;
+        background: rgba(15,23,42,0.38);
+        border: 1px solid rgba(255,255,255,0.10);
+      }
+      .ops-workflow {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .ops-workflow-row {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.10);
+      }
+      .ops-step {
+        width: 30px;
+        height: 30px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: rgba(20,184,166,0.18);
+        color: #99f6e4;
+        font-weight: 900;
+        font-size: 12px;
+      }
+      .ops-action-list {
+        display: grid;
+        gap: 10px;
+      }
+      .ops-action-item {
+        padding: 12px;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.92);
+        color: #0f172a;
+        border: 1px solid rgba(255,255,255,0.18);
+      }
       @media (max-width: 1280px) {
         .overview-grid, .dashboard-grid { grid-template-columns: 1fr; }
         .hero-layout { grid-template-columns: 1fr; }
         .status-mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .hero-fill-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .ops-suite { grid-template-columns: 1fr; }
+        .ops-signal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       }
       @media (max-width: 980px) {
         .metrics-grid, .chart-grid { grid-template-columns: 1fr 1fr; }
@@ -274,7 +382,10 @@ export function ExecutiveDashboard({
         .hero-layout { padding: 14px; }
         .command-actions { display: grid; grid-template-columns: 1fr; }
         .command-actions > * { width: 100%; justify-content: center; text-align: center; }
-        .status-mini-grid, .metrics-grid, .chart-grid, .hero-fill-grid { grid-template-columns: 1fr; }
+        .status-mini-grid, .metrics-grid, .chart-grid, .hero-fill-grid, .ops-signal-grid { grid-template-columns: 1fr; }
+        .ops-suite { padding: 0 14px 14px; }
+        .ops-workflow-row { grid-template-columns: 28px minmax(0, 1fr); }
+        .ops-workflow-row > :last-child { grid-column: 2; justify-self: start; }
         .top-performer-row { grid-template-columns: 30px minmax(0, 1fr); }
         .top-performer-row > :last-child { grid-column: 2; }
       }
@@ -326,6 +437,48 @@ export function ExecutiveDashboard({
             </div>
           </div>
         </div>
+        <section className="ops-suite">
+          <div className="ops-suite-card">
+            <div className="ops-suite-header">
+              <div>
+                <Badge label="Ruang kendali operasional" tone="success" />
+                <h3 style={{ margin: "8px 0 0", color: "white", letterSpacing: -0.4 }}>Kontrol harian seller</h3>
+              </div>
+              <span style={{ color: "#99f6e4", fontSize: 12, fontWeight: 900 }}>Live board</span>
+            </div>
+            <div className="ops-signal-grid">
+              {opsSignals.map((item) => <OpsSignalCard key={item.label} {...item} />)}
+            </div>
+            <div className="ops-workflow">
+              {workflowSteps.map((item) => <div key={item.title} className="ops-workflow-row">
+                <span className="ops-step">{item.step}</span>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ display: "block", color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</strong>
+                  <small style={{ color: "#94a3b8", display: "block", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.detail}</small>
+                </div>
+                <Badge label={item.active ? "Aktif" : "Belum"} tone={item.active ? "success" : "neutral"} />
+              </div>)}
+            </div>
+          </div>
+          <div className="ops-suite-card">
+            <div className="ops-suite-header">
+              <div>
+                <Badge label="Aksi otomatis" tone="warning" />
+                <h3 style={{ margin: "8px 0 0", color: "white", letterSpacing: -0.4 }}>Saran berikutnya</h3>
+              </div>
+            </div>
+            <div className="ops-action-list">
+              {nextBestActions.map((item, index) => <div key={item.title} className="ops-action-item">
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                  <strong>{item.title}</strong>
+                  <span style={{ width: 24, height: 24, borderRadius: 999, display: "grid", placeItems: "center", background: "#ecfdf5", color: "#047857", fontWeight: 900, fontSize: 12 }}>{index + 1}</span>
+                </div>
+                <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: 12, lineHeight: 1.55 }}>{item.detail}</p>
+              </div>)}
+            </div>
+            <button onClick={onGoAI} style={{ ...ghostButtonStyle, marginTop: 12, width: "100%", background: "rgba(255,255,255,0.08)", color: "white", borderColor: "rgba(255,255,255,0.18)", boxShadow: "none" }}>Buka pusat keputusan AI</button>
+          </div>
+        </section>
       </div>
 
       <aside className="board-stack">
@@ -436,6 +589,15 @@ export function ExecutiveDashboard({
 
 function HeroFillCard({ label, value, helper }: { label: string; value: string; helper: string }) {
   return <div className="hero-fill-card"><small>{label}</small><strong>{value}</strong><small>{helper}</small></div>;
+}
+
+function OpsSignalCard({ label, value, helper, tone }: { label: string; value: string; helper: string; tone: Tone }) {
+  const toneColor = tone === "danger" ? "#fecaca" : tone === "warning" ? "#fde68a" : "#99f6e4";
+  return <div className="ops-signal-card">
+    <small style={{ color: "#94a3b8" }}>{label}</small>
+    <strong style={{ display: "block", marginTop: 6, color: toneColor, fontSize: 18, letterSpacing: -0.4 }}>{value}</strong>
+    <small style={{ display: "block", marginTop: 5, color: "#cbd5e1", lineHeight: 1.45 }}>{helper}</small>
+  </div>;
 }
 
 function MiniMetric({ label, value, helper }: { label: string; value: string; helper: string }) {
