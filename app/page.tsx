@@ -295,15 +295,99 @@ export default function DashboardPage() {
     setCurrentUserId(null); setUserEmail(null); setProducts([]); setProfile(null); router.replace("/login");
   }
 
+  function findExistingProductByFormName(name: string, marketplace: string) {
+    const normalizedName = name.trim().toLowerCase();
+    const normalizedMarketplace = marketplace.trim().toLowerCase();
+    return products.find((item) => {
+      const sameName = item.name.trim().toLowerCase() === normalizedName;
+      const sameMarketplace = (item.marketplace || "Manual").trim().toLowerCase() === normalizedMarketplace;
+      return sameName && sameMarketplace;
+    }) || products.find((item) => item.name.trim().toLowerCase() === normalizedName);
+  }
+
+  async function logManualSaleOrder(product: Product, qty: number, extraCost: number, stockBefore: number, stockAfter: number) {
+    if (isDemoMode || !workspaceId || !selectedStoreId) return;
+    try {
+      const saleProfit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold: qty, otherCost: extraCost });
+      const grossRevenue = product.sellingPrice * qty;
+      const { data: order } = await db.from("orders").insert({
+        workspace_id: workspaceId,
+        store_id: selectedStoreId,
+        marketplace: product.marketplace || "Manual",
+        external_order_id: `manual-${product.id}-${Date.now()}`,
+        status: "completed",
+        gross_revenue: grossRevenue,
+        marketplace_fee: 0,
+        ads_cost: 0,
+        voucher_cost: 0,
+        affiliate_cost: 0,
+        net_revenue: grossRevenue - extraCost,
+        source_file: "manual-sale",
+        raw: { source: "product_form_autocomplete", auto_stock_deducted: true, stock_before: stockBefore, stock_after: stockAfter },
+      }).select("id").single();
+      if (order?.id) {
+        await db.from("order_items").insert({
+          order_id: order.id,
+          product_id: product.id,
+          product_name: product.name,
+          quantity: qty,
+          unit_price: product.sellingPrice,
+          cost_price: product.costPrice,
+          total_fee: extraCost,
+          profit: saleProfit,
+          raw: { source: "product_form_autocomplete", marketplace: product.marketplace || "Manual" },
+        });
+      }
+    } catch (orderError) {
+      console.warn("Order log belum tersimpan, tapi stok sudah otomatis berkurang.", orderError);
+    }
+  }
+
   async function saveProduct(finishAfterSave = false) {
     if (!ensureLoggedIn()) return;
-    if (!isPro && products.length >= FREE_PRODUCT_LIMIT) { openUpgradeModal("lifetime"); return; }
     const name = form.productName.trim();
     const costPrice = parseNumber(form.costPrice);
     const sellingPrice = parseNumber(form.sellingPrice);
     const stockInitial = parseNumber(form.stockInitial);
     const quantitySold = parseNumber(form.quantitySold);
     const otherCost = parseNumber(form.otherCost);
+    const existingProduct = name ? findExistingProductByFormName(name, form.marketplace) : null;
+
+    if (existingProduct) {
+      if (quantitySold <= 0) { alert("Produk sudah ada. Isi jumlah terjual untuk mengurangi stok otomatis, atau gunakan menu Stok untuk restock."); return; }
+      if (quantitySold > existingProduct.stockRemaining) { alert(`Qty terjual melebihi stok tersedia (${existingProduct.stockRemaining}).`); return; }
+      if (costPrice < 0 || sellingPrice <= 0 || otherCost < 0) { alert("Cek lagi modal, harga jual, dan biaya lain."); return; }
+      setLoading(true);
+      try {
+        const stockBefore = existingProduct.stockRemaining;
+        const updatedCostPrice = costPrice || existingProduct.costPrice;
+        const updatedSellingPrice = sellingPrice || existingProduct.sellingPrice;
+        const updatedQuantitySold = existingProduct.quantitySold + quantitySold;
+        const updatedStockRemaining = Math.max(existingProduct.stockRemaining - quantitySold, 0);
+        const updatedOtherCost = existingProduct.otherCost + otherCost;
+        const profit = calculateProfit({ costPrice: updatedCostPrice, sellingPrice: updatedSellingPrice, quantitySold: updatedQuantitySold, otherCost: updatedOtherCost });
+        const margin = calculateMargin(updatedCostPrice, updatedSellingPrice);
+        const ok = await persistProductUpdate(existingProduct.id, {
+          costPrice: updatedCostPrice,
+          sellingPrice: updatedSellingPrice,
+          quantitySold: updatedQuantitySold,
+          stockRemaining: updatedStockRemaining,
+          otherCost: updatedOtherCost,
+          profit,
+          margin,
+          marketplace: existingProduct.marketplace || form.marketplace,
+        });
+        if (ok) {
+          await logManualSaleOrder({ ...existingProduct, costPrice: updatedCostPrice, sellingPrice: updatedSellingPrice }, quantitySold, otherCost, stockBefore, updatedStockRemaining);
+          setForm(initialProductForm);
+          setActiveTab(finishAfterSave ? "overview" : "products");
+          alert("Penjualan produk lama tersimpan. Stok otomatis berkurang tanpa membuat produk dobel.");
+        }
+      } catch (error) { console.error(error); alert("Gagal menyimpan penjualan produk."); } finally { setLoading(false); }
+      return;
+    }
+
+    if (!isPro && products.length >= FREE_PRODUCT_LIMIT) { openUpgradeModal("lifetime"); return; }
     if (!name || costPrice < 0 || sellingPrice <= 0 || stockInitial < 0 || quantitySold < 0 || quantitySold > stockInitial || otherCost < 0) { alert("Cek lagi input. Nama, harga jual, stok, dan terjual harus valid."); return; }
     const stockRemaining = Math.max(stockInitial - quantitySold, 0);
     const profit = calculateProfit({ costPrice, sellingPrice, quantitySold, otherCost });
@@ -538,7 +622,7 @@ export default function DashboardPage() {
 
     {activeTab === "overview" && <ExecutiveDashboard products={products} metrics={metrics} filteredProducts={filteredProducts} cashflowTrend={cashflowTrend} profitTrend={profitTrend} isPro={isPro} isDemoMode={isDemoMode} lastSync={lastSync} onAddProduct={() => setActiveTab("products")} onAddCashflow={() => setActiveTab("cashflow")} onImportCSV={handleCSVUpload} syncing={syncing} onGoAI={() => setActiveTab("ai")} onGoProducts={() => setActiveTab("products")} onGoMarketplace={() => setActiveTab("marketplace")} onGoReports={() => setActiveTab("reports")} onGoBilling={() => setActiveTab("pricing")} onStock={goStock} onSale={goSale} onDelete={deleteProduct} />}
 
-    {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} onChange={setForm} onSubmit={handleSubmit} onFinish={handleSubmitAndFinish} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
+    {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} products={products} onChange={setForm} onSubmit={handleSubmit} onFinish={handleSubmitAndFinish} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
 
     {activeTab === "cashflow" && <div style={{ display: "grid", gap: 18 }}><div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.8fr 1.2fr", gap: 18 }}><ExpensePanel expenses={expenses} form={expenseForm} metrics={{ totalRevenue: metrics.totalRevenue, totalProfit: metrics.totalProfit, totalExpenses: metrics.totalExpenses, netCash: metrics.netCash }} onChange={setExpenseForm} onSubmit={addExpense} /></div><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}><LineChartCard title="Real Cashflow" subtitle="Cash in vs cash out" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><DonutChartCard title="Expense Analytics" subtitle="Biaya berdasarkan kategori" segments={expenseBreakdown} centerLabel={compactMoney(metrics.totalExpenses)} /></section></div>}
 

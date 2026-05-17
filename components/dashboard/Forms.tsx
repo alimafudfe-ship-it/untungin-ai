@@ -10,33 +10,61 @@ export type ExpenseFormState = { label: string; category: string; amount: string
 export function ProductForm({
   form,
   loading,
+  products,
   onChange,
   onSubmit,
   onFinish,
 }: {
   form: ProductFormState;
   loading: boolean;
+  products: Product[];
   onChange: (form: ProductFormState) => void;
   onSubmit: (event: React.FormEvent) => void;
   onFinish: () => void;
 }) {
+  const normalizedName = form.productName.trim().toLowerCase();
+  const matchedProduct = products.find((item) => item.name.trim().toLowerCase() === normalizedName);
+  const productOptions = Array.from(new Map(products.map((item) => [`${item.name.trim().toLowerCase()}-${item.marketplace || "Manual"}`, item])).values());
+
+  function selectExistingProduct(name: string) {
+    const selected = products.find((item) => item.name.trim().toLowerCase() === name.trim().toLowerCase());
+    if (!selected) {
+      onChange({ ...form, productName: name });
+      return;
+    }
+    onChange({
+      ...form,
+      productName: selected.name,
+      marketplace: selected.marketplace || form.marketplace || "Manual",
+      costPrice: String(selected.costPrice || ""),
+      sellingPrice: String(selected.sellingPrice || ""),
+      stockInitial: String(selected.stockRemaining || 0),
+      quantitySold: "",
+      otherCost: "",
+    });
+  }
+
   return <section style={cardStyle}>
     <Badge label="Input Produk" tone="success" />
-    <h2 style={{ marginBottom: 6 }}>Tambah produk</h2>
-    <p style={{ margin: "0 0 14px", color: "#64748b", lineHeight: 1.6, fontSize: 13 }}>Isi beberapa produk dari form ini. Setelah disimpan, form otomatis kosong dan tetap terbuka.</p>
+    <h2 style={{ marginBottom: 6 }}>Tambah / catat penjualan produk</h2>
+    <p style={{ margin: "0 0 14px", color: "#64748b", lineHeight: 1.6, fontSize: 13 }}>Ketik atau pilih nama produk lama. Jika produk sudah ada, isi qty terjual untuk mengurangi stok otomatis tanpa membuat produk dobel.</p>
     <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
       <select value={form.marketplace} onChange={(e) => onChange({ ...form, marketplace: e.target.value })} style={inputStyle}><option>Shopee</option><option>Tokopedia</option><option>TikTok Shop</option><option>Lazada</option><option>Manual</option></select>
-      <input value={form.productName} onChange={(e) => onChange({ ...form, productName: e.target.value })} placeholder="Nama produk" style={inputStyle} />
+      <input list="existing-product-names" value={form.productName} onChange={(e) => selectExistingProduct(e.target.value)} placeholder="Nama produk" style={inputStyle} autoComplete="off" />
+      <datalist id="existing-product-names">
+        {productOptions.map((item) => <option key={`${item.id}-${item.marketplace}`} value={item.name}>{`${item.marketplace || "Manual"} · stok ${item.stockRemaining} · terjual ${item.quantitySold}`}</option>)}
+      </datalist>
+      {matchedProduct ? <div style={{ padding: 12, borderRadius: 14, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", fontSize: 13, lineHeight: 1.55 }}><strong>Produk ditemukan:</strong> {matchedProduct.name} · stok tersedia {matchedProduct.stockRemaining}. Isi kolom <b>Terjual</b>, lalu simpan untuk mengurangi stok otomatis.</div> : null}
       <input value={form.costPrice} onChange={(e) => onChange({ ...form, costPrice: e.target.value })} type="number" min="0" placeholder="Modal per produk" style={inputStyle} />
       <input value={form.sellingPrice} onChange={(e) => onChange({ ...form, sellingPrice: e.target.value })} type="number" min="0" placeholder="Harga jual" style={inputStyle} />
       <div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <input value={form.stockInitial} onChange={(e) => onChange({ ...form, stockInitial: e.target.value })} type="number" min="0" placeholder="Stok awal" style={inputStyle} />
+        <input value={form.stockInitial} onChange={(e) => onChange({ ...form, stockInitial: e.target.value })} type="number" min="0" placeholder={matchedProduct ? "Stok tersedia" : "Stok awal"} style={inputStyle} />
         <input value={form.quantitySold} onChange={(e) => onChange({ ...form, quantitySold: e.target.value })} type="number" min="0" placeholder="Terjual" style={inputStyle} />
       </div>
       <input value={form.otherCost} onChange={(e) => onChange({ ...form, otherCost: e.target.value })} type="number" min="0" placeholder="Biaya lain" style={inputStyle} />
       <div style={{ display: "grid", gap: 10 }}>
-        <button type="submit" disabled={loading} style={{ ...ctaButtonStyle, opacity: loading ? 0.7 : 1 }}>{loading ? "Menyimpan..." : "Simpan & tambah lagi"}</button>
-        <button type="button" disabled={loading} onClick={onFinish} style={{ ...ghostButtonStyle, opacity: loading ? 0.7 : 1 }}>Simpan & selesai</button>
+        <button type="submit" disabled={loading} style={{ ...ctaButtonStyle, opacity: loading ? 0.7 : 1 }}>{loading ? "Menyimpan..." : matchedProduct ? "Simpan penjualan & tambah lagi" : "Simpan & tambah lagi"}</button>
+        <button type="button" disabled={loading} onClick={onFinish} style={{ ...ghostButtonStyle, opacity: loading ? 0.7 : 1 }}>{matchedProduct ? "Simpan penjualan & selesai" : "Simpan & selesai"}</button>
       </div>
     </form>
   </section>;
