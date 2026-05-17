@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { hasSupabaseEnv, supabase, supabaseConfigError } from "@/lib/supabaseClient";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 function LoginContent() {
@@ -26,6 +26,7 @@ function LoginContent() {
     let mounted = true;
 
     async function redirectIfLoggedIn() {
+      if (!hasSupabaseEnv) return;
       const { data } = await supabase.auth.getSession();
       if (mounted && data.session?.user) {
         router.replace(nextPath);
@@ -33,6 +34,11 @@ function LoginContent() {
     }
 
     void redirectIfLoggedIn();
+
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return () => { mounted = false; };
+    }
 
     const {
       data: { subscription },
@@ -54,6 +60,7 @@ function LoginContent() {
   }, [nextPath, router]);
 
 async function loginWithGoogle() {
+  if (!hasSupabaseEnv) { setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap."); return; }
   setErrorMessage("");
   setMessage("");
   setLoadingGoogle(true);
@@ -76,6 +83,8 @@ async function loginWithGoogle() {
 
   async function sendMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!hasSupabaseEnv) { setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap."); return; }
 
     setErrorMessage("");
     setMessage("");
@@ -153,7 +162,7 @@ async function loginWithGoogle() {
 
         <button
           onClick={loginWithGoogle}
-          disabled={loadingGoogle}
+          disabled={loadingGoogle || !hasSupabaseEnv}
           style={{
             width: "100%",
             padding: "15px 16px",
@@ -203,7 +212,7 @@ async function loginWithGoogle() {
           />
           <button
             type="submit"
-            disabled={loadingEmail}
+            disabled={loadingEmail || !hasSupabaseEnv}
             style={{
               width: "100%",
               padding: "15px 16px",
@@ -224,7 +233,7 @@ async function loginWithGoogle() {
         {errorMessage && <p style={{ color: "#fca5a5", fontSize: 13 }}>{errorMessage}</p>}
 
         <p style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.6, marginBottom: 0 }}>
-          Disarankan pakai Google Login agar tidak perlu buka email dan tidak kena limit OTP.
+          Disarankan pakai Google Login agar tidak perlu buka email dan tidak kena limit OTP. Untuk production, Supabase ENV wajib diisi di Vercel.
         </p>
       </div>
     </main>

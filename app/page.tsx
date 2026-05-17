@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
-import { supabase } from "@/lib/supabaseClient";
+import { hasSupabaseEnv, supabase, supabaseConfigError } from "@/lib/supabaseClient";
 import type { Expense, ExpenseRow, Goal, Product, ProductFilter, ProductRow, Profile, StockMoveType, TabKey, UpgradePlan } from "@/types/dashboard";
-import { DEMO_EXPENSES, DEMO_GOALS, DEMO_PRODUCTS, FREE_PRODUCT_LIMIT, LIFETIME_PRICE, MIDTRANS_REVIEW_MODE, MONTHLY_PRICE } from "@/lib/dashboard/constants";
+import { DEMO_GOALS, FREE_PRODUCT_LIMIT, LIFETIME_PRICE, MIDTRANS_REVIEW_MODE, MONTHLY_PRICE } from "@/lib/dashboard/constants";
 import { calculateMargin, calculateProfit, getDashboardMetrics, isProfileExpired, isProfilePro, mapExpenseRow, mapProductRow } from "@/lib/dashboard/calculations";
 import { generateInsightText, getOneThingAction, buildInsightCards } from "@/lib/dashboard/insights";
 import { exportCashflowCSV, exportExpensesCSV, exportProductsCSV, exportSummaryJSON, exportRealPDF } from "@/lib/dashboard/reports";
@@ -48,7 +48,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [products, setProducts] = useState<Product[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>(DEMO_EXPENSES);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [goals] = useState<Goal[]>(DEMO_GOALS);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -61,6 +61,7 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<ProductFilter>("all");
   const [selectedPlan, setSelectedPlan] = useState<UpgradePlan>("lifetime");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -114,22 +115,40 @@ export default function DashboardPage() {
     let isMounted = true;
     async function loadUserAndData() {
       if (isMounted) setPageLoading(true);
+      if (!hasSupabaseEnv) {
+        if (!isMounted) return;
+        setSetupError(supabaseConfigError || "Supabase ENV belum lengkap.");
+        setCurrentUserId(null);
+        setUserEmail(null);
+        setProducts([]);
+        setExpenses([]);
+        setProfile(null);
+        setWorkspaceId(null);
+        setStores([]);
+        setSelectedStoreId(null);
+        setIsDemoMode(false);
+        setPageLoading(false);
+        return;
+      }
+
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       const user = sessionData.session?.user ?? null;
       if (sessionError || !user) {
         if (!isMounted) return;
-        setCurrentUserId("demo-user");
+        setCurrentUserId(null);
         setUserEmail(null);
-        setProducts(DEMO_PRODUCTS);
-        setExpenses(DEMO_EXPENSES);
-        setProfile({ role: "user", plan: "free", pro_until: null, email: null });
+        setProducts([]);
+        setExpenses([]);
+        setProfile(null);
         setWorkspaceId(null);
         setStores([]);
         setSelectedStoreId(null);
-        setIsDemoMode(true);
+        setIsDemoMode(false);
         setPageLoading(false);
+        router.replace(`/login?next=${encodeURIComponent("/")}`);
         return;
       }
+      setSetupError(null);
 
       if (!isMounted) return;
       setCurrentUserId(user.id);
@@ -172,8 +191,8 @@ export default function DashboardPage() {
         : await expenseQuery.eq("user_id", user.id);
       if (!isMounted) return;
       if (expenseError) {
-        console.warn("Expenses table belum tersedia atau belum diberi RLS. Jalankan supabase/migrations/20260513_expense_engine.sql", expenseError);
-        setExpenses(DEMO_EXPENSES);
+        console.warn("Expenses table belum tersedia atau belum diberi RLS. Jalankan schema Supabase production.", expenseError);
+        setExpenses([]);
       } else {
         setExpenses(((expenseData || []) as ExpenseRow[]).map(mapExpenseRow));
       }
@@ -184,14 +203,14 @@ export default function DashboardPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") { loadUserAndData(); return; }
       if (event === "SIGNED_OUT" || !session?.user) {
-        setCurrentUserId("demo-user"); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts(DEMO_PRODUCTS); setExpenses(DEMO_EXPENSES); setProfile({ role: "user", plan: "free", pro_until: null, email: null }); setIsDemoMode(true); setPageLoading(false);
+        setCurrentUserId(null); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts([]); setExpenses([]); setProfile(null); setIsDemoMode(false); setPageLoading(false); router.replace(`/login?next=${encodeURIComponent("/")}`);
       }
     });
     return () => { isMounted = false; subscription.unsubscribe(); };
   }, [router]);
 
   useEffect(() => {
-    if (!currentUserId || currentUserId === "demo-user" || isDemoMode) return;
+    if (!currentUserId || isDemoMode) return;
     const channel = supabase
       .channel(`dashboard-realtime-${currentUserId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `user_id=eq.${currentUserId}` }, (payload: any) => {
@@ -221,7 +240,8 @@ export default function DashboardPage() {
   }, [currentUserId, isDemoMode]);
 
   function ensureLoggedIn() {
-    if (!currentUserId) { alert("Harus login dulu supaya data tersimpan."); return false; }
+    if (!hasSupabaseEnv) { alert("Supabase ENV belum lengkap. Isi ENV di Vercel dulu."); return false; }
+    if (!currentUserId || isDemoMode) { router.replace(`/login?next=${encodeURIComponent("/")}`); return false; }
     return true;
   }
 
@@ -291,13 +311,9 @@ export default function DashboardPage() {
     const margin = calculateMargin(costPrice, sellingPrice);
     setLoading(true);
     try {
-      if (isDemoMode) {
-        setProducts((prev) => [{ id: `demo-${Date.now()}`, name, costPrice, sellingPrice, stockInitial, stockRemaining, quantitySold, otherCost, profit, margin, marketplace: form.marketplace }, ...prev]);
-      } else {
-        const { data, error } = await db.from("products").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, name, cost_price: costPrice, selling_price: sellingPrice, stock_initial: stockInitial, stock_remaining: stockRemaining, quantity_sold: quantitySold, other_cost: otherCost, profit, margin, marketplace: form.marketplace } as any]).select("*").single();
-        if (error) throw error;
-        if (data) setProducts((prev) => [mapProductRow(data as ProductRow), ...prev]);
-      }
+      const { data, error } = await db.from("products").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, name, cost_price: costPrice, selling_price: sellingPrice, stock_initial: stockInitial, stock_remaining: stockRemaining, quantity_sold: quantitySold, other_cost: otherCost, profit, margin, marketplace: form.marketplace } as any]).select("*").single();
+      if (error) throw error;
+      if (data) setProducts((prev) => [mapProductRow(data as ProductRow), ...prev]);
       setForm(initialProductForm); setActiveTab("overview");
     } catch (error) { console.error(error); alert("Gagal menyimpan produk."); } finally { setLoading(false); }
   }
@@ -335,7 +351,6 @@ export default function DashboardPage() {
   async function deleteProduct(id: string) {
     if (!ensureLoggedIn()) return;
     if (!window.confirm("Hapus produk ini?")) return;
-    if (isDemoMode) { setProducts((prev) => prev.filter((item) => item.id !== id)); return; }
     const { error } = await db.from("products").delete().eq("id", id).eq("user_id", currentUserId);
     if (error) { console.error(error); alert("Gagal menghapus produk."); return; }
     setProducts((prev) => prev.filter((item) => item.id !== id));
@@ -347,11 +362,6 @@ export default function DashboardPage() {
     const amount = parseNumber(expenseForm.amount);
     if (!expenseForm.label.trim() || amount <= 0) { alert("Isi nama dan nominal biaya."); return; }
     const localExpense: Expense = { id: `exp-${Date.now()}`, label: expenseForm.label.trim(), category: expenseForm.category, amount, date: expenseForm.date || new Date().toISOString().slice(0, 10), notes: expenseForm.notes.trim() || null };
-    if (isDemoMode) {
-      setExpenses((prev) => [localExpense, ...prev]);
-      setExpenseForm(initialExpenseForm);
-      return;
-    }
     const { data, error } = await db.from("expenses").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, title: localExpense.label, label: localExpense.label, category: localExpense.category, amount: localExpense.amount, expense_date: localExpense.date, notes: localExpense.notes }]).select("*").single();
     if (error) {
       console.error(error);
@@ -367,7 +377,7 @@ export default function DashboardPage() {
     e.target.value = "";
     if (!file) return;
     if (!ensureLoggedIn()) return;
-    if (!isDemoMode && (!workspaceId || !currentUserId)) {
+    if (!workspaceId || !currentUserId) {
       alert("Workspace belum siap. Refresh halaman atau cek Supabase ENV.");
       return;
     }
@@ -377,7 +387,7 @@ export default function DashboardPage() {
       const parsed = Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
       if (parsed.errors.length) console.warn("CSV parse warnings", parsed.errors);
       const rows = (parsed.data || []).filter((row) => Object.values(row).some((value) => String(value || "").trim() !== ""));
-      const preview = createImportPreview(rows, currentUserId || "demo-user", "auto");
+      const preview = createImportPreview(rows, currentUserId, "auto");
       setPendingImportFile(file);
       setPendingImportPreview(preview);
       setAiAnswer(`Preview import v11 siap: ${preview.summary.validRows}/${preview.summary.totalRows} baris valid, marketplace ${preview.detectedMarketplace}, confidence ${preview.confidence}%. Cek mapping fee, voucher, ongkir, pajak, dan HPP sebelum confirm.`);
@@ -394,17 +404,6 @@ export default function DashboardPage() {
     if (!ensureLoggedIn()) return;
     setSyncing(true);
     try {
-      if (isDemoMode) {
-        const imported = pendingImportPreview.rows.map((row) => ({ ...row, workspace_id: workspaceId, store_id: selectedStoreId }));
-        setProducts((prev) => [...imported.map((row, index) => mapProductRow({ id: `demo-csv-${Date.now()}-${index}`, ...row } as ProductRow)), ...prev]);
-        setLastSync(new Date().toLocaleString("id-ID"));
-        setAiAnswer(`Import demo v11 berhasil: ${imported.length} baris. Auto mapping membaca ${pendingImportPreview.detectedMarketplace}, biaya seller ${money(pendingImportPreview.summary.sellerCosts)}, estimasi profit ${money(pendingImportPreview.summary.estimatedProfit)}.`);
-        setPendingImportFile(null);
-        setPendingImportPreview(null);
-        setActiveTab("overview");
-        return;
-      }
-
       const formData = new FormData();
       formData.append("file", pendingImportFile);
       formData.append("workspaceId", workspaceId || "");
@@ -483,6 +482,8 @@ export default function DashboardPage() {
 
   function goStock(id: string) { setStockMove((prev) => ({ ...prev, productId: id })); setActiveTab("inventory"); }
   function goSale(id: string) { setSaleForm((prev) => ({ ...prev, productId: id })); setActiveTab("sales"); }
+
+  if (setupError) return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#020617", color: "white", fontFamily: "Inter, Arial, sans-serif", padding: 24 }}><section style={{ width: "100%", maxWidth: 720, borderRadius: 28, padding: 28, background: "rgba(15,23,42,0.92)", border: "1px solid rgba(148,163,184,0.18)", boxShadow: "0 30px 100px rgba(0,0,0,0.38)" }}><Badge label="Setup Supabase" tone="warning" /><h1 style={{ margin: "14px 0 10px", fontSize: 30 }}>Database belum tersambung</h1><p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>{setupError}</p><div style={{ display: "grid", gap: 10, marginTop: 16, color: "#e2e8f0", lineHeight: 1.7 }}><code>NEXT_PUBLIC_SUPABASE_URL</code><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code><code>SUPABASE_SERVICE_ROLE_KEY</code></div><p style={{ color: "#94a3b8", lineHeight: 1.7, marginTop: 18 }}>Tambahkan ENV di Vercel, jalankan schema di folder <code>supabase/</code>, lalu redeploy. Dashboard production tidak lagi memakai data demo otomatis.</p><button onClick={() => window.location.reload()} style={ctaButtonStyle}>Refresh setelah ENV diisi</button></section></main>;
 
   if (pageLoading) return <main style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", display: "grid", placeItems: "center", fontFamily: "Inter, Arial" }}><div style={{ textAlign: "center" }}><div style={{ width: 44, height: 44, borderRadius: 999, border: "4px solid #dbe3ef", borderTopColor: "#0f766e", margin: "0 auto 16px" }} /><p>Loading Untungin.ai...</p></div></main>;
 

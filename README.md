@@ -95,3 +95,21 @@ NEXT_TELEMETRY_DISABLED=1 npm run build
 ```
 
 Build production berhasil. Lint tidak memiliki error, hanya warning lama terkait `any` dan unused variable pada modul yang belum disentuh.
+
+## Supabase-first production mode
+
+Versi ini tidak lagi otomatis masuk dashboard dengan data demo saat session Supabase tidak ada. Untuk production:
+
+1. Isi ENV di Vercel:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+2. Jalankan schema SQL di folder `supabase/` melalui Supabase SQL Editor.
+3. Aktifkan Authentication provider yang dipakai, minimal Email OTP atau Google OAuth.
+4. Redeploy di Vercel.
+
+Behavior baru:
+- Pengunjung belum login diarahkan ke `/login`.
+- Jika ENV Supabase kosong, app menampilkan layar setup, bukan dashboard demo.
+- Produk, arus kas, stok, import CSV, workspace, dan plan memakai tabel Supabase.
+- Data demo hanya boleh dipakai kalau nanti dibuat flow demo terpisah, bukan default production dashboard.
