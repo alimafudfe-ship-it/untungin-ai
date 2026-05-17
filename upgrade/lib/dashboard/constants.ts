@@ -1,6 +1,6 @@
 import type { Expense, Goal, Product } from "@/types/dashboard";
 
-export const FREE_PRODUCT_LIMIT = 3;
+export const FREE_PRODUCT_LIMIT = 5;
 export const MONTHLY_PRICE = "Rp49.000/bulan";
 export const LIFETIME_PRICE = "Rp299.000 sekali bayar";
 export const MIDTRANS_REVIEW_MODE = false;
