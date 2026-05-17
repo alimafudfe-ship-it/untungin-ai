@@ -4,5 +4,6 @@
       "path": "/api/cron/daily-report",
       "schedule": "0 1 * * *"
     }
-  ]
+  ],
+  "buildCommand": "npm run build"
 }
