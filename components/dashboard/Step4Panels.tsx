@@ -74,18 +74,18 @@ export function MarketplaceApiPanel({ products }: { products: Product[] }) {
   const channels = [
     { name: "Shopee", status: "OAuth ready", route: "/api/marketplace/shopee/connect" },
     { name: "Tokopedia", status: "OAuth ready", route: "/api/marketplace/tokopedia/connect" },
-    { name: "TikTok Shop", status: "Planned", route: "Phase berikutnya" },
+    { name: "TikTok Shop", status: "OAuth ready", route: "/api/marketplace/tiktok/connect" },
     { name: "Lazada", status: "Planned", route: "Phase berikutnya" },
   ];
   const marketplaceCount = new Set(products.map((item) => item.marketplace || "Manual")).size;
   return (
     <div style={{ display: "grid", gap: 18 }}>
       <section style={{ ...cardStyle, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div><Badge label="Marketplace API" tone="blue" /><h2 style={{ margin: "10px 0 4px" }}>Shopee & Tokopedia connector foundation</h2><p style={{ color: "#64748b", margin: 0 }}>OAuth route dan connection table disiapkan. Isi env partner key/secret saat sudah mendapat akses resmi marketplace.</p></div>
+        <div><Badge label="Marketplace API" tone="blue" /><h2 style={{ margin: "10px 0 4px" }}>Shopee, Tokopedia & TikTok Shop connector foundation</h2><p style={{ color: "#64748b", margin: 0 }}>OAuth route dan connection table disiapkan. TikTok Shop Connect aktif dan membaca ENV dari Vercel.</p></div>
         <Badge label={`${marketplaceCount} channels`} tone="success" />
       </section>
       <section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        {channels.map((item) => <div key={item.name} style={cardStyle}><Badge label={item.status} tone={item.status.includes("ready") ? "success" : "muted"} /><h3>{item.name}</h3><p style={{ color: "#64748b" }}>{item.route}</p><button style={ghostButtonStyle}>Connect</button></div>)}
+        {channels.map((item) => <div key={item.name} style={cardStyle}><Badge label={item.status} tone={item.status.includes("ready") ? "success" : "muted"} /><h3>{item.name}</h3><p style={{ color: "#64748b" }}>{item.route}</p>{item.route.startsWith("/api/") ? <a href={item.route} style={{ ...ghostButtonStyle, display: "inline-flex", textDecoration: "none" }}>Connect</a> : <button type="button" disabled style={{ ...ghostButtonStyle, opacity: 0.55, cursor: "not-allowed" }}>Connect</button>}</div>)}
       </section>
     </div>
   );
