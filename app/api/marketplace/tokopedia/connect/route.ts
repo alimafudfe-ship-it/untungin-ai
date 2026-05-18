@@ -1,16 +1,30 @@
 import { NextResponse } from "next/server";
+import { buildTokopediaOAuthUrl } from "@/lib/integrations/marketplace";
 
-export async function GET() {
-  const clientId = process.env.TOKOPEDIA_CLIENT_ID;
-  const redirectUri = process.env.TOKOPEDIA_REDIRECT_URI;
-  if (!clientId || !redirectUri) {
-    return NextResponse.json({ status: "env_missing", message: "Set TOKOPEDIA_CLIENT_ID dan TOKOPEDIA_REDIRECT_URI di Vercel untuk mengaktifkan OAuth Tokopedia." }, { status: 400 });
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("user_id") || "demo-user";
+    return NextResponse.redirect(buildTokopediaOAuthUrl(userId));
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Gagal membuat OAuth URL Tokopedia.";
+
+    return NextResponse.json(
+      {
+        status: "env_missing_or_config_error",
+        provider: "tokopedia",
+        message,
+        requiredEnv: [
+          "TOKOPEDIA_CLIENT_ID",
+          "TOKOPEDIA_CLIENT_SECRET",
+          "TOKOPEDIA_REDIRECT_URL"
+        ],
+        currentRedirectUrl: process.env.TOKOPEDIA_REDIRECT_URL || null,
+      },
+      { status: 400 }
+    );
   }
-  const state = crypto.randomUUID();
-  const url = new URL("https://accounts.tokopedia.com/authorize");
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("state", state);
-  return NextResponse.redirect(url.toString());
 }
