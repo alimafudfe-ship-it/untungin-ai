@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [loadingEmail, setLoadingEmail] = useState(false);
+  const [loadingPassword, setLoadingPassword] = useState(false);
+
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -64,8 +70,35 @@ export default function LoginPage() {
     }
   }
 
-  async function sendMagicLink(e: React.FormEvent) {
+  async function loginWithPassword(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMessage("");
+    setMessage("");
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      setErrorMessage("Masukkan email dan password.");
+      return;
+    }
+
+    setLoadingPassword(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setLoadingPassword(false);
+      return;
+    }
+
+    router.replace(nextPath);
+  }
+
+  async function sendMagicLink() {
     setErrorMessage("");
     setMessage("");
 
@@ -157,7 +190,7 @@ export default function LoginPage() {
           <div style={{ height: 1, background: "#1f2937", flex: 1 }} />
         </div>
 
-        <form onSubmit={sendMagicLink} style={{ display: "grid", gap: 12 }}>
+        <form onSubmit={loginWithPassword} style={{ display: "grid", gap: 12 }}>
           <input
             type="email"
             placeholder="Email kamu"
@@ -173,22 +206,58 @@ export default function LoginPage() {
               fontSize: 15,
             }}
           />
+
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{
+              padding: "15px 16px",
+              borderRadius: 14,
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.74)",
+              color: "white",
+              outline: "none",
+              fontSize: 15,
+            }}
+          />
+
           <button
             type="submit"
-            disabled={loadingEmail}
+            disabled={loadingPassword}
             style={{
               padding: "15px 18px",
               borderRadius: 14,
               border: "none",
               background: "linear-gradient(135deg, #22c55e, #16a34a)",
               color: "white",
-              cursor: loadingEmail ? "not-allowed" : "pointer",
+              cursor: loadingPassword ? "not-allowed" : "pointer",
               fontWeight: 900,
               fontSize: 15,
+              opacity: loadingPassword ? 0.75 : 1,
+            }}
+          >
+            {loadingPassword ? "Masuk..." : "Login dengan Email & Password"}
+          </button>
+
+          <button
+            type="button"
+            onClick={sendMagicLink}
+            disabled={loadingEmail}
+            style={{
+              padding: "13px 18px",
+              borderRadius: 14,
+              border: "1px solid rgba(148,163,184,0.25)",
+              background: "transparent",
+              color: "#cbd5e1",
+              cursor: loadingEmail ? "not-allowed" : "pointer",
+              fontWeight: 800,
+              fontSize: 14,
               opacity: loadingEmail ? 0.75 : 1,
             }}
           >
-            {loadingEmail ? "Mengirim..." : "Kirim Link Login"}
+            {loadingEmail ? "Mengirim..." : "Kirim Magic Link"}
           </button>
         </form>
 
@@ -196,7 +265,7 @@ export default function LoginPage() {
         {errorMessage && <p style={{ color: "#fca5a5", fontSize: 13, lineHeight: 1.6 }}>{errorMessage}</p>}
 
         <p style={{ color: "#64748b", fontSize: 12, lineHeight: 1.7, marginBottom: 0 }}>
-          Disarankan pakai Google Login agar tidak perlu buka email dan tidak kena limit OTP.
+          Untuk reviewer marketplace, gunakan akun demo email dan password yang disediakan.
         </p>
       </section>
     </main>
