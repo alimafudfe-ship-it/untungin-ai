@@ -59,15 +59,15 @@ const COPY: Record<Locale, {
 }> = {
   id: {
     badge: "Tren Pasar Multi-source",
-    title: "Baca tren produk hari ini, minggu ini, dan bulan ini",
-    subtitle: "Layer ini menggabungkan banyak sumber data: fallback seed, JSON feed eksternal, analytics pihak ketiga, upload manual, dan nanti official API jika sudah approved. Jadi fitur tren tetap jalan walau Shopee ditolak.",
+    title: "Baca tren produk harian, mingguan, bulanan, dan hari besar",
+    subtitle: "Layer ini menggabungkan banyak sumber data: fallback seed, JSON feed eksternal, analytics pihak ketiga, upload manual, dan nanti official API jika sudah approved. Filter hari besar membantu cari produk musiman seperti Lebaran, Natal, Tahun Baru, dan event nasional.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
     category: "Kategori",
     marketplace: "Marketplace",
     period: "Periode",
-    periods: { today: "Hari ini", week: "Minggu ini", month: "Bulan ini" },
+    periods: { today: "Hari ini", week: "Minggu ini", month: "Bulan ini", special_day: "Hari besar" },
     sources: "Sumber data",
     confidence: "Keyakinan",
     lastUpdated: "Update",
@@ -99,15 +99,15 @@ const COPY: Record<Locale, {
   },
   en: {
     badge: "Multi-source Market Trends",
-    title: "Read product trends for today, this week, and this month",
-    subtitle: "This layer combines many data sources: fallback seed, external JSON feeds, third-party analytics, manual uploads, and official APIs later when approved. Trend features keep working even when Shopee is rejected.",
+    title: "Read daily, weekly, monthly, and special-day product trends",
+    subtitle: "This layer combines fallback seed, external JSON feeds, third-party analytics, manual uploads, and official APIs later when approved. Special-day filters help find seasonal products for holidays and national events.",
     search: "Search product, keyword, category...",
     all: "All",
     country: "Country",
     category: "Category",
     marketplace: "Marketplace",
     period: "Period",
-    periods: { today: "Today", week: "This week", month: "This month" },
+    periods: { today: "Today", week: "This week", month: "This month", special_day: "Special days" },
     sources: "Data sources",
     confidence: "Confidence",
     lastUpdated: "Updated",
@@ -139,15 +139,15 @@ const COPY: Record<Locale, {
   },
   ms: {
     badge: "Tren Pasaran Multi-source",
-    title: "Baca tren produk hari ini, minggu ini, dan bulan ini",
-    subtitle: "Layer ini menggabungkan banyak sumber data: fallback seed, JSON feed eksternal, analytics pihak ketiga, upload manual, dan nanti official API jika sudah approved. Fitur tren tetap jalan walau Shopee ditolak.",
+    title: "Baca tren produk harian, mingguan, bulanan, dan hari besar",
+    subtitle: "Layer ini menggabungkan banyak sumber data: fallback seed, JSON feed eksternal, analytics pihak ketiga, upload manual, dan nanti official API jika sudah approved. Filter hari besar membantu cari produk musiman untuk raya, cuti umum, dan event nasional.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
     category: "Kategori",
     marketplace: "Marketplace",
     period: "Tempoh",
-    periods: { today: "Hari ini", week: "Minggu ini", month: "Bulan ini" },
+    periods: { today: "Hari ini", week: "Minggu ini", month: "Bulan ini", special_day: "Hari besar" },
     sources: "Sumber data",
     confidence: "Keyakinan",
     lastUpdated: "Update",
@@ -204,6 +204,15 @@ function providerTone(status: TrendProviderStatus["status"]): Tone {
 
 function unique<T>(items: T[]) {
   return Array.from(new Set(items));
+}
+
+function summarizePeriods(rows: MarketTrend[], labels: Record<TrendPeriod, string>) {
+  const order: TrendPeriod[] = ["today", "week", "month", "special_day"];
+  return order
+    .map((period) => ({ period, count: rows.filter((item) => item.period === period).length }))
+    .filter((item) => item.count > 0)
+    .map((item) => `${labels[item.period]}: ${item.count}`)
+    .join(" · ");
 }
 
 function buildAnswer(question: MarketQuestion, rows: MarketTrend[], c: typeof COPY[Locale], locale: Locale) {
@@ -328,7 +337,7 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
       <StatCard label={c.topTrend} value={top?.productName || "-"} helper={top ? `${top.marketplace} · ${signalLabel(top, locale)} · ${c.demand} ${top.demandScore}/100` : "-"} tone="blue" />
       <StatCard label={c.strongestMarketplace} value={strongestMarketplace || "-"} helper={rows.length ? `${rows.length} trend signals` : "-"} tone="success" />
       <StatCard label={c.lowCompetition} value={lowCompetition?.productName || "-"} helper={lowCompetition ? `${c.competition} ${lowCompetition.competitionScore}/100` : c.emptyDesc} tone={lowCompetition ? "success" : "warning"} />
-      <StatCard label={c.sources} value={String(activeSources)} helper={generatedAt ? `${c.lastUpdated}: ${new Date(generatedAt).toLocaleString()}` : c.providerNote} tone="neutral" />
+      <StatCard label={c.sources} value={String(activeSources)} helper={summarizePeriods(sourceRows, c.periods) || (generatedAt ? `${c.lastUpdated}: ${new Date(generatedAt).toLocaleString()}` : c.providerNote)} tone="neutral" />
     </div>
 
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>

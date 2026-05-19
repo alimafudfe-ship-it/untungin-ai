@@ -1,6 +1,6 @@
 import { FALLBACK_MARKET_TRENDS } from "./catalog";
 import { dedupeTrends, filterTrends } from "./scoring";
-import type { MarketTrend, TrendProviderStatus, TrendQuery, TrendSignal, TrendSourceKind } from "./types";
+import type { MarketTrend, TrendPeriod, TrendProviderStatus, TrendQuery, TrendSignal, TrendSourceKind } from "./types";
 
 function toNumber(value: unknown, fallback = 0) {
   const numeric = Number(value);
@@ -13,6 +13,15 @@ function normalizeSignal(value: unknown): TrendSignal {
   return "rising";
 }
 
+function normalizePeriod(value: unknown): TrendPeriod {
+  const normalized = String(value || "week").toLowerCase().replace(/[\s-]+/g, "_");
+  if (["today", "daily", "day", "hari", "harian"].includes(normalized)) return "today";
+  if (["week", "weekly", "minggu", "mingguan"].includes(normalized)) return "week";
+  if (["month", "monthly", "bulan", "bulanan"].includes(normalized)) return "month";
+  if (["special_day", "special_days", "holiday", "holidays", "seasonal", "hari_besar", "har2_besar", "har2_bisar"].includes(normalized)) return "special_day";
+  return "week";
+}
+
 function normalizeTrend(row: Record<string, unknown>, index: number, source: string, sourceKind: TrendSourceKind): MarketTrend {
   return {
     id: String(row.id || `${sourceKind}-${index + 1}`),
@@ -21,7 +30,7 @@ function normalizeTrend(row: Record<string, unknown>, index: number, source: str
     keyword: String(row.keyword || row.productName || row.product_name || row.name || `trend-${index + 1}`),
     marketplace: String(row.marketplace || "Public Feed") as MarketTrend["marketplace"],
     country: String(row.country || "ID") as MarketTrend["country"],
-    period: String(row.period || "week") as MarketTrend["period"],
+    period: normalizePeriod(row.period ?? row.trendPeriod ?? row.trend_period),
     demandScore: toNumber(row.demandScore ?? row.demand_score ?? row.demand, 50),
     growthScore: toNumber(row.growthScore ?? row.growth_score ?? row.growth, 50),
     competitionScore: toNumber(row.competitionScore ?? row.competition_score ?? row.competition, 50),

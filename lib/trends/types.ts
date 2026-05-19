@@ -1,4 +1,4 @@
-export type TrendPeriod = "today" | "week" | "month";
+export type TrendPeriod = "today" | "week" | "month" | "special_day";
 export type TrendMarketplace = "Shopee" | "Tokopedia" | "TikTok Shop" | "Lazada" | "Google Trends" | "Manual" | "Public Feed";
 export type TrendCountry = "ID" | "MY" | "SG";
 export type TrendSignal = "viral" | "rising" | "stable" | "seasonal";
