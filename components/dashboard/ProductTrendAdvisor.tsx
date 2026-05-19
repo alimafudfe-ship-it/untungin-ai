@@ -1,43 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Product, Tone } from "@/types/dashboard";
+import { FALLBACK_MARKET_TRENDS } from "@/lib/trends/catalog";
+import { filterTrends, scoreTrend } from "@/lib/trends/scoring";
+import type { MarketTrend, TrendPeriod, TrendProviderStatus } from "@/lib/trends/types";
 import { compactMoney, money } from "@/lib/dashboard/format";
 import { useDashboardLocale, type Locale } from "@/lib/dashboard/i18n";
 import { Badge, cardStyle, ctaButtonStyle, EmptyState, ghostButtonStyle, Progress, StatCard } from "./ui";
 
 type MarketQuestion = "hot" | "category" | "marketplace" | "lowCompetition" | "pricing" | "today";
-type MarketTrend = {
-  id: string;
-  productName: string;
-  category: string;
-  keyword: string;
-  marketplace: "Shopee" | "Tokopedia" | "TikTok Shop" | "Lazada";
-  country: "ID" | "MY" | "SG";
-  demandScore: number;
-  growthScore: number;
-  competitionScore: number;
-  priceMin: number;
-  priceMax: number;
-  monthlyUnits: number;
-  monthlyRevenue: number;
-  signal: "viral" | "rising" | "stable" | "seasonal";
-  source: string;
+
+type TrendApiResponse = {
+  items: MarketTrend[];
+  providers: TrendProviderStatus[];
+  errors: string[];
+  generatedAt: string;
 };
 
-const MARKET_TRENDS: MarketTrend[] = [
-  { id: "mt-1", productName: "Serum brightening niacinamide", category: "Beauty", keyword: "serum brightening", marketplace: "Shopee", country: "ID", demandScore: 92, growthScore: 88, competitionScore: 74, priceMin: 28000, priceMax: 79000, monthlyUnits: 18400, monthlyRevenue: 912000000, signal: "viral", source: "Marketplace search & order signal" },
-  { id: "mt-2", productName: "Sunscreen SPF ringan", category: "Beauty", keyword: "sunscreen spf", marketplace: "TikTok Shop", country: "ID", demandScore: 90, growthScore: 86, competitionScore: 69, priceMin: 35000, priceMax: 99000, monthlyUnits: 15100, monthlyRevenue: 1087000000, signal: "rising", source: "Live commerce trend" },
-  { id: "mt-3", productName: "Botol minum anak anti bocor", category: "Mom & Baby", keyword: "botol minum anak", marketplace: "Tokopedia", country: "ID", demandScore: 81, growthScore: 65, competitionScore: 44, priceMin: 24000, priceMax: 69000, monthlyUnits: 9600, monthlyRevenue: 392000000, signal: "stable", source: "Search demand" },
-  { id: "mt-4", productName: "Organizer kabel meja kerja", category: "Home Office", keyword: "cable organizer", marketplace: "Shopee", country: "ID", demandScore: 76, growthScore: 72, competitionScore: 38, priceMin: 9000, priceMax: 39000, monthlyUnits: 12300, monthlyRevenue: 221000000, signal: "rising", source: "Low competition signal" },
-  { id: "mt-5", productName: "Lampu tidur LED aesthetic", category: "Home Living", keyword: "lampu tidur aesthetic", marketplace: "TikTok Shop", country: "ID", demandScore: 84, growthScore: 91, competitionScore: 58, priceMin: 25000, priceMax: 85000, monthlyUnits: 13700, monthlyRevenue: 615000000, signal: "viral", source: "Short video trend" },
-  { id: "mt-6", productName: "Tas selempang wanita mini", category: "Fashion", keyword: "tas selempang mini", marketplace: "Shopee", country: "ID", demandScore: 79, growthScore: 63, competitionScore: 82, priceMin: 39000, priceMax: 149000, monthlyUnits: 21400, monthlyRevenue: 1819000000, signal: "stable", source: "Category ranking" },
-  { id: "mt-7", productName: "Hampers kopi lokal", category: "F&B", keyword: "hampers kopi", marketplace: "Tokopedia", country: "ID", demandScore: 72, growthScore: 77, competitionScore: 41, priceMin: 65000, priceMax: 189000, monthlyUnits: 4100, monthlyRevenue: 486000000, signal: "seasonal", source: "Seasonal demand" },
-  { id: "mt-8", productName: "Car phone holder magnetic", category: "Automotive", keyword: "phone holder mobil", marketplace: "Lazada", country: "ID", demandScore: 69, growthScore: 61, competitionScore: 35, priceMin: 18000, priceMax: 79000, monthlyUnits: 7200, monthlyRevenue: 268000000, signal: "rising", source: "Accessory search" },
-  { id: "mt-9", productName: "Instant shawl ironless", category: "Fashion", keyword: "instant shawl", marketplace: "Shopee", country: "MY", demandScore: 88, growthScore: 84, competitionScore: 64, priceMin: 32000, priceMax: 118000, monthlyUnits: 14900, monthlyRevenue: 1220000000, signal: "rising", source: "Regional category trend" },
-  { id: "mt-10", productName: "Bento lunch box kids", category: "Mom & Baby", keyword: "bento lunch box", marketplace: "Lazada", country: "MY", demandScore: 74, growthScore: 69, competitionScore: 36, priceMin: 26000, priceMax: 89000, monthlyUnits: 6500, monthlyRevenue: 361000000, signal: "stable", source: "Back-to-school demand" },
-  { id: "mt-11", productName: "Portable blender USB", category: "Kitchen", keyword: "portable blender", marketplace: "TikTok Shop", country: "MY", demandScore: 80, growthScore: 83, competitionScore: 51, priceMin: 62000, priceMax: 169000, monthlyUnits: 5300, monthlyRevenue: 629000000, signal: "rising", source: "Video product discovery" },
-  { id: "mt-12", productName: "Minimalist desk mat", category: "Home Office", keyword: "desk mat", marketplace: "Shopee", country: "SG", demandScore: 71, growthScore: 68, competitionScore: 29, priceMin: 45000, priceMax: 159000, monthlyUnits: 3900, monthlyRevenue: 392000000, signal: "rising", source: "Low saturation signal" },
+const DEFAULT_PROVIDERS: TrendProviderStatus[] = [
+  { id: "fallback", name: "Built-in fallback seed", kind: "fallback_seed", enabled: true, status: "fallback", message: "Aktif agar fitur tren tetap jalan tanpa approval marketplace." },
+  { id: "trend-feed", name: "Custom TREND_FEED_URL", kind: "analytics_feed", enabled: false, status: "config_missing", message: "Set TREND_FEED_URL untuk sumber tren eksternal." },
+  { id: "shopee-official", name: "Shopee official API", kind: "official_api", enabled: false, status: "not_approved", message: "Belum approved; fitur memakai fallback/provider lain." },
 ];
 
 const COPY: Record<Locale, {
@@ -49,6 +33,11 @@ const COPY: Record<Locale, {
   country: string;
   category: string;
   marketplace: string;
+  period: string;
+  periods: Record<TrendPeriod, string>;
+  sources: string;
+  confidence: string;
+  lastUpdated: string;
   questions: Record<MarketQuestion, string>;
   answerTitle: string;
   topTrend: string;
@@ -66,16 +55,22 @@ const COPY: Record<Locale, {
   emptyTitle: string;
   emptyDesc: string;
   dataNote: string;
+  providerNote: string;
 }> = {
   id: {
-    badge: "Tren Pasar Marketplace",
-    title: "Cari tren semua produk di marketplace",
-    subtitle: "Bukan produk internal. Modul ini membaca sinyal pasar umum dari marketplace: demand, pertumbuhan, kompetisi, kategori, keyword, estimasi unit, dan rentang harga. Dataset bisa diganti nanti dengan API Shopee/Tokopedia/TikTok Shop, Google Trends, atau hasil scraping legal.",
+    badge: "Tren Pasar Multi-source",
+    title: "Baca tren produk hari ini, minggu ini, dan bulan ini",
+    subtitle: "Layer ini menggabungkan banyak sumber data: fallback seed, JSON feed eksternal, analytics pihak ketiga, upload manual, dan nanti official API jika sudah approved. Jadi fitur tren tetap jalan walau Shopee ditolak.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
     category: "Kategori",
     marketplace: "Marketplace",
+    period: "Periode",
+    periods: { today: "Hari ini", week: "Minggu ini", month: "Bulan ini" },
+    sources: "Sumber data",
+    confidence: "Keyakinan",
+    lastUpdated: "Update",
     questions: {
       hot: "Produk apa yang sedang tren?",
       category: "Kategori mana yang naik?",
@@ -98,18 +93,24 @@ const COPY: Record<Locale, {
     source: "Sumber sinyal",
     recommendation: "Rekomendasi",
     emptyTitle: "Belum ada hasil tren",
-    emptyDesc: "Ubah filter atau keyword pencarian.",
-    dataNote: "Catatan: data ini adalah market intelligence layer. Untuk real-time public trend, hubungkan API/collector marketplace atau upload dataset tren publik.",
+    emptyDesc: "Ubah filter, periode, atau keyword pencarian.",
+    dataNote: "Catatan: data real-time bisa masuk dari TREND_FEED_URL atau SHOPEE_ANALYTICS_FEED_URL. Official Shopee tetap opsional dan tidak menjadi blocker.",
+    providerNote: "Status provider",
   },
   en: {
-    badge: "Marketplace Market Trends",
-    title: "Explore trends across all marketplace products",
-    subtitle: "Not internal products. This module reads general marketplace signals: demand, growth, competition, category, keyword, estimated units, and price range. The dataset can later be replaced with Shopee/Tokopedia/TikTok Shop APIs, Google Trends, or compliant trend collectors.",
+    badge: "Multi-source Market Trends",
+    title: "Read product trends for today, this week, and this month",
+    subtitle: "This layer combines many data sources: fallback seed, external JSON feeds, third-party analytics, manual uploads, and official APIs later when approved. Trend features keep working even when Shopee is rejected.",
     search: "Search product, keyword, category...",
     all: "All",
     country: "Country",
     category: "Category",
     marketplace: "Marketplace",
+    period: "Period",
+    periods: { today: "Today", week: "This week", month: "This month" },
+    sources: "Data sources",
+    confidence: "Confidence",
+    lastUpdated: "Updated",
     questions: {
       hot: "What products are trending?",
       category: "Which category is rising?",
@@ -132,18 +133,24 @@ const COPY: Record<Locale, {
     source: "Signal source",
     recommendation: "Recommendation",
     emptyTitle: "No trend result",
-    emptyDesc: "Change filters or search keyword.",
-    dataNote: "Note: this is a market intelligence layer. For real-time public trends, connect a marketplace API/collector or upload public trend datasets.",
+    emptyDesc: "Change filters, period, or search keyword.",
+    dataNote: "Note: real-time data can be plugged in through TREND_FEED_URL or SHOPEE_ANALYTICS_FEED_URL. Official Shopee remains optional and is not a blocker.",
+    providerNote: "Provider status",
   },
   ms: {
-    badge: "Tren Pasaran Marketplace",
-    title: "Cari tren semua produk di marketplace",
-    subtitle: "Bukan produk internal. Modul ini membaca isyarat pasaran umum dari marketplace: demand, pertumbuhan, persaingan, kategori, keyword, anggaran unit, dan julat harga. Dataset boleh diganti nanti dengan API Shopee/Tokopedia/TikTok Shop, Google Trends, atau collector trend yang patuh aturan.",
+    badge: "Tren Pasaran Multi-source",
+    title: "Baca tren produk hari ini, minggu ini, dan bulan ini",
+    subtitle: "Layer ini menggabungkan banyak sumber data: fallback seed, JSON feed eksternal, analytics pihak ketiga, upload manual, dan nanti official API jika sudah approved. Fitur tren tetap jalan walau Shopee ditolak.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
     category: "Kategori",
     marketplace: "Marketplace",
+    period: "Tempoh",
+    periods: { today: "Hari ini", week: "Minggu ini", month: "Bulan ini" },
+    sources: "Sumber data",
+    confidence: "Keyakinan",
+    lastUpdated: "Update",
     questions: {
       hot: "Produk apa sedang tren?",
       category: "Kategori mana sedang naik?",
@@ -166,19 +173,11 @@ const COPY: Record<Locale, {
     source: "Sumber isyarat",
     recommendation: "Cadangan",
     emptyTitle: "Belum ada hasil tren",
-    emptyDesc: "Ubah filter atau keyword carian.",
-    dataNote: "Nota: ini ialah market intelligence layer. Untuk public trend real-time, sambungkan API/collector marketplace atau upload dataset tren publik.",
+    emptyDesc: "Ubah filter, tempoh, atau keyword carian.",
+    dataNote: "Nota: data real-time boleh masuk dari TREND_FEED_URL atau SHOPEE_ANALYTICS_FEED_URL. Official Shopee tetap opsional dan bukan blocker.",
+    providerNote: "Status provider",
   },
 };
-
-function clamp(value: number, min = 0, max = 100) {
-  return Math.max(min, Math.min(max, Number.isFinite(value) ? value : 0));
-}
-
-function scoreTrend(item: MarketTrend) {
-  const competitionPenalty = (100 - item.competitionScore) * 0.2;
-  return clamp(item.demandScore * 0.38 + item.growthScore * 0.42 + competitionPenalty);
-}
 
 function toneFor(item: MarketTrend): Tone {
   const score = scoreTrend(item);
@@ -189,25 +188,18 @@ function toneFor(item: MarketTrend): Tone {
 }
 
 function signalLabel(item: MarketTrend, locale: Locale) {
-  const id = {
-    viral: "Viral",
-    rising: "Naik",
-    stable: "Stabil",
-    seasonal: "Musiman",
-  } as const;
-  const en = {
-    viral: "Viral",
-    rising: "Rising",
-    stable: "Stable",
-    seasonal: "Seasonal",
-  } as const;
-  const ms = {
-    viral: "Viral",
-    rising: "Naik",
-    stable: "Stabil",
-    seasonal: "Bermusim",
-  } as const;
+  const id = { viral: "Viral", rising: "Naik", stable: "Stabil", seasonal: "Musiman" } as const;
+  const en = { viral: "Viral", rising: "Rising", stable: "Stable", seasonal: "Seasonal" } as const;
+  const ms = { viral: "Viral", rising: "Naik", stable: "Stabil", seasonal: "Bermusim" } as const;
   return (locale === "en" ? en : locale === "ms" ? ms : id)[item.signal];
+}
+
+function providerTone(status: TrendProviderStatus["status"]): Tone {
+  if (status === "ready") return "success";
+  if (status === "fallback") return "blue";
+  if (status === "not_approved") return "warning";
+  if (status === "error") return "danger";
+  return "neutral";
 }
 
 function unique<T>(items: T[]) {
@@ -254,12 +246,13 @@ function buildAnswer(question: MarketQuestion, rows: MarketTrend[], c: typeof CO
     return `${c.priceRange}: untuk tren teratas ${top.productName}, harga pasar berada di ${money(top.priceMin, locale)}-${money(top.priceMax, locale)}. ${c.recommendation}: masuk di tengah rentang harga, bukan paling murah, lalu bedakan lewat bundling, foto, garansi, atau bonus kecil.`;
   }
   if (question === "today") {
-    return `1. Ambil 3 produk teratas dari daftar tren.\n2. Cek minimal 20 listing kompetitor per produk.\n3. Validasi supplier dan hitung margin setelah fee/voucher/ongkir.\n4. Uji 1 SKU kecil dulu sebelum stok besar.\n5. Prioritaskan produk dengan demand tinggi dan kompetisi di bawah 60/100.`;
+    return `1. Ambil 3 produk teratas dari daftar tren periode aktif.\n2. Cek minimal 20 listing kompetitor per produk.\n3. Validasi supplier dan hitung margin setelah fee/voucher/ongkir.\n4. Uji 1 SKU kecil dulu sebelum stok besar.\n5. Prioritaskan produk dengan demand tinggi dan kompetisi di bawah 60/100.`;
   }
   return `${c.topTrend}: ${top.productName} di ${top.marketplace}. ${c.recommendation}: riset kompetitor dan validasi margin sebelum masuk stok.\n${listTop}`;
 }
 
-export function ProductTrendAdvisor({ products: _products }: { products?: Product[] }) {
+export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
+  void products;
   const locale = useDashboardLocale();
   const c = COPY[locale];
   const [question, setQuestion] = useState<MarketQuestion>("hot");
@@ -267,22 +260,38 @@ export function ProductTrendAdvisor({ products: _products }: { products?: Produc
   const [country, setCountry] = useState("All");
   const [marketplace, setMarketplace] = useState("All");
   const [category, setCategory] = useState("All");
+  const [period, setPeriod] = useState<TrendPeriod>("week");
+  const [apiRows, setApiRows] = useState<MarketTrend[] | null>(null);
+  const [providers, setProviders] = useState<TrendProviderStatus[]>(DEFAULT_PROVIDERS);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [generatedAt, setGeneratedAt] = useState<string>("");
 
-  const countries = useMemo(() => ["All", ...unique(MARKET_TRENDS.map((item) => item.country))], []);
-  const marketplaces = useMemo(() => ["All", ...unique(MARKET_TRENDS.map((item) => item.marketplace))], []);
-  const categories = useMemo(() => ["All", ...unique(MARKET_TRENDS.map((item) => item.category))], []);
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ period, country, marketplace, category, q: query });
+    fetch(`/api/marketplace/trends?${params.toString()}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Trend API error")))
+      .then((payload: TrendApiResponse) => {
+        setApiRows(payload.items || []);
+        setProviders(payload.providers?.length ? payload.providers : DEFAULT_PROVIDERS);
+        setErrors(payload.errors || []);
+        setGeneratedAt(payload.generatedAt || "");
+      })
+      .catch((error: Error) => {
+        if (error.name !== "AbortError") {
+          setApiRows(null);
+          setErrors(["Trend API belum tersedia, memakai fallback lokal."]);
+        }
+      });
+    return () => controller.abort();
+  }, [period, country, marketplace, category, query]);
 
-  const rows = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return MARKET_TRENDS.filter((item) => {
-      const matchQuery = !normalized || [item.productName, item.keyword, item.category, item.marketplace].join(" ").toLowerCase().includes(normalized);
-      const matchCountry = country === "All" || item.country === country;
-      const matchMarketplace = marketplace === "All" || item.marketplace === marketplace;
-      const matchCategory = category === "All" || item.category === category;
-      return matchQuery && matchCountry && matchMarketplace && matchCategory;
-    }).sort((a, b) => scoreTrend(b) - scoreTrend(a));
-  }, [query, country, marketplace, category]);
+  const sourceRows = apiRows || FALLBACK_MARKET_TRENDS;
+  const countries = useMemo(() => ["All", ...unique(sourceRows.map((item) => item.country))], [sourceRows]);
+  const marketplaces = useMemo(() => ["All", ...unique(sourceRows.map((item) => item.marketplace))], [sourceRows]);
+  const categories = useMemo(() => ["All", ...unique(sourceRows.map((item) => item.category))], [sourceRows]);
 
+  const rows = useMemo(() => filterTrends(sourceRows, { period, country, marketplace, category, q: query }), [sourceRows, query, country, marketplace, category, period]);
   const answer = useMemo(() => buildAnswer(question, rows, c, locale), [question, rows, c, locale]);
   const top = rows[0];
   const lowCompetition = rows.find((item) => item.demandScore >= 65 && item.competitionScore <= 45);
@@ -291,10 +300,11 @@ export function ProductTrendAdvisor({ products: _products }: { products?: Produc
     const bestScore = best ? rows.filter((row) => row.marketplace === best).reduce((sum, row) => sum + scoreTrend(row), 0) : -1;
     return currentScore > bestScore ? item.marketplace : best;
   }, "" as string);
+  const activeSources = providers.filter((item) => item.enabled || item.status === "fallback").length;
 
   return <section style={cardStyle}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
-      <div style={{ maxWidth: 820 }}>
+      <div style={{ maxWidth: 840 }}>
         <Badge label={c.badge} tone="blue" />
         <h2 style={{ margin: "10px 0 6px", fontSize: 28, letterSpacing: -0.8 }}>{c.title}</h2>
         <p style={{ margin: 0, color: "#64748b", lineHeight: 1.7 }}>{c.subtitle}</p>
@@ -304,7 +314,10 @@ export function ProductTrendAdvisor({ products: _products }: { products?: Produc
       </div>
     </div>
 
-    <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.7fr 0.8fr 0.8fr", gap: 10, marginTop: 18 }} className="main-grid">
+    <div style={{ display: "grid", gridTemplateColumns: "0.8fr 1.3fr 0.7fr 0.8fr 0.8fr", gap: 10, marginTop: 18 }} className="main-grid">
+      <select value={period} onChange={(event) => setPeriod(event.target.value as TrendPeriod)} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 800 }}>
+        {(Object.keys(c.periods) as TrendPeriod[]).map((item) => <option key={item} value={item}>{c.period}: {c.periods[item]}</option>)}
+      </select>
       <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={c.search} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 700 }} />
       <select value={country} onChange={(event) => setCountry(event.target.value)} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 800 }}><option value="All">{c.country}: {c.all}</option>{countries.filter((item) => item !== "All").map((item) => <option key={item} value={item}>{c.country}: {item}</option>)}</select>
       <select value={marketplace} onChange={(event) => setMarketplace(event.target.value)} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 800 }}><option value="All">{c.marketplace}: {c.all}</option>{marketplaces.filter((item) => item !== "All").map((item) => <option key={item} value={item}>{item}</option>)}</select>
@@ -315,8 +328,13 @@ export function ProductTrendAdvisor({ products: _products }: { products?: Produc
       <StatCard label={c.topTrend} value={top?.productName || "-"} helper={top ? `${top.marketplace} · ${signalLabel(top, locale)} · ${c.demand} ${top.demandScore}/100` : "-"} tone="blue" />
       <StatCard label={c.strongestMarketplace} value={strongestMarketplace || "-"} helper={rows.length ? `${rows.length} trend signals` : "-"} tone="success" />
       <StatCard label={c.lowCompetition} value={lowCompetition?.productName || "-"} helper={lowCompetition ? `${c.competition} ${lowCompetition.competitionScore}/100` : c.emptyDesc} tone={lowCompetition ? "success" : "warning"} />
-      <StatCard label={c.monthlyRevenue} value={compactMoney(rows.reduce((sum, item) => sum + item.monthlyRevenue, 0), locale)} helper={`${rows.reduce((sum, item) => sum + item.monthlyUnits, 0).toLocaleString()} unit`} tone="neutral" />
+      <StatCard label={c.sources} value={String(activeSources)} helper={generatedAt ? `${c.lastUpdated}: ${new Date(generatedAt).toLocaleString()}` : c.providerNote} tone="neutral" />
     </div>
+
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+      {providers.map((provider) => <Badge key={provider.id} label={`${provider.name}: ${provider.status}`} tone={providerTone(provider.status)} />)}
+    </div>
+    {errors.length > 0 && <p style={{ margin: "10px 0 0", color: "#b45309", fontSize: 12 }}>{errors.join(" ")}</p>}
 
     <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 14, marginTop: 16 }}>
       <div style={{ padding: 16, borderRadius: 20, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
@@ -333,7 +351,7 @@ export function ProductTrendAdvisor({ products: _products }: { products?: Produc
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
               <div>
                 <strong>{item.productName}</strong>
-                <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>{item.marketplace} · {item.country} · {item.category} · keyword: {item.keyword}</div>
+                <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>{item.marketplace} · {item.country} · {c.periods[item.period]} · {item.category} · keyword: {item.keyword}</div>
               </div>
               <Badge label={`${signalLabel(item, locale)} ${Math.round(trendScore)}/100`} tone={tone} />
             </div>
@@ -341,11 +359,13 @@ export function ProductTrendAdvisor({ products: _products }: { products?: Produc
               <span>{c.demand}: <b>{item.demandScore}/100</b></span>
               <span>{c.growth}: <b>{item.growthScore}/100</b></span>
               <span>{c.competition}: <b>{item.competitionScore}/100</b></span>
-              <span>{c.priceRange}: <b>{money(item.priceMin, locale)}-{money(item.priceMax, locale)}</b></span>
+              <span>{c.confidence}: <b>{item.confidence}/100</b></span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10, fontSize: 12, color: "#64748b" }}>
+              <span>{c.priceRange}: <b>{money(item.priceMin, locale)}-{money(item.priceMax, locale)}</b></span>
               <span>{c.monthlyUnits}: <b>{item.monthlyUnits.toLocaleString()}</b></span>
               <span>{c.monthlyRevenue}: <b>{compactMoney(item.monthlyRevenue, locale)}</b></span>
+              <span>{c.lastUpdated}: <b>{new Date(item.lastUpdated).toLocaleDateString()}</b></span>
             </div>
             <div style={{ marginTop: 10 }}><Progress value={trendScore} /></div>
             <p style={{ margin: "8px 0 0", color: "#94a3b8", fontSize: 12 }}>{c.source}: {item.source}</p>
