@@ -1,8 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { hasSupabaseEnv, supabase, supabaseConfigError } from "@/lib/supabaseClient";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 function LoginContent() {
@@ -10,8 +11,12 @@ function LoginContent() {
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [loadingEmail, setLoadingEmail] = useState(false);
+  const [loadingPassword, setLoadingPassword] = useState(false);
+
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -26,6 +31,7 @@ function LoginContent() {
     let mounted = true;
 
     async function redirectIfLoggedIn() {
+      if (!hasSupabaseEnv) return;
       const { data } = await supabase.auth.getSession();
       if (mounted && data.session?.user) {
         router.replace(nextPath);
@@ -33,6 +39,13 @@ function LoginContent() {
     }
 
     void redirectIfLoggedIn();
+
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return () => {
+        mounted = false;
+      };
+    }
 
     const {
       data: { subscription },
@@ -53,29 +66,71 @@ function LoginContent() {
     };
   }, [nextPath, router]);
 
-async function loginWithGoogle() {
-  setErrorMessage("");
-  setMessage("");
-  setLoadingGoogle(true);
+  async function loginWithGoogle() {
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return;
+    }
 
-  const origin = window.location.origin;
-  const redirectTo = `${origin}/auth/callback`;
+    setErrorMessage("");
+    setMessage("");
+    setLoadingGoogle(true);
 
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo,
-    },
-  });
+    const origin = window.location.origin;
+    const redirectTo = `${origin}/auth/callback`;
 
-  if (error) {
-    setErrorMessage(error.message);
-    setLoadingGoogle(false);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+      },
+    });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setLoadingGoogle(false);
+    }
   }
-}
 
-  async function sendMagicLink(e: React.FormEvent<HTMLFormElement>) {
+  async function loginWithPassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return;
+    }
+
+    setErrorMessage("");
+    setMessage("");
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      setErrorMessage("Masukkan email dan password.");
+      return;
+    }
+
+    setLoadingPassword(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setLoadingPassword(false);
+      return;
+    }
+
+    router.replace(nextPath);
+  }
+
+  async function sendMagicLink() {
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return;
+    }
 
     setErrorMessage("");
     setMessage("");
@@ -153,7 +208,7 @@ async function loginWithGoogle() {
 
         <button
           onClick={loginWithGoogle}
-          disabled={loadingGoogle}
+          disabled={loadingGoogle || !hasSupabaseEnv}
           style={{
             width: "100%",
             padding: "15px 16px",
@@ -184,7 +239,7 @@ async function loginWithGoogle() {
           <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
         </div>
 
-        <form onSubmit={sendMagicLink} style={{ display: "grid", gap: 12 }}>
+        <form onSubmit={loginWithPassword} style={{ display: "grid", gap: 12 }}>
           <input
             type="email"
             value={email}
@@ -201,9 +256,27 @@ async function loginWithGoogle() {
               outline: "none",
             }}
           />
+
+          <input
+            type="password"
+            value={password}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            placeholder="Password"
+            style={{
+              width: "100%",
+              padding: "15px 16px",
+              borderRadius: 16,
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.74)",
+              color: "white",
+              fontSize: 15,
+              outline: "none",
+            }}
+          />
+
           <button
             type="submit"
-            disabled={loadingEmail}
+            disabled={loadingPassword || !hasSupabaseEnv}
             style={{
               width: "100%",
               padding: "15px 16px",
@@ -212,11 +285,30 @@ async function loginWithGoogle() {
               background: "linear-gradient(135deg, #22c55e, #14b8a6)",
               color: "white",
               fontWeight: 900,
+              cursor: loadingPassword ? "not-allowed" : "pointer",
+              opacity: loadingPassword ? 0.75 : 1,
+            }}
+          >
+            {loadingPassword ? "Masuk..." : "Login dengan Email & Password"}
+          </button>
+
+          <button
+            type="button"
+            onClick={sendMagicLink}
+            disabled={loadingEmail || !hasSupabaseEnv}
+            style={{
+              width: "100%",
+              padding: "13px 16px",
+              borderRadius: 16,
+              border: "1px solid rgba(148,163,184,0.25)",
+              background: "transparent",
+              color: "#cbd5e1",
+              fontWeight: 800,
               cursor: loadingEmail ? "not-allowed" : "pointer",
               opacity: loadingEmail ? 0.75 : 1,
             }}
           >
-            {loadingEmail ? "Mengirim..." : "Kirim Link Login"}
+            {loadingEmail ? "Mengirim..." : "Kirim Magic Link"}
           </button>
         </form>
 
@@ -224,7 +316,7 @@ async function loginWithGoogle() {
         {errorMessage && <p style={{ color: "#fca5a5", fontSize: 13 }}>{errorMessage}</p>}
 
         <p style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.6, marginBottom: 0 }}>
-          Disarankan pakai Google Login agar tidak perlu buka email dan tidak kena limit OTP.
+          Untuk reviewer marketplace, gunakan akun demo email dan password yang disediakan.
         </p>
       </div>
     </main>
