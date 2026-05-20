@@ -20,6 +20,23 @@ function LoginContent() {
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
+  const DEMO_LOGIN_EMAILS = new Set(["alimafudfe+demo@gmail.com", "demo@untungin.ai"]);
+  const DEMO_SESSION_KEY = "untungin_demo_session";
+
+  function startDemoSession(cleanEmail: string) {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        DEMO_SESSION_KEY,
+        JSON.stringify({
+          id: "demo-user",
+          email: cleanEmail,
+          createdAt: new Date().toISOString(),
+        }),
+      );
+    }
+    router.replace(nextPath);
+  }
+
   const nextPath = searchParams.get("next") || "/";
   const urlError = searchParams.get("error") || "";
 
@@ -110,20 +127,33 @@ function LoginContent() {
       return;
     }
 
-    setLoadingPassword(true);
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password,
-    });
-
-    if (error) {
-      setErrorMessage(error.message);
-      setLoadingPassword(false);
+    // Login demo darurat untuk reviewer / testing marketplace.
+    // Ini membuat dashboard tetap bisa dibuka walau Supabase Auth sedang gagal fetch/CORS/network.
+    if (DEMO_LOGIN_EMAILS.has(cleanEmail)) {
+      startDemoSession(cleanEmail);
       return;
     }
 
-    router.replace(nextPath);
+    setLoadingPassword(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error) {
+        setErrorMessage(error.message);
+        setLoadingPassword(false);
+        return;
+      }
+
+      router.replace(nextPath);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Gagal konek ke Supabase Auth.";
+      setErrorMessage(`${detail}. Cek NEXT_PUBLIC_SUPABASE_URL / ANON_KEY dan URL Configuration Supabase.`);
+      setLoadingPassword(false);
+    }
   }
 
   async function sendMagicLink() {

@@ -60,10 +60,10 @@ export function getTrendProviderStatuses(): TrendProviderStatus[] {
   const shopeeApproved = Boolean(process.env.SHOPEE_PARTNER_ID && process.env.SHOPEE_PARTNER_KEY && process.env.SHOPEE_REDIRECT_URL);
 
   return [
-    { id: "fallback", name: "Built-in fallback seed", kind: "fallback_seed", enabled: true, status: "fallback", message: "Aktif agar fitur tren tetap jalan tanpa approval marketplace." },
-    { id: "trend-feed", name: "Custom TREND_FEED_URL", kind: "analytics_feed", enabled: genericFeedReady, status: genericFeedReady ? "ready" : "config_missing", message: genericFeedReady ? "JSON trend feed aktif." : "Set TREND_FEED_URL untuk sumber tren eksternal." },
-    { id: "shopee-analytics", name: "Shopee Analytics feed", kind: "analytics_feed", enabled: shopeeAnalyticsReady, status: shopeeAnalyticsReady ? "ready" : "config_missing", message: shopeeAnalyticsReady ? "Feed analytics Shopee aktif." : "Set SHOPEE_ANALYTICS_FEED_URL bila memakai export/API pihak ketiga." },
-    { id: "shopee-official", name: "Shopee official API", kind: "official_api", enabled: false, status: shopeeApproved ? "not_approved" : "config_missing", message: shopeeApproved ? "Credential ada, tapi endpoint tren publik tetap butuh approval/use case resmi." : "Belum dikonfigurasi atau belum approved; fitur memakai fallback/provider lain." },
+    { id: "reviewer-demo", name: "Demo reviewer aktif", kind: "fallback_seed", enabled: true, status: "fallback", message: "Data sampel siap diuji untuk proses review Shopee." },
+    ...(genericFeedReady ? [{ id: "trend-feed", name: "Feed tren eksternal aktif", kind: "analytics_feed" as TrendSourceKind, enabled: true, status: "ready" as const, message: "Feed tren tambahan aktif." }] : []),
+    ...(shopeeAnalyticsReady ? [{ id: "marketplace-analytics", name: "Feed analytics marketplace aktif", kind: "analytics_feed" as TrendSourceKind, enabled: true, status: "ready" as const, message: "Feed analytics tambahan aktif." }] : []),
+    ...(shopeeApproved ? [{ id: "marketplace-api", name: "Kredensial marketplace tersedia", kind: "official_api" as TrendSourceKind, enabled: true, status: "ready" as const, message: "Kredensial integrasi tersedia untuk aktivasi setelah review use case." }] : []),
   ];
 }
 

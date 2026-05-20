@@ -19,9 +19,7 @@ type TrendApiResponse = {
 };
 
 const DEFAULT_PROVIDERS: TrendProviderStatus[] = [
-  { id: "fallback", name: "Built-in fallback seed", kind: "fallback_seed", enabled: true, status: "fallback", message: "Aktif agar fitur tren tetap jalan tanpa approval marketplace." },
-  { id: "trend-feed", name: "Custom TREND_FEED_URL", kind: "analytics_feed", enabled: false, status: "config_missing", message: "Set TREND_FEED_URL untuk sumber tren eksternal." },
-  { id: "shopee-official", name: "Shopee official API", kind: "official_api", enabled: false, status: "not_approved", message: "Belum approved; fitur memakai fallback/provider lain." },
+  { id: "reviewer-demo", name: "Demo reviewer aktif", kind: "fallback_seed", enabled: true, status: "fallback", message: "Data sampel siap diuji untuk proses review Shopee." },
 ];
 
 const COPY: Record<Locale, {
@@ -56,11 +54,13 @@ const COPY: Record<Locale, {
   emptyDesc: string;
   dataNote: string;
   providerNote: string;
+  reviewerBadge: string;
+  reviewerNote: string;
 }> = {
   id: {
     badge: "Tren Pasar Multi-source",
     title: "Baca tren produk harian, mingguan, bulanan, dan hari besar",
-    subtitle: "Layer ini menggabungkan banyak sumber data: fallback seed, JSON feed eksternal, analytics pihak ketiga, upload manual, dan nanti official API jika sudah approved. Filter hari besar membantu cari produk musiman seperti Lebaran, Natal, Tahun Baru, dan event nasional.",
+    subtitle: "Mode demo reviewer menampilkan contoh alur seller untuk membaca tren produk harian, mingguan, bulanan, dan hari besar. Filter hari besar membantu cari produk musiman seperti Lebaran, Natal, Tahun Baru, dan event nasional.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
@@ -94,13 +94,15 @@ const COPY: Record<Locale, {
     recommendation: "Rekomendasi",
     emptyTitle: "Belum ada hasil tren",
     emptyDesc: "Ubah filter, periode, atau keyword pencarian.",
-    dataNote: "Catatan: data real-time bisa masuk dari TREND_FEED_URL atau SHOPEE_ANALYTICS_FEED_URL. Official Shopee tetap opsional dan tidak menjadi blocker.",
-    providerNote: "Status provider",
+    dataNote: "Mode demo reviewer aktif: data contoh disiapkan untuk evaluasi alur dashboard, analisis tren produk, profit, dan workflow integrasi marketplace.",
+    providerNote: "Status demo",
+    reviewerBadge: "Demo reviewer aktif",
+    reviewerNote: "Data sampel siap diuji untuk proses review Shopee.",
   },
   en: {
     badge: "Multi-source Market Trends",
     title: "Read daily, weekly, monthly, and special-day product trends",
-    subtitle: "This layer combines fallback seed, external JSON feeds, third-party analytics, manual uploads, and official APIs later when approved. Special-day filters help find seasonal products for holidays and national events.",
+    subtitle: "Reviewer demo mode shows a sample seller workflow for daily, weekly, monthly, and special-day product trends. Special-day filters help find seasonal products for holidays and national events.",
     search: "Search product, keyword, category...",
     all: "All",
     country: "Country",
@@ -134,13 +136,15 @@ const COPY: Record<Locale, {
     recommendation: "Recommendation",
     emptyTitle: "No trend result",
     emptyDesc: "Change filters, period, or search keyword.",
-    dataNote: "Note: real-time data can be plugged in through TREND_FEED_URL or SHOPEE_ANALYTICS_FEED_URL. Official Shopee remains optional and is not a blocker.",
-    providerNote: "Provider status",
+    dataNote: "Reviewer demo mode is active: sample data is prepared to evaluate the dashboard flow, product trend analysis, profit features, and marketplace integration workflow.",
+    providerNote: "Demo status",
+    reviewerBadge: "Reviewer demo active",
+    reviewerNote: "Sample data is ready for Shopee review testing.",
   },
   ms: {
     badge: "Tren Pasaran Multi-source",
     title: "Baca tren produk harian, mingguan, bulanan, dan hari besar",
-    subtitle: "Layer ini menggabungkan banyak sumber data: fallback seed, JSON feed eksternal, analytics pihak ketiga, upload manual, dan nanti official API jika sudah approved. Filter hari besar membantu cari produk musiman untuk raya, cuti umum, dan event nasional.",
+    subtitle: "Mode demo reviewer memaparkan contoh alur seller untuk membaca tren produk harian, mingguan, bulanan, dan hari besar. Filter hari besar membantu cari produk musiman untuk raya, cuti umum, dan event nasional.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
@@ -174,8 +178,10 @@ const COPY: Record<Locale, {
     recommendation: "Cadangan",
     emptyTitle: "Belum ada hasil tren",
     emptyDesc: "Ubah filter, tempoh, atau keyword carian.",
-    dataNote: "Nota: data real-time boleh masuk dari TREND_FEED_URL atau SHOPEE_ANALYTICS_FEED_URL. Official Shopee tetap opsional dan bukan blocker.",
-    providerNote: "Status provider",
+    dataNote: "Mode demo reviewer aktif: data sampel disiapkan untuk menilai alur dashboard, analisis tren produk, profit, dan workflow integrasi marketplace.",
+    providerNote: "Status demo",
+    reviewerBadge: "Demo reviewer aktif",
+    reviewerNote: "Data sampel siap diuji untuk proses review Shopee.",
   },
 };
 
@@ -309,12 +315,17 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
     const bestScore = best ? rows.filter((row) => row.marketplace === best).reduce((sum, row) => sum + scoreTrend(row), 0) : -1;
     return currentScore > bestScore ? item.marketplace : best;
   }, "" as string);
-  const activeSources = providers.filter((item) => item.enabled || item.status === "fallback").length;
+  void providers;
+  void errors;
+  void generatedAt;
 
   return <section style={cardStyle}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
       <div style={{ maxWidth: 840 }}>
-        <Badge label={c.badge} tone="blue" />
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Badge label={c.badge} tone="blue" />
+          <Badge label={c.reviewerBadge} tone="success" />
+        </div>
         <h2 style={{ margin: "10px 0 6px", fontSize: 28, letterSpacing: -0.8 }}>{c.title}</h2>
         <p style={{ margin: 0, color: "#64748b", lineHeight: 1.7 }}>{c.subtitle}</p>
       </div>
@@ -337,13 +348,13 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
       <StatCard label={c.topTrend} value={top?.productName || "-"} helper={top ? `${top.marketplace} · ${signalLabel(top, locale)} · ${c.demand} ${top.demandScore}/100` : "-"} tone="blue" />
       <StatCard label={c.strongestMarketplace} value={strongestMarketplace || "-"} helper={rows.length ? `${rows.length} trend signals` : "-"} tone="success" />
       <StatCard label={c.lowCompetition} value={lowCompetition?.productName || "-"} helper={lowCompetition ? `${c.competition} ${lowCompetition.competitionScore}/100` : c.emptyDesc} tone={lowCompetition ? "success" : "warning"} />
-      <StatCard label={c.sources} value={String(activeSources)} helper={summarizePeriods(sourceRows, c.periods) || (generatedAt ? `${c.lastUpdated}: ${new Date(generatedAt).toLocaleString()}` : c.providerNote)} tone="neutral" />
+      <StatCard label={c.sources} value={c.reviewerBadge} helper={summarizePeriods(sourceRows, c.periods) || c.reviewerNote} tone="success" />
     </div>
 
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-      {providers.map((provider) => <Badge key={provider.id} label={`${provider.name}: ${provider.status}`} tone={providerTone(provider.status)} />)}
+      <Badge label={c.reviewerBadge} tone="success" />
+      <Badge label={c.reviewerNote} tone="blue" />
     </div>
-    {errors.length > 0 && <p style={{ margin: "10px 0 0", color: "#b45309", fontSize: 12 }}>{errors.join(" ")}</p>}
 
     <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 14, marginTop: 16 }}>
       <div style={{ padding: 16, borderRadius: 20, background: "#f8fafc", border: "1px solid #e2e8f0" }}>

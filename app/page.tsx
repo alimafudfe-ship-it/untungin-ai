@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { hasSupabaseEnv, supabase, supabaseConfigError } from "@/lib/supabaseClient";
 import type { Expense, ExpenseRow, Goal, Product, ProductFilter, ProductRow, Profile, StockMoveType, TabKey, UpgradePlan } from "@/types/dashboard";
-import { DEMO_GOALS, FREE_PRODUCT_LIMIT, MIDTRANS_REVIEW_MODE, getPlanPriceLabel } from "@/lib/dashboard/constants";
+import { DEMO_EXPENSES, DEMO_GOALS, DEMO_PRODUCTS, FREE_PRODUCT_LIMIT, MIDTRANS_REVIEW_MODE, getPlanPriceLabel } from "@/lib/dashboard/constants";
 import { useDashboardLocale } from "@/lib/dashboard/i18n";
 import { calculateMargin, calculateProfit, getDashboardMetrics, isProfileExpired, isProfilePro, mapExpenseRow, mapProductRow } from "@/lib/dashboard/calculations";
 import { generateInsightText, getOneThingAction, buildInsightCards } from "@/lib/dashboard/insights";
@@ -116,8 +116,37 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const DEMO_SESSION_KEY = "untungin_demo_session";
+    function getDemoSession() {
+      if (typeof window === "undefined") return null;
+      try {
+        const raw = window.localStorage.getItem(DEMO_SESSION_KEY);
+        return raw ? JSON.parse(raw) as { id?: string; email?: string } : null;
+      } catch {
+        return null;
+      }
+    }
+    function loadDemoDashboard(demoSession?: { id?: string; email?: string } | null) {
+      if (!isMounted) return;
+      setSetupError(null);
+      setCurrentUserId(demoSession?.id || "demo-user");
+      setUserEmail(demoSession?.email || "alimafudfe+demo@gmail.com");
+      setProducts(DEMO_PRODUCTS);
+      setExpenses(DEMO_EXPENSES);
+      setProfile({ role: "user", plan: "free", pro_until: null, email: demoSession?.email || "alimafudfe+demo@gmail.com" });
+      setWorkspaceId(null);
+      setStores([]);
+      setSelectedStoreId(null);
+      setIsDemoMode(true);
+      setPageLoading(false);
+    }
     async function loadUserAndData() {
       if (isMounted) setPageLoading(true);
+      const demoSession = getDemoSession();
+      if (demoSession?.id) {
+        loadDemoDashboard(demoSession);
+        return;
+      }
       if (!hasSupabaseEnv) {
         if (!isMounted) return;
         setSetupError(supabaseConfigError || "Supabase ENV belum lengkap.");
@@ -134,7 +163,17 @@ export default function DashboardPage() {
         return;
       }
 
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      let sessionData: any = { session: null };
+      let sessionError: any = null;
+      try {
+        const sessionResult = await supabase.auth.getSession();
+        sessionData = sessionResult.data;
+        sessionError = sessionResult.error;
+      } catch (authError) {
+        console.warn("Supabase Auth gagal dihubungi, masuk ke mode demo.", authError);
+        loadDemoDashboard({ id: "demo-user", email: "alimafudfe+demo@gmail.com" });
+        return;
+      }
       const user = sessionData.session?.user ?? null;
       if (sessionError || !user) {
         if (!isMounted) return;
@@ -206,6 +245,7 @@ export default function DashboardPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") { loadUserAndData(); return; }
       if (event === "SIGNED_OUT" || !session?.user) {
+        if (getDemoSession()?.id) return;
         setCurrentUserId(null); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts([]); setExpenses([]); setProfile(null); setIsDemoMode(false); setPageLoading(false); router.replace(`/login?next=${encodeURIComponent("/")}`);
       }
     });
@@ -294,7 +334,8 @@ export default function DashboardPage() {
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    if (typeof window !== "undefined") window.localStorage.removeItem("untungin_demo_session");
+    await supabase.auth.signOut().catch(() => null);
     setCurrentUserId(null); setUserEmail(null); setProducts([]); setProfile(null); router.replace("/login");
   }
 
