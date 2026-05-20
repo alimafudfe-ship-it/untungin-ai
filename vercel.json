@@ -6,5 +6,5 @@
     }
   ],
   "buildCommand": "npm run build",
-  "installCommand": "npm ci --registry=https://registry.npmjs.org/ --prefer-online"
+  "installCommand": "npm install --registry=https://registry.npmjs.org/ --no-audit --no-fund --prefer-online --fetch-retries=2 --fetch-timeout=60000"
 }
