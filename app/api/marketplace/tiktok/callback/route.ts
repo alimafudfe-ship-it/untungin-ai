@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 type TikTokState = {
   provider?: string;
   userId?: string;
@@ -17,8 +20,8 @@ function decodeState(raw: string | null): TikTokState {
 }
 
 async function exchangeTikTokCode(code: string) {
-  const appKey = process.env.TIKTOK_SHOP_APP_KEY;
-  const appSecret = process.env.TIKTOK_SHOP_APP_SECRET;
+  const appKey = process.env.TIKTOK_SHOP_APP_KEY?.trim();
+  const appSecret = process.env.TIKTOK_SHOP_APP_SECRET?.trim();
 
   if (!appKey || !appSecret) {
     return {
@@ -29,23 +32,40 @@ async function exchangeTikTokCode(code: string) {
   }
 
   const tokenUrl =
-    process.env.TIKTOK_SHOP_TOKEN_URL ||
+    process.env.TIKTOK_SHOP_TOKEN_URL?.trim() ||
     "https://auth.tiktok-shops.com/api/v2/token/get";
 
   try {
-    const url = new URL(tokenUrl);
+    const tokenRequestUrl = new URL(tokenUrl);
 
-    url.searchParams.set("app_key", appKey);
-    url.searchParams.set("app_secret", appSecret);
-    url.searchParams.set("auth_code", code);
-    url.searchParams.set("grant_type", "authorized_code");
+    tokenRequestUrl.searchParams.set("app_key", appKey);
+    tokenRequestUrl.searchParams.set("app_secret", appSecret);
+    tokenRequestUrl.searchParams.set("auth_code", code);
+    tokenRequestUrl.searchParams.set("grant_type", "authorized_code");
 
-    const response = await fetch(url.toString(), {
+    console.log("TikTok token exchange request:", {
+      tokenUrl,
+      appKey,
+      hasAppSecret: !!appSecret,
+      codeLength: code.length,
+    });
+
+    const response = await fetch(tokenRequestUrl.toString(), {
       method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
       cache: "no-store",
     });
 
-    const data = await response.json().catch(() => null);
+    const rawText = await response.text();
+
+    let data: any = null;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { rawText };
+    }
 
     const accessToken =
       data?.data?.access_token ||
@@ -62,13 +82,17 @@ async function exchangeTikTokCode(code: string) {
       data?.shop_id ||
       data?.data?.seller_id ||
       data?.seller_id ||
+      data?.data?.shop_cipher ||
+      data?.shop_cipher ||
       null;
 
     console.log("TikTok token exchange result:", {
-      status: response.status,
-      ok: response.ok,
+      httpStatus: response.status,
+      httpOk: response.ok,
       hasAccessToken: !!accessToken,
-      data,
+      hasRefreshToken: !!refreshToken,
+      shopId,
+      responseData: data,
     });
 
     return {
@@ -80,14 +104,19 @@ async function exchangeTikTokCode(code: string) {
       shopId,
     };
   } catch (error) {
+    console.error("TikTok token exchange exception:", error);
+
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Token exchange gagal.",
     };
   }
 }
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
+
+  console.log("TikTok callback params:", Object.fromEntries(url.searchParams.entries()));
 
   const code =
     url.searchParams.get("code") ||
@@ -114,12 +143,16 @@ export async function GET(req: Request) {
   }
 
   if (!code) {
+    console.error("TikTok callback missing code/auth_code");
+
     return NextResponse.redirect(
       new URL(`/?marketplace=tiktok_missing_code`, req.url)
     );
   }
 
   const tokenResult = await exchangeTikTokCode(code);
+
+  console.log("TikTok tokenResult FULL:", JSON.stringify(tokenResult, null, 2));
 
   const resolvedShopId =
     shopIdFromUrl ||
@@ -129,10 +162,17 @@ export async function GET(req: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  if (!supabaseUrl || !serviceKey) {
+    console.error("Supabase env missing:", {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceKey: !!serviceKey,
+    });
+  }
+
   if (supabaseUrl && serviceKey) {
     const db = createClient(supabaseUrl, serviceKey);
 
-    await db.from("marketplace_connections").upsert(
+    const { error: upsertError } = await db.from("marketplace_connections").upsert(
       {
         user_id: state.userId || "demo-user",
         provider: "tiktok",
@@ -153,6 +193,16 @@ export async function GET(req: Request) {
         onConflict: "user_id,provider,shop_id",
       }
     );
+
+    if (upsertError) {
+      console.error("Supabase marketplace_connections upsert error:", upsertError);
+    } else {
+      console.log("Supabase marketplace_connections upsert success:", {
+        provider: "tiktok",
+        shop_id: resolvedShopId,
+        status: tokenResult.ok ? "connected" : "auth_code_received",
+      });
+    }
   }
 
   const result = tokenResult.ok ? "connected" : "code_received";
