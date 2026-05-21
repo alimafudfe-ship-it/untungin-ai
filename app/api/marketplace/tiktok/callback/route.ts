@@ -33,17 +33,15 @@ async function exchangeTikTokCode(code: string) {
     "https://auth.tiktok-shops.com/api/v2/token/get";
 
   try {
-    const response = await fetch(tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        app_key: appKey,
-        app_secret: appSecret,
-        auth_code: code,
-        grant_type: "authorized_code",
-      }),
+    const url = new URL(tokenUrl);
+
+    url.searchParams.set("app_key", appKey);
+    url.searchParams.set("app_secret", appSecret);
+    url.searchParams.set("auth_code", code);
+    url.searchParams.set("grant_type", "authorized_code");
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
       cache: "no-store",
     });
 
@@ -62,7 +60,16 @@ async function exchangeTikTokCode(code: string) {
     const shopId =
       data?.data?.shop_id ||
       data?.shop_id ||
+      data?.data?.seller_id ||
+      data?.seller_id ||
       null;
+
+    console.log("TikTok token exchange result:", {
+      status: response.status,
+      ok: response.ok,
+      hasAccessToken: !!accessToken,
+      data,
+    });
 
     return {
       ok: response.ok && !!accessToken,
@@ -79,7 +86,6 @@ async function exchangeTikTokCode(code: string) {
     };
   }
 }
-
 export async function GET(req: Request) {
   const url = new URL(req.url);
 
