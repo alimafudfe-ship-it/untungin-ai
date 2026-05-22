@@ -8,8 +8,13 @@ export const dynamic = "force-dynamic";
 type TikTokState = {
   provider?: string;
   userId?: string;
+  workspaceId?: string | null;
   ts?: number;
 };
+
+function isUuid(value: string | null | undefined): value is string {
+  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
 
 function decodeState(raw: string | null): TikTokState {
   if (!raw) return {};
@@ -284,49 +289,102 @@ export async function GET(req: Request) {
   }
 
   if (supabaseUrl && serviceKey) {
-    const db = createClient(supabaseUrl, serviceKey);
+    const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
-if (supabaseUrl && serviceKey) {
-  const db = createClient(supabaseUrl, serviceKey);
+    const userId = isUuid(state.userId) ? state.userId : null;
+    const workspaceId =
+      isUuid(state.workspaceId) ? state.workspaceId :
+      isUuid(process.env.DEFAULT_WORKSPACE_ID) ? process.env.DEFAULT_WORKSPACE_ID :
+      null;
 
-  const workspaceId =
-    process.env.DEFAULT_WORKSPACE_ID ||
-    state.userId ||
-    "demo-workspace";
+    const metadata = {
+      callback_params: Object.fromEntries(url.searchParams.entries()),
+      token_exchange: tokenResult,
+    };
 
-  const { error: upsertError } = await db.from("marketplace_connections").upsert(
-    {
-      workspace_id: workspaceId,
-      user_id: state.userId || "demo-user",
-      provider: "tiktok",
-      shop_id: resolvedShopId,
+    const status = tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "needs_action";
 
-      access_token: tokenResult.ok ? tokenResult.accessToken : null,
-      refresh_token: tokenResult.ok ? tokenResult.refreshToken : null,
+    let saved = false;
+    let lastError: unknown = null;
 
-      status: tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "auth_code_received",
-      connected_at: new Date().toISOString(),
+    // Preferred schema used by this app branch: provider + optional shop_id.
+    if (userId) {
+      const providerRows = [
+        {
+          row: {
+            ...(workspaceId ? { workspace_id: workspaceId } : {}),
+            user_id: userId,
+            provider: "tiktok",
+            shop_id: resolvedShopId,
+            access_token: tokenResult.ok ? tokenResult.accessToken : null,
+            refresh_token: tokenResult.ok ? tokenResult.refreshToken : null,
+            status,
+            connected_at: new Date().toISOString(),
+            metadata,
+          },
+          onConflict: "user_id,provider,shop_id",
+        },
+        {
+          row: {
+            user_id: userId,
+            provider: "tiktok",
+            status,
+            account_name: resolvedShopId,
+            metadata,
+            updated_at: new Date().toISOString(),
+          },
+          onConflict: "user_id,provider",
+        },
+      ];
 
-      metadata: {
-        callback_params: Object.fromEntries(url.searchParams.entries()),
-        token_exchange: tokenResult,
-      },
-    } as any,
-    {
-      onConflict: "user_id,provider,shop_id",
+      for (const attempt of providerRows) {
+        const { error: upsertError } = await db
+          .from("marketplace_connections")
+          .upsert(attempt.row as any, { onConflict: attempt.onConflict });
+
+        if (!upsertError) {
+          saved = true;
+          break;
+        }
+        lastError = upsertError;
+        console.warn("TikTok provider schema upsert fallback needed:", upsertError);
+      }
     }
-  );
 
-  if (upsertError) {
-    console.error("Supabase marketplace_connections upsert error:", upsertError);
-  } else {
-    console.log("Supabase marketplace_connections upsert success:", {
-      provider: "tiktok",
-      shop_id: resolvedShopId,
-      status: tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "auth_code_received",
-    });
+    // Production SaaS schema fallback: marketplace column keyed by workspace.
+    if (!saved && workspaceId) {
+      const { error: marketplaceError } = await db.from("marketplace_connections").insert({
+        workspace_id: workspaceId,
+        marketplace: "tiktok",
+        status,
+        access_token: tokenResult.ok ? tokenResult.accessToken : null,
+        refresh_token: tokenResult.ok ? tokenResult.refreshToken : null,
+        metadata,
+        last_sync_at: null,
+      } as any);
+
+      if (!marketplaceError) {
+        saved = true;
+      } else {
+        lastError = marketplaceError;
+      }
+    }
+
+    if (!saved) {
+      console.error("Supabase marketplace_connections save failed:", {
+        lastError,
+        hasValidUserId: !!userId,
+        hasValidWorkspaceId: !!workspaceId,
+      });
+    } else {
+      console.log("Supabase marketplace_connections save success:", {
+        provider: "tiktok",
+        shop_id: resolvedShopId,
+        status,
+      });
+    }
   }
-}
+
   const result = tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "code_received";
 
   return NextResponse.redirect(

@@ -55,12 +55,12 @@ export function getTikTokShopRedirectUrl(origin?: string) {
   );
 }
 
-export function buildTikTokShopOAuthUrl(userId: string, origin?: string) {
+export function buildTikTokShopOAuthUrl(userId: string, origin?: string, workspaceId?: string | null) {
   const appKey = getTikTokShopAppKey();
   const redirect = getTikTokShopRedirectUrl(origin);
   if (!appKey) throw new Error("TIKTOK_SHOP_APP_KEY belum lengkap di Vercel Environment Variables.");
   if (!redirect) throw new Error("TIKTOK_SHOP_REDIRECT_URL belum lengkap dan origin request tidak tersedia.");
-  const state = Buffer.from(JSON.stringify({ provider: "tiktok", userId, ts: Date.now() })).toString("base64url");
+  const state = Buffer.from(JSON.stringify({ provider: "tiktok", userId, workspaceId: workspaceId || null, ts: Date.now() })).toString("base64url");
 
   // TikTok Shop Partner Center may use different authorization hosts by region/account.
   // Keep the official URL configurable, but provide a safe default that opens the seller authorization flow.

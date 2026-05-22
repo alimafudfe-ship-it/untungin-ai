@@ -70,11 +70,15 @@ export function AutomationPanel({ products, metrics }: { products: Product[]; me
   );
 }
 
-export function MarketplaceApiPanel({ products }: { products: Product[] }) {
+export function MarketplaceApiPanel({ products, userId, workspaceId }: { products: Product[]; userId?: string | null; workspaceId?: string | null }) {
+  const tiktokRoute = `/api/marketplace/tiktok/connect?${new URLSearchParams({
+    ...(userId ? { user_id: userId } : {}),
+    ...(workspaceId ? { workspace_id: workspaceId } : {}),
+  }).toString()}`;
   const channels = [
     { name: "Shopee", status: "OAuth ready", route: "/api/marketplace/shopee/connect" },
     { name: "Tokopedia", status: "OAuth ready", route: "/api/marketplace/tokopedia/connect" },
-    { name: "TikTok Shop", status: "OAuth ready", route: "/api/marketplace/tiktok/connect" },
+    { name: "TikTok Shop", status: "OAuth ready", route: tiktokRoute },
     { name: "Lazada", status: "Planned", route: "Phase berikutnya" },
   ];
   const marketplaceCount = new Set(products.map((item) => item.marketplace || "Manual")).size;
