@@ -286,10 +286,9 @@ export async function GET(req: Request) {
   if (supabaseUrl && serviceKey) {
     const db = createClient(supabaseUrl, serviceKey);
 
-    const workspaceId =
-      process.env.DEFAULT_WORKSPACE_ID ||
-      state.userId ||
-      "demo-workspace";
+const workspaceId =
+  process.env.DEFAULT_WORKSPACE_ID ||
+  "00000000-0000-0000-0000-000000000001";
 
     const { error: upsertError } = await db.from("marketplace_connections").upsert(
       {
