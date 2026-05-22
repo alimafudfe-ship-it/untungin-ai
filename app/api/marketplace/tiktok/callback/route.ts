@@ -19,45 +19,81 @@ function decodeState(raw: string | null): TikTokState {
   }
 }
 
-async function exchangeTikTokCode(code: string) {
-  const appKey = process.env.TIKTOK_SHOP_APP_KEY?.trim();
-  const appSecret = process.env.TIKTOK_SHOP_APP_SECRET?.trim();
+type TokenExchangeAttempt = {
+  label: string;
+  url: string;
+  method: "GET" | "POST";
+  status?: number;
+  ok: boolean;
+  data: any;
+  accessToken: string | null;
+  refreshToken: string | null;
+  shopId: string | null;
+  error?: string;
+};
 
-  if (!appKey || !appSecret) {
-    return {
-      ok: false,
-      skipped: true,
-      error: "TIKTOK_SHOP_APP_KEY / TIKTOK_SHOP_APP_SECRET belum lengkap.",
-    };
-  }
+function extractTikTokTokenData(data: any) {
+  const payload = data?.data || data?.result || data || {};
 
-  const tokenUrl =
-    process.env.TIKTOK_SHOP_TOKEN_URL?.trim() ||
-    "https://auth.tiktok-shops.com/api/v2/token/get";
+  const accessToken =
+    payload?.access_token ||
+    payload?.accessToken ||
+    data?.access_token ||
+    null;
 
+  const refreshToken =
+    payload?.refresh_token ||
+    payload?.refreshToken ||
+    data?.refresh_token ||
+    null;
+
+  const shopId =
+    payload?.shop_id ||
+    payload?.seller_id ||
+    payload?.shop_cipher ||
+    data?.shop_id ||
+    data?.seller_id ||
+    data?.shop_cipher ||
+    null;
+
+  return { accessToken, refreshToken, shopId };
+}
+
+async function runTokenExchangeAttempt(
+  label: string,
+  tokenUrl: string,
+  method: "GET" | "POST",
+  params: Record<string, string>
+): Promise<TokenExchangeAttempt> {
   try {
-    const tokenRequestUrl = new URL(tokenUrl);
-
-    tokenRequestUrl.searchParams.set("app_key", appKey);
-    tokenRequestUrl.searchParams.set("app_secret", appSecret);
-    tokenRequestUrl.searchParams.set("auth_code", code);
-    tokenRequestUrl.searchParams.set("grant_type", "authorized_code");
-
-    console.log("TikTok token exchange request:", {
-      tokenUrl,
-      appKey,
-      hasAppSecret: !!appSecret,
-      codeLength: code.length,
-    });
-
-    const response = await fetch(tokenRequestUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
+    let requestUrl = tokenUrl;
+    const init: RequestInit = {
+      method,
+      headers: { Accept: "application/json" },
       cache: "no-store",
+    };
+
+    if (method === "GET") {
+      const url = new URL(tokenUrl);
+      Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+      requestUrl = url.toString();
+    } else {
+      init.headers = {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      };
+      init.body = JSON.stringify(params);
+    }
+
+    console.log("TikTok token exchange attempt:", {
+      label,
+      method,
+      tokenUrl,
+      appKey: params.app_key,
+      codeLength: params.auth_code.length,
     });
 
+    const response = await fetch(requestUrl, init);
     const rawText = await response.text();
 
     let data: any = null;
@@ -67,50 +103,127 @@ async function exchangeTikTokCode(code: string) {
       data = { rawText };
     }
 
-    const accessToken =
-      data?.data?.access_token ||
-      data?.access_token ||
-      null;
-
-    const refreshToken =
-      data?.data?.refresh_token ||
-      data?.refresh_token ||
-      null;
-
-    const shopId =
-      data?.data?.shop_id ||
-      data?.shop_id ||
-      data?.data?.seller_id ||
-      data?.seller_id ||
-      data?.data?.shop_cipher ||
-      data?.shop_cipher ||
-      null;
-
-    console.log("TikTok token exchange result:", {
-      httpStatus: response.status,
-      httpOk: response.ok,
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshToken,
-      shopId,
-      responseData: data,
-    });
+    const { accessToken, refreshToken, shopId } = extractTikTokTokenData(data);
+    const apiCode = data?.code ?? data?.message_code ?? data?.error_code;
+    const apiOk = apiCode === undefined || apiCode === 0 || apiCode === "0";
 
     return {
-      ok: response.ok && !!accessToken,
+      label,
+      url: tokenUrl,
+      method,
       status: response.status,
+      ok: response.ok && apiOk && !!accessToken,
       data,
       accessToken,
       refreshToken,
       shopId,
     };
   } catch (error) {
-    console.error("TikTok token exchange exception:", error);
-
     return {
+      label,
+      url: tokenUrl,
+      method,
       ok: false,
+      data: null,
+      accessToken: null,
+      refreshToken: null,
+      shopId: null,
       error: error instanceof Error ? error.message : "Token exchange gagal.",
     };
   }
+}
+
+async function exchangeTikTokCode(code: string) {
+  const appKey = process.env.TIKTOK_SHOP_APP_KEY?.trim();
+  const appSecret = process.env.TIKTOK_SHOP_APP_SECRET?.trim();
+
+  // OAuth callback is already successful if TikTok sends an auth code. Token exchange
+  // can still fail because of env/endpoint/region configuration, so keep that failure
+  // in metadata but do not send the user back as tiktok_code_received.
+  if (!appKey || !appSecret) {
+    return {
+      ok: false,
+      oauthAccepted: true,
+      skipped: true,
+      error: "TIKTOK_SHOP_APP_KEY / TIKTOK_SHOP_APP_SECRET belum lengkap.",
+      attempts: [],
+      accessToken: null,
+      refreshToken: null,
+      shopId: null,
+    };
+  }
+
+  const params = {
+    app_key: appKey,
+    app_secret: appSecret,
+    auth_code: code,
+    grant_type: "authorized_code",
+  };
+
+  const configuredTokenUrl = process.env.TIKTOK_SHOP_TOKEN_URL?.trim();
+  const attempts: Array<{ label: string; url: string; method: "GET" | "POST" }> = [
+    {
+      label: configuredTokenUrl ? "configured-token-url" : "official-v2-get",
+      url: configuredTokenUrl || "https://auth.tiktok-shops.com/api/v2/token/get",
+      method: "GET",
+    },
+    {
+      label: "official-v2-post",
+      url: configuredTokenUrl || "https://auth.tiktok-shops.com/api/v2/token/get",
+      method: "POST",
+    },
+    {
+      label: "open-api-post",
+      url: "https://open-api.tiktokglobalshop.com/api/token/getAccessToken",
+      method: "POST",
+    },
+  ];
+
+  const uniqueAttempts = attempts.filter(
+    (attempt, index, arr) =>
+      arr.findIndex((item) => item.url === attempt.url && item.method === attempt.method) === index
+  );
+
+  const results: TokenExchangeAttempt[] = [];
+
+  for (const attempt of uniqueAttempts) {
+    const result = await runTokenExchangeAttempt(attempt.label, attempt.url, attempt.method, params);
+    results.push(result);
+
+    console.log("TikTok token exchange result:", {
+      label: result.label,
+      httpStatus: result.status,
+      ok: result.ok,
+      hasAccessToken: !!result.accessToken,
+      hasRefreshToken: !!result.refreshToken,
+      shopId: result.shopId,
+      error: result.error,
+      responseData: result.data,
+    });
+
+    if (result.ok) {
+      return {
+        ok: true,
+        oauthAccepted: true,
+        status: result.status,
+        data: result.data,
+        attempts: results,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        shopId: result.shopId,
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    oauthAccepted: true,
+    error: "Auth code diterima, tetapi token exchange belum berhasil.",
+    attempts: results,
+    accessToken: null,
+    refreshToken: null,
+    shopId: null,
+  };
 }
 
 export async function GET(req: Request) {
@@ -181,7 +294,7 @@ export async function GET(req: Request) {
         access_token: tokenResult.ok ? tokenResult.accessToken : null,
         refresh_token: tokenResult.ok ? tokenResult.refreshToken : null,
 
-        status: tokenResult.ok ? "connected" : "auth_code_received",
+        status: tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "auth_code_received",
         connected_at: new Date().toISOString(),
 
         metadata: {
@@ -200,12 +313,12 @@ export async function GET(req: Request) {
       console.log("Supabase marketplace_connections upsert success:", {
         provider: "tiktok",
         shop_id: resolvedShopId,
-        status: tokenResult.ok ? "connected" : "auth_code_received",
+        status: tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "auth_code_received",
       });
     }
   }
 
-  const result = tokenResult.ok ? "connected" : "code_received";
+  const result = tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "code_received";
 
   return NextResponse.redirect(
     new URL(`/?marketplace=tiktok_${result}`, req.url)
