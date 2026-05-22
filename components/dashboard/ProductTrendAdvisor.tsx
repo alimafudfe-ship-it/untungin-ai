@@ -11,6 +11,8 @@ import { Badge, cardStyle, ctaButtonStyle, EmptyState, ghostButtonStyle, Progres
 
 type MarketQuestion = "hot" | "category" | "marketplace" | "lowCompetition" | "pricing" | "today";
 
+type QuickMarket = "All" | "Shopee" | "TikTok Shop" | "Tokopedia";
+
 type TrendApiResponse = {
   items: MarketTrend[];
   providers: TrendProviderStatus[];
@@ -19,7 +21,7 @@ type TrendApiResponse = {
 };
 
 const DEFAULT_PROVIDERS: TrendProviderStatus[] = [
-  { id: "reviewer-demo", name: "Demo reviewer aktif", kind: "fallback_seed", enabled: true, status: "fallback", message: "Data sampel siap diuji untuk proses review Shopee." },
+  { id: "reviewer-demo", name: "Demo reviewer aktif", kind: "fallback_seed", enabled: true, status: "fallback", message: "Data sampel Shopee, TikTok Shop, dan Tokopedia siap diuji untuk riset produk." },
 ];
 
 const COPY: Record<Locale, {
@@ -60,7 +62,7 @@ const COPY: Record<Locale, {
   id: {
     badge: "Tren Pasar Multi-source",
     title: "Baca tren produk harian, mingguan, bulanan, dan hari besar",
-    subtitle: "Mode demo reviewer menampilkan contoh alur seller untuk membaca tren produk harian, mingguan, bulanan, dan hari besar. Filter hari besar membantu cari produk musiman seperti Lebaran, Natal, Tahun Baru, dan event nasional.",
+    subtitle: "Untuk seller Shopee, TikTok Shop, dan Tokopedia: baca tren produk harian, mingguan, bulanan, dan hari besar. Gunakan filter marketplace untuk fokus ke Shopee atau TikTok, lalu pilih produk yang demand tinggi dan kompetisi rendah.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
@@ -97,12 +99,12 @@ const COPY: Record<Locale, {
     dataNote: "Mode demo reviewer aktif: data contoh disiapkan untuk evaluasi alur dashboard, analisis tren produk, profit, dan workflow integrasi marketplace.",
     providerNote: "Status demo",
     reviewerBadge: "Demo reviewer aktif",
-    reviewerNote: "Data sampel siap diuji untuk proses review Shopee.",
+    reviewerNote: "Data sampel Shopee, TikTok Shop, dan Tokopedia siap diuji untuk riset produk.",
   },
   en: {
     badge: "Multi-source Market Trends",
     title: "Read daily, weekly, monthly, and special-day product trends",
-    subtitle: "Reviewer demo mode shows a sample seller workflow for daily, weekly, monthly, and special-day product trends. Special-day filters help find seasonal products for holidays and national events.",
+    subtitle: "For Shopee, TikTok Shop, and Tokopedia sellers: read daily, weekly, monthly, and special-day product trends. Use the marketplace filter to focus on Shopee or TikTok, then choose products with high demand and lower competition.",
     search: "Search product, keyword, category...",
     all: "All",
     country: "Country",
@@ -139,12 +141,12 @@ const COPY: Record<Locale, {
     dataNote: "Reviewer demo mode is active: sample data is prepared to evaluate the dashboard flow, product trend analysis, profit features, and marketplace integration workflow.",
     providerNote: "Demo status",
     reviewerBadge: "Reviewer demo active",
-    reviewerNote: "Sample data is ready for Shopee review testing.",
+    reviewerNote: "Shopee, TikTok Shop, and Tokopedia sample data is ready for product research testing.",
   },
   ms: {
     badge: "Tren Pasaran Multi-source",
     title: "Baca tren produk harian, mingguan, bulanan, dan hari besar",
-    subtitle: "Mode demo reviewer memaparkan contoh alur seller untuk membaca tren produk harian, mingguan, bulanan, dan hari besar. Filter hari besar membantu cari produk musiman untuk raya, cuti umum, dan event nasional.",
+    subtitle: "Untuk seller Shopee, TikTok Shop, dan Tokopedia: baca tren produk harian, mingguan, bulanan, dan hari besar. Gunakan filter marketplace untuk fokus ke Shopee atau TikTok, lalu pilih produk dengan demand tinggi dan persaingan rendah.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
@@ -181,7 +183,7 @@ const COPY: Record<Locale, {
     dataNote: "Mode demo reviewer aktif: data sampel disiapkan untuk menilai alur dashboard, analisis tren produk, profit, dan workflow integrasi marketplace.",
     providerNote: "Status demo",
     reviewerBadge: "Demo reviewer aktif",
-    reviewerNote: "Data sampel siap diuji untuk proses review Shopee.",
+    reviewerNote: "Data sampel Shopee, TikTok Shop, dan Tokopedia siap diuji untuk riset produk.",
   },
 };
 
@@ -273,7 +275,7 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
   const [question, setQuestion] = useState<MarketQuestion>("hot");
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("All");
-  const [marketplace, setMarketplace] = useState("All");
+  const [marketplace, setMarketplace] = useState<QuickMarket | string>("All");
   const [category, setCategory] = useState("All");
   const [period, setPeriod] = useState<TrendPeriod>("week");
   const [apiRows, setApiRows] = useState<MarketTrend[] | null>(null);
@@ -319,6 +321,8 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
   void errors;
   void generatedAt;
 
+  const quickMarkets: QuickMarket[] = ["All", "Shopee", "TikTok Shop", "Tokopedia"];
+
   return <section style={cardStyle}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
       <div style={{ maxWidth: 840 }}>
@@ -334,7 +338,12 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
       </div>
     </div>
 
-    <div style={{ display: "grid", gridTemplateColumns: "0.8fr 1.3fr 0.7fr 0.8fr 0.8fr", gap: 10, marginTop: 18 }} className="main-grid">
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 18, alignItems: "center" }}>
+      <span style={{ color: "#64748b", fontSize: 13, fontWeight: 800 }}>Fokus marketplace:</span>
+      {quickMarkets.map((item) => <button key={item} onClick={() => setMarketplace(item)} style={{ ...(marketplace === item ? ctaButtonStyle : ghostButtonStyle), fontSize: 12, padding: "9px 12px" }}>{item === "All" ? "Semua marketplace" : item}</button>)}
+    </div>
+
+    <div style={{ display: "grid", gridTemplateColumns: "0.8fr 1.3fr 0.7fr 0.8fr 0.8fr", gap: 10, marginTop: 12 }} className="main-grid">
       <select value={period} onChange={(event) => setPeriod(event.target.value as TrendPeriod)} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 800 }}>
         {(Object.keys(c.periods) as TrendPeriod[]).map((item) => <option key={item} value={item}>{c.period}: {c.periods[item]}</option>)}
       </select>
@@ -349,6 +358,10 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
       <StatCard label={c.strongestMarketplace} value={strongestMarketplace || "-"} helper={rows.length ? `${rows.length} trend signals` : "-"} tone="success" />
       <StatCard label={c.lowCompetition} value={lowCompetition?.productName || "-"} helper={lowCompetition ? `${c.competition} ${lowCompetition.competitionScore}/100` : c.emptyDesc} tone={lowCompetition ? "success" : "warning"} />
       <StatCard label={c.sources} value={c.reviewerBadge} helper={summarizePeriods(sourceRows, c.periods) || c.reviewerNote} tone="success" />
+    </div>
+
+    <div style={{ marginTop: 12, padding: 14, borderRadius: 16, background: "#ecfdf5", border: "1px solid #bbf7d0", color: "#166534", fontSize: 13, lineHeight: 1.6 }}>
+      <b>Catatan seller:</b> kamu bisa riset produk untuk Shopee juga. Pilih tombol <b>Shopee</b> untuk melihat daftar produk tren khusus Shopee, atau pilih <b>TikTok Shop</b> untuk tren TikTok. Data live resmi akan aktif setelah akun/API marketplace disetujui; selama itu dashboard memakai data contoh + feed eksternal jika ENV disambungkan.
     </div>
 
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
