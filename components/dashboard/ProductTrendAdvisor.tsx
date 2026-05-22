@@ -4,14 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { Product, Tone } from "@/types/dashboard";
 import { FALLBACK_MARKET_TRENDS } from "@/lib/trends/catalog";
 import { filterTrends, scoreTrend } from "@/lib/trends/scoring";
-import type { MarketTrend, TrendPeriod, TrendProviderStatus } from "@/lib/trends/types";
+import type { MarketTrend, TrendMarketplace, TrendPeriod, TrendProviderStatus } from "@/lib/trends/types";
 import { compactMoney, money } from "@/lib/dashboard/format";
 import { useDashboardLocale, type Locale } from "@/lib/dashboard/i18n";
 import { Badge, cardStyle, ctaButtonStyle, EmptyState, ghostButtonStyle, Progress, StatCard } from "./ui";
 
 type MarketQuestion = "hot" | "category" | "marketplace" | "lowCompetition" | "pricing" | "today";
-
-type QuickMarket = "All" | "Shopee" | "TikTok Shop" | "Tokopedia";
+type QuickMarket = "All" | "Shopee" | "TikTok Shop" | "Tokopedia" | "Lazada";
 
 type TrendApiResponse = {
   items: MarketTrend[];
@@ -21,7 +20,15 @@ type TrendApiResponse = {
 };
 
 const DEFAULT_PROVIDERS: TrendProviderStatus[] = [
-  { id: "reviewer-demo", name: "Demo reviewer aktif", kind: "fallback_seed", enabled: true, status: "fallback", message: "Data sampel Shopee, TikTok Shop, dan Tokopedia siap diuji untuk riset produk." },
+  { id: "reviewer-demo", name: "Demo reviewer aktif", kind: "fallback_seed", enabled: true, status: "fallback", message: "Data sampel siap untuk simulasi marketplace trend analyzer." },
+];
+
+const QUICK_MARKETS: { key: QuickMarket; label: string; helper: string }[] = [
+  { key: "All", label: "Semua marketplace", helper: "Bandingkan channel" },
+  { key: "Shopee", label: "Shopee Trend", helper: "Produk laris Shopee" },
+  { key: "TikTok Shop", label: "TikTok Shop Trend", helper: "Produk viral live/video" },
+  { key: "Tokopedia", label: "Tokopedia Trend", helper: "Search-demand & kebutuhan" },
+  { key: "Lazada", label: "Lazada Trend", helper: "Harga kompetitif" },
 ];
 
 const COPY: Record<Locale, {
@@ -58,11 +65,17 @@ const COPY: Record<Locale, {
   providerNote: string;
   reviewerBadge: string;
   reviewerNote: string;
+  exportCsv: string;
+  productRecommendation: string;
+  recommendationHelper: string;
+  opportunityScore: string;
+  action: string;
+  channelTabs: string;
 }> = {
   id: {
-    badge: "Tren Pasar Multi-source",
-    title: "Baca tren produk harian, mingguan, bulanan, dan hari besar",
-    subtitle: "Untuk seller Shopee, TikTok Shop, dan Tokopedia: baca tren produk harian, mingguan, bulanan, dan hari besar. Gunakan filter marketplace untuk fokus ke Shopee atau TikTok, lalu pilih produk yang demand tinggi dan kompetisi rendah.",
+    badge: "Marketplace Trend Analyzer",
+    title: "Cari produk terlaris dan tren lintas marketplace",
+    subtitle: "Analisis Shopee Trend, TikTok Shop Trend, Tokopedia Trend, Lazada Trend, rekomendasi produk jualan, dan export hasil riset produk untuk calon pembeli app.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
@@ -96,15 +109,21 @@ const COPY: Record<Locale, {
     recommendation: "Rekomendasi",
     emptyTitle: "Belum ada hasil tren",
     emptyDesc: "Ubah filter, periode, atau keyword pencarian.",
-    dataNote: "Mode demo reviewer aktif: data contoh disiapkan untuk evaluasi alur dashboard, analisis tren produk, profit, dan workflow integrasi marketplace.",
-    providerNote: "Status demo",
-    reviewerBadge: "Demo reviewer aktif",
-    reviewerNote: "Data sampel Shopee, TikTok Shop, dan Tokopedia siap diuji untuk riset produk.",
+    dataNote: "Untuk produksi, hubungkan official API/partner feed atau feed analytics legal. Mode demo menyediakan seed data agar buyer dan reviewer bisa melihat workflow riset produk tanpa scraping.",
+    providerNote: "Status data",
+    reviewerBadge: "Demo + feed ready",
+    reviewerNote: "Data demo multi marketplace siap diuji; feed live aktif jika ENV feed diisi.",
+    exportCsv: "Export hasil riset CSV",
+    productRecommendation: "Rekomendasi produk jualan",
+    recommendationHelper: "Prioritas produk berdasarkan demand, growth, kompetisi, rentang harga, dan peluang margin.",
+    opportunityScore: "Skor peluang",
+    action: "Aksi",
+    channelTabs: "Pilih channel tren",
   },
   en: {
-    badge: "Multi-source Market Trends",
-    title: "Read daily, weekly, monthly, and special-day product trends",
-    subtitle: "For Shopee, TikTok Shop, and Tokopedia sellers: read daily, weekly, monthly, and special-day product trends. Use the marketplace filter to focus on Shopee or TikTok, then choose products with high demand and lower competition.",
+    badge: "Marketplace Trend Analyzer",
+    title: "Find best-selling and trending products across marketplaces",
+    subtitle: "Analyze Shopee Trend, TikTok Shop Trend, Tokopedia Trend, Lazada Trend, selling recommendations, and export product research results for app buyers.",
     search: "Search product, keyword, category...",
     all: "All",
     country: "Country",
@@ -138,15 +157,21 @@ const COPY: Record<Locale, {
     recommendation: "Recommendation",
     emptyTitle: "No trend result",
     emptyDesc: "Change filters, period, or search keyword.",
-    dataNote: "Reviewer demo mode is active: sample data is prepared to evaluate the dashboard flow, product trend analysis, profit features, and marketplace integration workflow.",
-    providerNote: "Demo status",
-    reviewerBadge: "Reviewer demo active",
-    reviewerNote: "Shopee, TikTok Shop, and Tokopedia sample data is ready for product research testing.",
+    dataNote: "For production, connect official APIs/partner feeds or legal analytics feeds. Demo mode provides seed data so buyers and reviewers can see the product-research workflow without scraping.",
+    providerNote: "Data status",
+    reviewerBadge: "Demo + feed ready",
+    reviewerNote: "Multi-marketplace demo data is ready; live feeds activate when feed ENV is configured.",
+    exportCsv: "Export research CSV",
+    productRecommendation: "Selling product recommendation",
+    recommendationHelper: "Prioritized by demand, growth, competition, price range, and margin opportunity.",
+    opportunityScore: "Opportunity score",
+    action: "Action",
+    channelTabs: "Choose trend channel",
   },
   ms: {
-    badge: "Tren Pasaran Multi-source",
-    title: "Baca tren produk harian, mingguan, bulanan, dan hari besar",
-    subtitle: "Untuk seller Shopee, TikTok Shop, dan Tokopedia: baca tren produk harian, mingguan, bulanan, dan hari besar. Gunakan filter marketplace untuk fokus ke Shopee atau TikTok, lalu pilih produk dengan demand tinggi dan persaingan rendah.",
+    badge: "Marketplace Trend Analyzer",
+    title: "Cari produk terlaris dan tren merentas marketplace",
+    subtitle: "Analisis Shopee Trend, TikTok Shop Trend, Tokopedia Trend, Lazada Trend, cadangan produk jualan, dan eksport hasil riset produk.",
     search: "Cari produk, keyword, kategori...",
     all: "Semua",
     country: "Negara",
@@ -180,10 +205,16 @@ const COPY: Record<Locale, {
     recommendation: "Cadangan",
     emptyTitle: "Belum ada hasil tren",
     emptyDesc: "Ubah filter, tempoh, atau keyword carian.",
-    dataNote: "Mode demo reviewer aktif: data sampel disiapkan untuk menilai alur dashboard, analisis tren produk, profit, dan workflow integrasi marketplace.",
-    providerNote: "Status demo",
-    reviewerBadge: "Demo reviewer aktif",
-    reviewerNote: "Data sampel Shopee, TikTok Shop, dan Tokopedia siap diuji untuk riset produk.",
+    dataNote: "Untuk produksi, hubungkan official API/partner feed atau feed analytics legal. Mode demo menyediakan seed data agar buyer dan reviewer bisa melihat workflow riset produk tanpa scraping.",
+    providerNote: "Status data",
+    reviewerBadge: "Demo + feed ready",
+    reviewerNote: "Data demo multi marketplace siap diuji; feed live aktif jika ENV feed diisi.",
+    exportCsv: "Eksport riset CSV",
+    productRecommendation: "Cadangan produk jualan",
+    recommendationHelper: "Prioriti berdasarkan demand, growth, persaingan, julat harga, dan peluang margin.",
+    opportunityScore: "Skor peluang",
+    action: "Aksi",
+    channelTabs: "Pilih channel tren",
   },
 };
 
@@ -214,6 +245,43 @@ function unique<T>(items: T[]) {
   return Array.from(new Set(items));
 }
 
+function csvEscape(value: unknown) {
+  const raw = String(value ?? "");
+  return /[",\n]/.test(raw) ? `"${raw.replace(/"/g, '""')}"` : raw;
+}
+
+function exportTrendRows(rows: MarketTrend[]) {
+  const headers = ["product", "marketplace", "category", "keyword", "country", "period", "trend_score", "demand", "growth", "competition", "price_min", "price_max", "monthly_units", "monthly_revenue", "signal", "confidence", "source"];
+  const lines = [headers.join(","), ...rows.map((item) => [
+    item.productName,
+    item.marketplace,
+    item.category,
+    item.keyword,
+    item.country,
+    item.period,
+    Math.round(scoreTrend(item)),
+    item.demandScore,
+    item.growthScore,
+    item.competitionScore,
+    item.priceMin,
+    item.priceMax,
+    item.monthlyUnits,
+    item.monthlyRevenue,
+    item.signal,
+    item.confidence,
+    item.source,
+  ].map(csvEscape).join(","))];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `untungin-marketplace-trends-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 function summarizePeriods(rows: MarketTrend[], labels: Record<TrendPeriod, string>) {
   const order: TrendPeriod[] = ["today", "week", "month", "special_day"];
   return order
@@ -221,6 +289,21 @@ function summarizePeriods(rows: MarketTrend[], labels: Record<TrendPeriod, strin
     .filter((item) => item.count > 0)
     .map((item) => `${labels[item.period]}: ${item.count}`)
     .join(" · ");
+}
+
+function actionFor(item: MarketTrend, locale: Locale) {
+  const score = scoreTrend(item);
+  const marginHint = item.priceMax >= 90000 ? "uji bundling premium" : "uji harga tengah";
+  if (locale === "en") {
+    if (item.competitionScore <= 45 && score >= 70) return "Test 1 small SKU, validate supplier, then run marketplace ads.";
+    if (item.competitionScore >= 75) return "Do not fight on price; enter only with differentiation, bundle, or unique content.";
+    return "Shortlist 10 competitors, check bad reviews, and test content before buying stock.";
+  }
+  return item.competitionScore <= 45 && score >= 70
+    ? `Tes 1 SKU kecil, validasi supplier, lalu ${marginHint}.`
+    : item.competitionScore >= 75
+      ? "Jangan perang harga; masuk hanya jika punya bundling, foto, konten, atau bonus berbeda."
+      : "Shortlist 10 kompetitor, cek ulasan buruk, lalu uji konten sebelum stok besar.";
 }
 
 function buildAnswer(question: MarketQuestion, rows: MarketTrend[], c: typeof COPY[Locale], locale: Locale) {
@@ -268,14 +351,20 @@ function buildAnswer(question: MarketQuestion, rows: MarketTrend[], c: typeof CO
   return `${c.topTrend}: ${top.productName} di ${top.marketplace}. ${c.recommendation}: riset kompetitor dan validasi margin sebelum masuk stok.\n${listTop}`;
 }
 
+function summarizeUserProducts(products: Product[] | undefined, rows: MarketTrend[]) {
+  if (!products?.length) return null;
+  const productMarketplaces = new Set(products.map((item) => (item.marketplace || "").toLowerCase()).filter(Boolean));
+  const matched = rows.find((item) => productMarketplaces.has(item.marketplace.toLowerCase()));
+  return matched ? `Ada data toko di ${matched.marketplace}; bandingkan produk sendiri dengan tren ${matched.category}.` : `Data produk toko tersedia (${products.length} SKU); gunakan tren ini untuk tambah katalog baru.`;
+}
+
 export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
-  void products;
   const locale = useDashboardLocale();
   const c = COPY[locale];
   const [question, setQuestion] = useState<MarketQuestion>("hot");
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("All");
-  const [marketplace, setMarketplace] = useState<QuickMarket | string>("All");
+  const [marketplace, setMarketplace] = useState<QuickMarket>("All");
   const [category, setCategory] = useState("All");
   const [period, setPeriod] = useState<TrendPeriod>("week");
   const [apiRows, setApiRows] = useState<MarketTrend[] | null>(null);
@@ -297,6 +386,7 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
       .catch((error: Error) => {
         if (error.name !== "AbortError") {
           setApiRows(null);
+          setProviders(DEFAULT_PROVIDERS);
           setErrors(["Trend API belum tersedia, memakai fallback lokal."]);
         }
       });
@@ -307,25 +397,24 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
   const countries = useMemo(() => ["All", ...unique(sourceRows.map((item) => item.country))], [sourceRows]);
   const marketplaces = useMemo(() => ["All", ...unique(sourceRows.map((item) => item.marketplace))], [sourceRows]);
   const categories = useMemo(() => ["All", ...unique(sourceRows.map((item) => item.category))], [sourceRows]);
-
   const rows = useMemo(() => filterTrends(sourceRows, { period, country, marketplace, category, q: query }), [sourceRows, query, country, marketplace, category, period]);
   const answer = useMemo(() => buildAnswer(question, rows, c, locale), [question, rows, c, locale]);
   const top = rows[0];
   const lowCompetition = rows.find((item) => item.demandScore >= 65 && item.competitionScore <= 45);
+  const recommendations = useMemo(() => rows
+    .filter((item) => item.demandScore >= 70 || item.growthScore >= 70)
+    .sort((a, b) => scoreTrend(b) - scoreTrend(a))
+    .slice(0, 6), [rows]);
   const strongestMarketplace = rows.reduce((best, item) => {
     const currentScore = rows.filter((row) => row.marketplace === item.marketplace).reduce((sum, row) => sum + scoreTrend(row), 0);
     const bestScore = best ? rows.filter((row) => row.marketplace === best).reduce((sum, row) => sum + scoreTrend(row), 0) : -1;
     return currentScore > bestScore ? item.marketplace : best;
   }, "" as string);
-  void providers;
-  void errors;
-  void generatedAt;
-
-  const quickMarkets: QuickMarket[] = ["All", "Shopee", "TikTok Shop", "Tokopedia"];
+  const userProductHint = summarizeUserProducts(products, rows);
 
   return <section style={cardStyle}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
-      <div style={{ maxWidth: 840 }}>
+      <div style={{ maxWidth: 860 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Badge label={c.badge} tone="blue" />
           <Badge label={c.reviewerBadge} tone="success" />
@@ -333,51 +422,77 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
         <h2 style={{ margin: "10px 0 6px", fontSize: 28, letterSpacing: -0.8 }}>{c.title}</h2>
         <p style={{ margin: 0, color: "#64748b", lineHeight: 1.7 }}>{c.subtitle}</p>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {(Object.keys(c.questions) as MarketQuestion[]).map((key) => <button key={key} onClick={() => setQuestion(key)} style={{ ...(question === key ? ctaButtonStyle : ghostButtonStyle), fontSize: 12, padding: "9px 11px" }}>{c.questions[key]}</button>)}
+      <button onClick={() => exportTrendRows(rows)} disabled={!rows.length} style={{ ...ctaButtonStyle, opacity: rows.length ? 1 : 0.55 }}>{c.exportCsv}</button>
+    </div>
+
+    <div style={{ marginTop: 18 }}>
+      <strong style={{ fontSize: 13, color: "#334155" }}>{c.channelTabs}</strong>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, marginTop: 10 }} className="metrics-grid">
+        {QUICK_MARKETS.map((item) => <button key={item.key} onClick={() => setMarketplace(item.key)} style={{ ...(marketplace === item.key ? ctaButtonStyle : ghostButtonStyle), textAlign: "left", padding: 12, display: "grid", gap: 3 }}>
+          <span>{item.label}</span>
+          <small style={{ opacity: 0.8 }}>{item.helper}</small>
+        </button>)}
       </div>
     </div>
 
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 18, alignItems: "center" }}>
-      <span style={{ color: "#64748b", fontSize: 13, fontWeight: 800 }}>Fokus marketplace:</span>
-      {quickMarkets.map((item) => <button key={item} onClick={() => setMarketplace(item)} style={{ ...(marketplace === item ? ctaButtonStyle : ghostButtonStyle), fontSize: 12, padding: "9px 12px" }}>{item === "All" ? "Semua marketplace" : item}</button>)}
-    </div>
-
-    <div style={{ display: "grid", gridTemplateColumns: "0.8fr 1.3fr 0.7fr 0.8fr 0.8fr", gap: 10, marginTop: 12 }} className="main-grid">
+    <div style={{ display: "grid", gridTemplateColumns: "0.8fr 1.3fr 0.7fr 0.8fr", gap: 10, marginTop: 18 }} className="main-grid">
       <select value={period} onChange={(event) => setPeriod(event.target.value as TrendPeriod)} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 800 }}>
         {(Object.keys(c.periods) as TrendPeriod[]).map((item) => <option key={item} value={item}>{c.period}: {c.periods[item]}</option>)}
       </select>
       <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={c.search} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 700 }} />
       <select value={country} onChange={(event) => setCountry(event.target.value)} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 800 }}><option value="All">{c.country}: {c.all}</option>{countries.filter((item) => item !== "All").map((item) => <option key={item} value={item}>{c.country}: {item}</option>)}</select>
-      <select value={marketplace} onChange={(event) => setMarketplace(event.target.value)} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 800 }}><option value="All">{c.marketplace}: {c.all}</option>{marketplaces.filter((item) => item !== "All").map((item) => <option key={item} value={item}>{item}</option>)}</select>
       <select value={category} onChange={(event) => setCategory(event.target.value)} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid #dbe3ef", fontWeight: 800 }}><option value="All">{c.category}: {c.all}</option>{categories.filter((item) => item !== "All").map((item) => <option key={item} value={item}>{item}</option>)}</select>
+    </div>
+
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+      {marketplaces.filter((item) => item !== "All").map((item) => <button key={item} onClick={() => setMarketplace(item as QuickMarket)} style={{ ...(marketplace === item ? ctaButtonStyle : ghostButtonStyle), fontSize: 12, padding: "8px 10px" }}>{item}</button>)}
     </div>
 
     <div className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginTop: 18 }}>
       <StatCard label={c.topTrend} value={top?.productName || "-"} helper={top ? `${top.marketplace} · ${signalLabel(top, locale)} · ${c.demand} ${top.demandScore}/100` : "-"} tone="blue" />
       <StatCard label={c.strongestMarketplace} value={strongestMarketplace || "-"} helper={rows.length ? `${rows.length} trend signals` : "-"} tone="success" />
       <StatCard label={c.lowCompetition} value={lowCompetition?.productName || "-"} helper={lowCompetition ? `${c.competition} ${lowCompetition.competitionScore}/100` : c.emptyDesc} tone={lowCompetition ? "success" : "warning"} />
-      <StatCard label={c.sources} value={c.reviewerBadge} helper={summarizePeriods(sourceRows, c.periods) || c.reviewerNote} tone="success" />
-    </div>
-
-    <div style={{ marginTop: 12, padding: 14, borderRadius: 16, background: "#ecfdf5", border: "1px solid #bbf7d0", color: "#166534", fontSize: 13, lineHeight: 1.6 }}>
-      <b>Catatan seller:</b> kamu bisa riset produk untuk Shopee juga. Pilih tombol <b>Shopee</b> untuk melihat daftar produk tren khusus Shopee, atau pilih <b>TikTok Shop</b> untuk tren TikTok. Data live resmi akan aktif setelah akun/API marketplace disetujui; selama itu dashboard memakai data contoh + feed eksternal jika ENV disambungkan.
+      <StatCard label={c.sources} value={`${providers.filter((item) => item.enabled).length} provider`} helper={summarizePeriods(sourceRows, c.periods) || c.reviewerNote} tone="success" />
     </div>
 
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-      <Badge label={c.reviewerBadge} tone="success" />
-      <Badge label={c.reviewerNote} tone="blue" />
+      {providers.map((provider) => <Badge key={provider.id} label={`${provider.name}: ${provider.status}`} tone={providerTone(provider.status)} />)}
+      {generatedAt && <Badge label={`Generated ${new Date(generatedAt).toLocaleTimeString()}`} tone="neutral" />}
+      {errors.map((error, index) => <Badge key={index} label={error} tone="warning" />)}
+      {userProductHint && <Badge label={userProductHint} tone="blue" />}
     </div>
 
-    <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 14, marginTop: 16 }}>
-      <div style={{ padding: 16, borderRadius: 20, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-        <Badge label={c.answerTitle} tone="success" />
-        <pre style={{ whiteSpace: "pre-wrap", margin: "12px 0 0", lineHeight: 1.7, color: "#334155", fontFamily: "inherit" }}>{answer}</pre>
-        <p style={{ margin: "14px 0 0", color: "#64748b", fontSize: 12, lineHeight: 1.6 }}>{c.dataNote}</p>
+    <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.82fr 1.18fr", gap: 14, marginTop: 16 }}>
+      <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ padding: 16, borderRadius: 20, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Badge label={c.answerTitle} tone="success" />
+            {(Object.keys(c.questions) as MarketQuestion[]).map((key) => <button key={key} onClick={() => setQuestion(key)} style={{ ...(question === key ? ctaButtonStyle : ghostButtonStyle), fontSize: 12, padding: "8px 10px" }}>{c.questions[key]}</button>)}
+          </div>
+          <pre style={{ whiteSpace: "pre-wrap", margin: "12px 0 0", lineHeight: 1.7, color: "#334155", fontFamily: "inherit" }}>{answer}</pre>
+          <p style={{ margin: "14px 0 0", color: "#64748b", fontSize: 12, lineHeight: 1.6 }}>{c.dataNote}</p>
+        </div>
+
+        <div style={{ padding: 16, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}>
+          <Badge label={c.productRecommendation} tone="success" />
+          <h3 style={{ margin: "10px 0 6px" }}>{c.recommendationHelper}</h3>
+          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+            {!recommendations.length && <EmptyState title={c.emptyTitle} description={c.emptyDesc} />}
+            {recommendations.map((item, index) => <div key={item.id} style={{ padding: 12, borderRadius: 16, background: "#ffffff", border: "1px solid #bbf7d0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <strong>{index + 1}. {item.productName}</strong>
+                <Badge label={`${Math.round(scoreTrend(item))}/100`} tone={toneFor(item)} />
+              </div>
+              <small style={{ color: "#64748b" }}>{item.marketplace} · {item.category} · {money(item.priceMin, locale)}-{money(item.priceMax, locale)}</small>
+              <p style={{ margin: "8px 0 0", color: "#334155", fontSize: 13, lineHeight: 1.55 }}>{actionFor(item, locale)}</p>
+            </div>)}
+          </div>
+        </div>
       </div>
+
       <div style={{ display: "grid", gap: 10 }}>
         {!rows.length && <EmptyState title={c.emptyTitle} description={c.emptyDesc} />}
-        {rows.slice(0, 8).map((item) => {
+        {rows.slice(0, 10).map((item) => {
           const trendScore = scoreTrend(item);
           const tone = toneFor(item);
           return <div key={item.id} style={{ padding: 14, borderRadius: 18, background: "#ffffff", border: "1px solid #e2e8f0" }}>

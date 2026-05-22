@@ -24,7 +24,7 @@ function normalizePeriod(value: unknown): TrendPeriod {
 
 function normalizeTrend(row: Record<string, unknown>, index: number, source: string, sourceKind: TrendSourceKind): MarketTrend {
   return {
-    id: String(row.id || `${sourceKind}-${index + 1}`),
+    id: String(row.id || `${sourceKind}-${source}-${index + 1}`),
     productName: String(row.productName || row.product_name || row.name || row.keyword || `Trend ${index + 1}`),
     category: String(row.category || "General"),
     keyword: String(row.keyword || row.productName || row.product_name || row.name || `trend-${index + 1}`),
@@ -54,36 +54,43 @@ async function readJsonFeed(url: string, source: string, sourceKind: TrendSource
   return rows.map((row: Record<string, unknown>, index: number) => normalizeTrend(row, index, source, sourceKind));
 }
 
-export function getTrendProviderStatuses(): TrendProviderStatus[] {
-  const genericFeedReady = Boolean(process.env.TREND_FEED_URL);
-  const shopeeAnalyticsReady = Boolean(process.env.SHOPEE_ANALYTICS_FEED_URL);
-  const shopeeApproved = Boolean(process.env.SHOPEE_PARTNER_ID && process.env.SHOPEE_PARTNER_KEY && process.env.SHOPEE_REDIRECT_URL);
+const FEED_CONFIGS = [
+  { env: "TREND_FEED_URL", id: "trend-feed", name: "Feed tren eksternal aktif", source: "Custom trend feed" },
+  { env: "SHOPEE_ANALYTICS_FEED_URL", id: "shopee-feed", name: "Shopee Trend feed aktif", source: "Shopee Analytics feed" },
+  { env: "TIKTOK_ANALYTICS_FEED_URL", id: "tiktok-feed", name: "TikTok Shop Trend feed aktif", source: "TikTok Shop Analytics feed" },
+  { env: "TOKOPEDIA_ANALYTICS_FEED_URL", id: "tokopedia-feed", name: "Tokopedia Trend feed aktif", source: "Tokopedia Analytics feed" },
+  { env: "LAZADA_ANALYTICS_FEED_URL", id: "lazada-feed", name: "Lazada Trend feed aktif", source: "Lazada Analytics feed" },
+] as const;
 
-  return [
-    { id: "reviewer-demo", name: "Demo reviewer aktif", kind: "fallback_seed", enabled: true, status: "fallback", message: "Data sampel siap diuji untuk proses review Shopee." },
-    ...(genericFeedReady ? [{ id: "trend-feed", name: "Feed tren eksternal aktif", kind: "analytics_feed" as TrendSourceKind, enabled: true, status: "ready" as const, message: "Feed tren tambahan aktif." }] : []),
-    ...(shopeeAnalyticsReady ? [{ id: "marketplace-analytics", name: "Feed analytics marketplace aktif", kind: "analytics_feed" as TrendSourceKind, enabled: true, status: "ready" as const, message: "Feed analytics tambahan aktif." }] : []),
-    ...(shopeeApproved ? [{ id: "marketplace-api", name: "Kredensial marketplace tersedia", kind: "official_api" as TrendSourceKind, enabled: true, status: "ready" as const, message: "Kredensial integrasi tersedia untuk aktivasi setelah review use case." }] : []),
+export function getTrendProviderStatuses(): TrendProviderStatus[] {
+  const shopeeApproved = Boolean(process.env.SHOPEE_PARTNER_ID && process.env.SHOPEE_PARTNER_KEY && process.env.SHOPEE_REDIRECT_URL);
+  const tiktokApproved = Boolean(process.env.TIKTOK_SHOP_CLIENT_KEY && process.env.TIKTOK_SHOP_CLIENT_SECRET && process.env.TIKTOK_SHOP_REDIRECT_URI);
+  const statuses: TrendProviderStatus[] = [
+    { id: "reviewer-demo", name: "Demo multi marketplace aktif", kind: "fallback_seed", enabled: true, status: "fallback", message: "Data sampel Shopee, TikTok Shop, Tokopedia, dan Lazada siap diuji." },
   ];
+
+  for (const feed of FEED_CONFIGS) {
+    if (process.env[feed.env]) {
+      statuses.push({ id: feed.id, name: feed.name, kind: "analytics_feed", enabled: true, status: "ready", message: `${feed.env} terhubung.` });
+    }
+  }
+
+  if (shopeeApproved) statuses.push({ id: "shopee-api", name: "Shopee API credentials tersedia", kind: "official_api", enabled: true, status: "ready", message: "Siap dipakai untuk data toko setelah approval use case." });
+  if (tiktokApproved) statuses.push({ id: "tiktok-api", name: "TikTok Shop API credentials tersedia", kind: "official_api", enabled: true, status: "ready", message: "Siap dipakai untuk data toko setelah approval scopes." });
+  return statuses;
 }
 
 export async function collectMarketplaceTrends(query: TrendQuery = {}) {
   const errors: string[] = [];
   const items: MarketTrend[] = [...FALLBACK_MARKET_TRENDS];
 
-  if (process.env.TREND_FEED_URL) {
+  for (const feed of FEED_CONFIGS) {
+    const url = process.env[feed.env];
+    if (!url) continue;
     try {
-      items.push(...await readJsonFeed(process.env.TREND_FEED_URL, "Custom trend feed", "analytics_feed"));
+      items.push(...await readJsonFeed(url, feed.source, "analytics_feed"));
     } catch (error) {
-      errors.push(error instanceof Error ? error.message : "TREND_FEED_URL gagal dibaca.");
-    }
-  }
-
-  if (process.env.SHOPEE_ANALYTICS_FEED_URL) {
-    try {
-      items.push(...await readJsonFeed(process.env.SHOPEE_ANALYTICS_FEED_URL, "Shopee Analytics feed", "analytics_feed"));
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : "SHOPEE_ANALYTICS_FEED_URL gagal dibaca.");
+      errors.push(error instanceof Error ? error.message : `${feed.env} gagal dibaca.`);
     }
   }
 
