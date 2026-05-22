@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTikTokShopAppKey, getTikTokShopAppSecret } from "@/lib/integrations/marketplace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -134,8 +135,8 @@ async function runTokenExchangeAttempt(
 }
 
 async function exchangeTikTokCode(code: string) {
-  const appKey = process.env.TIKTOK_SHOP_APP_KEY?.trim();
-  const appSecret = process.env.TIKTOK_SHOP_APP_SECRET?.trim();
+  const appKey = getTikTokShopAppKey();
+  const appSecret = getTikTokShopAppSecret();
 
   // OAuth callback is already successful if TikTok sends an auth code. Token exchange
   // can still fail because of env/endpoint/region configuration, so keep that failure

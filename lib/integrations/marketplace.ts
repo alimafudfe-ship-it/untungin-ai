@@ -22,10 +22,44 @@ export function buildTokopediaOAuthUrl(userId: string) {
   return `https://accounts.tokopedia.com/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=${scope}&state=${state}`;
 }
 
-export function buildTikTokShopOAuthUrl(userId: string) {
-  const appKey = process.env.TIKTOK_SHOP_APP_KEY;
-  const redirect = process.env.TIKTOK_SHOP_REDIRECT_URL;
-  if (!appKey || !redirect) throw new Error("TIKTOK_SHOP_APP_KEY dan TIKTOK_SHOP_REDIRECT_URL belum lengkap.");
+function getFirstEnv(...keys: string[]) {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
+export function getTikTokShopAppKey() {
+  return getFirstEnv(
+    "TIKTOK_SHOP_APP_KEY",
+    "TIKTOK_APP_KEY",
+    "NEXT_PUBLIC_TIKTOK_SHOP_APP_KEY",
+    "NEXT_PUBLIC_TIKTOK_APP_KEY"
+  );
+}
+
+export function getTikTokShopAppSecret() {
+  return getFirstEnv("TIKTOK_SHOP_APP_SECRET", "TIKTOK_APP_SECRET");
+}
+
+export function getTikTokShopRedirectUrl(origin?: string) {
+  return (
+    getFirstEnv(
+      "TIKTOK_SHOP_REDIRECT_URL",
+      "TIKTOK_REDIRECT_URL",
+      "NEXT_PUBLIC_TIKTOK_SHOP_REDIRECT_URL",
+      "NEXT_PUBLIC_TIKTOK_REDIRECT_URL"
+    ) ||
+    (origin ? `${origin}/api/marketplace/tiktok/callback` : undefined)
+  );
+}
+
+export function buildTikTokShopOAuthUrl(userId: string, origin?: string) {
+  const appKey = getTikTokShopAppKey();
+  const redirect = getTikTokShopRedirectUrl(origin);
+  if (!appKey) throw new Error("TIKTOK_SHOP_APP_KEY belum lengkap di Vercel Environment Variables.");
+  if (!redirect) throw new Error("TIKTOK_SHOP_REDIRECT_URL belum lengkap dan origin request tidak tersedia.");
   const state = Buffer.from(JSON.stringify({ provider: "tiktok", userId, ts: Date.now() })).toString("base64url");
 
   // TikTok Shop Partner Center may use different authorization hosts by region/account.
