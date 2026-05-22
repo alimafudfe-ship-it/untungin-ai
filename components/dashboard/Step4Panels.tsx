@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import type { DashboardMetrics, Expense, Product } from "@/types/dashboard";
 import { buildForecast, buildRecommendations } from "@/lib/dashboard/recommendations";
 import { compactMoney, money, percent } from "@/lib/dashboard/format";
@@ -71,6 +74,25 @@ export function AutomationPanel({ products, metrics }: { products: Product[]; me
 }
 
 export function MarketplaceApiPanel({ products, userId, workspaceId }: { products: Product[]; userId?: string | null; workspaceId?: string | null }) {
+  const [tiktokConnected, setTiktokConnected] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    const marketplaceStatus = url.searchParams.get("marketplace");
+
+    if (marketplaceStatus?.includes("tiktok_connected") || marketplaceStatus === "tiktok_already_connected") {
+      localStorage.setItem("tiktok_connected", "1");
+      setTiktokConnected(true);
+      return;
+    }
+
+    if (localStorage.getItem("tiktok_connected") === "1") {
+      setTiktokConnected(true);
+    }
+  }, []);
+
   const tiktokParams = new URLSearchParams({
     ...(userId ? { user_id: userId } : {}),
     ...(workspaceId ? { workspace_id: workspaceId } : {}),
@@ -95,7 +117,7 @@ export function MarketplaceApiPanel({ products, userId, workspaceId }: { product
   const channels = [
     { name: "Shopee", status: "OAuth ready", route: "/api/marketplace/shopee/connect" },
     { name: "Tokopedia", status: "OAuth ready", route: "/api/marketplace/tokopedia/connect" },
-    { name: "TikTok Shop", status: "OAuth ready", route: tiktokRoute },
+    { name: "TikTok Shop", status: tiktokConnected ? "Connected" : "OAuth ready", route: tiktokRoute },
     { name: "Lazada", status: "Planned", route: "Phase berikutnya" },
   ];
   const marketplaceCount = new Set(products.map((item) => item.marketplace || "Manual")).size;
@@ -106,7 +128,7 @@ export function MarketplaceApiPanel({ products, userId, workspaceId }: { product
         <Badge label={`${marketplaceCount} channels`} tone="success" />
       </section>
       <section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        {channels.map((item) => <div key={item.name} style={cardStyle}><Badge label={item.status} tone={item.status.includes("ready") ? "success" : "muted"} /><h3>{item.name}</h3><p style={{ color: "#64748b" }}>{item.route}</p>{item.route.startsWith("/api/") ? <a href={item.route} style={{ ...ghostButtonStyle, display: "inline-flex", textDecoration: "none" }}>Connect</a> : <button type="button" disabled style={{ ...ghostButtonStyle, opacity: 0.55, cursor: "not-allowed" }}>Connect</button>}</div>)}
+        {channels.map((item) => <div key={item.name} style={cardStyle}><Badge label={item.status} tone={item.status.includes("ready") || item.status === "Connected" ? "success" : "muted"} /><h3>{item.name}</h3><p style={{ color: "#64748b", wordBreak: "break-all" }}>{item.route}</p>{item.name === "TikTok Shop" && tiktokConnected ? <button type="button" disabled style={{ ...ghostButtonStyle, opacity: 0.7, cursor: "default" }}>Connected</button> : item.route.startsWith("/api/") ? <a href={item.route} style={{ ...ghostButtonStyle, display: "inline-flex", textDecoration: "none" }}>Connect</a> : <button type="button" disabled style={{ ...ghostButtonStyle, opacity: 0.55, cursor: "not-allowed" }}>Connect</button>}</div>)}
       </section>
       <section style={cardStyle}>
         <Badge label="TikTok Go Live Review" tone="warning" />
