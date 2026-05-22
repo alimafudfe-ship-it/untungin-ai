@@ -286,47 +286,45 @@ export async function GET(req: Request) {
   if (supabaseUrl && serviceKey) {
     const db = createClient(supabaseUrl, serviceKey);
 
-if (supabaseUrl && serviceKey) {
-  const db = createClient(supabaseUrl, serviceKey);
+    const workspaceId =
+      process.env.DEFAULT_WORKSPACE_ID ||
+      state.userId ||
+      "demo-workspace";
 
-  const workspaceId =
-    process.env.DEFAULT_WORKSPACE_ID ||
-    state.userId ||
-    "demo-workspace";
+    const { error: upsertError } = await db.from("marketplace_connections").upsert(
+      {
+        workspace_id: workspaceId,
+        user_id: state.userId || "demo-user",
+        provider: "tiktok",
+        shop_id: resolvedShopId,
 
-  const { error: upsertError } = await db.from("marketplace_connections").upsert(
-    {
-      workspace_id: workspaceId,
-      user_id: state.userId || "demo-user",
-      provider: "tiktok",
-      shop_id: resolvedShopId,
+        access_token: tokenResult.ok ? tokenResult.accessToken : null,
+        refresh_token: tokenResult.ok ? tokenResult.refreshToken : null,
 
-      access_token: tokenResult.ok ? tokenResult.accessToken : null,
-      refresh_token: tokenResult.ok ? tokenResult.refreshToken : null,
+        status: tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "auth_code_received",
+        connected_at: new Date().toISOString(),
 
-      status: tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "auth_code_received",
-      connected_at: new Date().toISOString(),
+        metadata: {
+          callback_params: Object.fromEntries(url.searchParams.entries()),
+          token_exchange: tokenResult,
+        },
+      } as any,
+      {
+        onConflict: "user_id,provider,shop_id",
+      }
+    );
 
-      metadata: {
-        callback_params: Object.fromEntries(url.searchParams.entries()),
-        token_exchange: tokenResult,
-      },
-    } as any,
-    {
-      onConflict: "user_id,provider,shop_id",
+    if (upsertError) {
+      console.error("Supabase marketplace_connections upsert error:", upsertError);
+    } else {
+      console.log("Supabase marketplace_connections upsert success:", {
+        provider: "tiktok",
+        shop_id: resolvedShopId,
+        status: tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "auth_code_received",
+      });
     }
-  );
-
-  if (upsertError) {
-    console.error("Supabase marketplace_connections upsert error:", upsertError);
-  } else {
-    console.log("Supabase marketplace_connections upsert success:", {
-      provider: "tiktok",
-      shop_id: resolvedShopId,
-      status: tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "auth_code_received",
-    });
   }
-}
+
   const result = tokenResult.ok || tokenResult.oauthAccepted ? "connected" : "code_received";
 
   return NextResponse.redirect(
