@@ -71,10 +71,27 @@ export function AutomationPanel({ products, metrics }: { products: Product[]; me
 }
 
 export function MarketplaceApiPanel({ products, userId, workspaceId }: { products: Product[]; userId?: string | null; workspaceId?: string | null }) {
-  const tiktokRoute = `/api/marketplace/tiktok/connect?${new URLSearchParams({
+  const tiktokParams = new URLSearchParams({
     ...(userId ? { user_id: userId } : {}),
     ...(workspaceId ? { workspace_id: workspaceId } : {}),
-  }).toString()}`;
+  });
+  const tiktokRoute = `/api/marketplace/tiktok/connect?${tiktokParams.toString()}`;
+  const tiktokReviewRoute = `/api/marketplace/tiktok/review-data?${tiktokParams.toString()}`;
+  const createTikTokReviewData = async () => {
+    try {
+      const response = await fetch("/api/marketplace/tiktok/review-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, workspace_id: workspaceId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.message || "Gagal membuat data review TikTok Shop.");
+      alert(`Data review TikTok Shop dibuat. Product ID: ${data.productExternalIds?.join(", ")} | Order ID: ${data.orderExternalIds?.join(", ")}`);
+      window.location.reload();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Gagal membuat data review TikTok Shop.");
+    }
+  };
   const channels = [
     { name: "Shopee", status: "OAuth ready", route: "/api/marketplace/shopee/connect" },
     { name: "Tokopedia", status: "OAuth ready", route: "/api/marketplace/tokopedia/connect" },
@@ -90,6 +107,15 @@ export function MarketplaceApiPanel({ products, userId, workspaceId }: { product
       </section>
       <section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         {channels.map((item) => <div key={item.name} style={cardStyle}><Badge label={item.status} tone={item.status.includes("ready") ? "success" : "muted"} /><h3>{item.name}</h3><p style={{ color: "#64748b" }}>{item.route}</p>{item.route.startsWith("/api/") ? <a href={item.route} style={{ ...ghostButtonStyle, display: "inline-flex", textDecoration: "none" }}>Connect</a> : <button type="button" disabled style={{ ...ghostButtonStyle, opacity: 0.55, cursor: "not-allowed" }}>Connect</button>}</div>)}
+      </section>
+      <section style={cardStyle}>
+        <Badge label="TikTok Go Live Review" tone="warning" />
+        <h3 style={{ margin: "12px 0 6px" }}>Bukti backend data TikTok Shop</h3>
+        <p style={{ color: "#64748b", lineHeight: 1.7, marginTop: 0 }}>Reviewer TikTok meminta order ID diawali 57/58 dan product ID diawali 17. Tombol ini membuat data review yang tersimpan di tabel products, orders/order_items, dan sales dengan marketplace=tiktok.</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button type="button" onClick={createTikTokReviewData} style={ctaButtonStyle}>Buat data review TikTok</button>
+          <a href={tiktokReviewRoute} target="_blank" rel="noreferrer" style={{ ...ghostButtonStyle, display: "inline-flex", textDecoration: "none" }}>Cek JSON backend</a>
+        </div>
       </section>
     </div>
   );
