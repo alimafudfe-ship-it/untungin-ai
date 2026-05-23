@@ -5,9 +5,20 @@ export function clamp(value: number, min = 0, max = 100) {
 }
 
 export function scoreTrend(item: MarketTrend) {
+  if (item.opportunityScore && item.opportunityScore > 0) return clamp(item.opportunityScore);
+
   const competitionOpportunity = 100 - item.competitionScore;
-  const confidenceBoost = item.confidence * 0.08;
-  return clamp(item.demandScore * 0.34 + item.growthScore * 0.38 + competitionOpportunity * 0.2 + confidenceBoost);
+  const salesSignal = clamp(Math.log10((item.sold30d || item.monthlyUnits || 0) + 1) * 16);
+  const creatorSignal = clamp(Math.log10((item.creatorCount || 0) + (item.videoCount || 0) + 1) * 12);
+
+  return clamp(
+    item.demandScore * 0.35 +
+    item.growthScore * 0.3 +
+    competitionOpportunity * 0.2 +
+    item.confidence * 0.08 +
+    salesSignal * 0.04 +
+    creatorSignal * 0.03
+  );
 }
 
 export function filterTrends(items: MarketTrend[], query: TrendQuery = {}) {

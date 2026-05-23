@@ -23,8 +23,12 @@ function normalizePeriod(value: unknown): TrendPeriod {
 }
 
 function normalizeTrend(row: Record<string, unknown>, index: number, source: string, sourceKind: TrendSourceKind): MarketTrend {
+  const normalizedSourceKind = String(row.sourceKind || row.source_kind || sourceKind) as TrendSourceKind;
+  const monthlyUnits = toNumber(row.monthlyUnits ?? row.monthly_units ?? row.units ?? row.sold30d ?? row.sold_30d, 0);
+  const monthlyRevenue = toNumber(row.monthlyRevenue ?? row.monthly_revenue ?? row.revenue ?? row.revenue30d ?? row.revenue_30d, 0);
+
   return {
-    id: String(row.id || `${sourceKind}-${source}-${index + 1}`),
+    id: String(row.id || `${normalizedSourceKind}-${source}-${index + 1}`),
     productName: String(row.productName || row.product_name || row.name || row.keyword || `Trend ${index + 1}`),
     category: String(row.category || "General"),
     keyword: String(row.keyword || row.productName || row.product_name || row.name || `trend-${index + 1}`),
@@ -36,13 +40,33 @@ function normalizeTrend(row: Record<string, unknown>, index: number, source: str
     competitionScore: toNumber(row.competitionScore ?? row.competition_score ?? row.competition, 50),
     priceMin: toNumber(row.priceMin ?? row.price_min ?? row.min_price, 0),
     priceMax: toNumber(row.priceMax ?? row.price_max ?? row.max_price, 0),
-    monthlyUnits: toNumber(row.monthlyUnits ?? row.monthly_units ?? row.units, 0),
-    monthlyRevenue: toNumber(row.monthlyRevenue ?? row.monthly_revenue ?? row.revenue, 0),
+    monthlyUnits,
+    monthlyRevenue,
+    sold7d: toNumber(row.sold7d ?? row.sold_7d, 0),
+    sold30d: toNumber(row.sold30d ?? row.sold_30d ?? monthlyUnits, monthlyUnits),
+    revenue7d: toNumber(row.revenue7d ?? row.revenue_7d, 0),
+    revenue30d: toNumber(row.revenue30d ?? row.revenue_30d ?? monthlyRevenue, monthlyRevenue),
+    growth7d: toNumber(row.growth7d ?? row.growth_7d, 0),
+    growth30d: toNumber(row.growth30d ?? row.growth_30d, 0),
+    sellerCount: toNumber(row.sellerCount ?? row.seller_count, 0),
+    creatorCount: toNumber(row.creatorCount ?? row.creator_count, 0),
+    videoCount: toNumber(row.videoCount ?? row.video_count, 0),
+    liveCount: toNumber(row.liveCount ?? row.live_count, 0),
+    adCount: toNumber(row.adCount ?? row.ad_count, 0),
+    avgRating: toNumber(row.avgRating ?? row.avg_rating, 0),
+    reviewCount: toNumber(row.reviewCount ?? row.review_count, 0),
+    opportunityScore: toNumber(row.opportunityScore ?? row.opportunity_score, 0),
+    shopName: row.shopName || row.shop_name ? String(row.shopName || row.shop_name) : undefined,
+    topCreator: row.topCreator || row.top_creator ? String(row.topCreator || row.top_creator) : undefined,
+    topVideoViews: toNumber(row.topVideoViews ?? row.top_video_views, 0),
+    topLiveRevenue: toNumber(row.topLiveRevenue ?? row.top_live_revenue, 0),
+    sourceUrl: row.sourceUrl || row.source_url ? String(row.sourceUrl || row.source_url) : undefined,
+    notes: row.notes ? String(row.notes) : undefined,
     signal: normalizeSignal(row.signal),
     source: String(row.source || source),
-    sourceKind,
-    confidence: toNumber(row.confidence, sourceKind === "fallback_seed" ? 60 : 78),
-    lastUpdated: String(row.lastUpdated || row.last_updated || new Date().toISOString()),
+    sourceKind: normalizedSourceKind,
+    confidence: toNumber(row.confidence, normalizedSourceKind === "fallback_seed" ? 60 : 78),
+    lastUpdated: String(row.lastUpdated || row.last_updated || row.collectedAt || row.collected_at || new Date().toISOString()),
   };
 }
 
@@ -56,6 +80,7 @@ async function readJsonFeed(url: string, source: string, sourceKind: TrendSource
 
 const FEED_CONFIGS = [
   { env: "TREND_FEED_URL", id: "trend-feed", name: "Feed tren eksternal aktif", source: "Custom trend feed" },
+  { env: "KALODATA_LIKE_FEED_URL", id: "kalodata-like-feed", name: "Kalodata-like research feed aktif", source: "Kalodata-like manual/partner feed" },
   { env: "SHOPEE_ANALYTICS_FEED_URL", id: "shopee-feed", name: "Shopee Trend feed aktif", source: "Shopee Analytics feed" },
   { env: "TIKTOK_ANALYTICS_FEED_URL", id: "tiktok-feed", name: "TikTok Shop Trend feed aktif", source: "TikTok Shop Analytics feed" },
   { env: "TOKOPEDIA_ANALYTICS_FEED_URL", id: "tokopedia-feed", name: "Tokopedia Trend feed aktif", source: "Tokopedia Analytics feed" },

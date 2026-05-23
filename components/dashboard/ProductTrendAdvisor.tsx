@@ -250,8 +250,27 @@ function csvEscape(value: unknown) {
   return /[",\n]/.test(raw) ? `"${raw.replace(/"/g, '""')}"` : raw;
 }
 
+function compactCount(value: number | undefined) {
+  return Number(value || 0).toLocaleString("id-ID");
+}
+
+function researchSignal(item: MarketTrend) {
+  const parts = [
+    item.sold30d ? `${compactCount(item.sold30d)} sold/30d` : null,
+    item.sellerCount ? `${compactCount(item.sellerCount)} seller` : null,
+    item.creatorCount ? `${compactCount(item.creatorCount)} kreator` : null,
+    item.videoCount ? `${compactCount(item.videoCount)} video` : null,
+    item.liveCount ? `${compactCount(item.liveCount)} live` : null,
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
 function exportTrendRows(rows: MarketTrend[]) {
-  const headers = ["product", "marketplace", "category", "keyword", "country", "period", "trend_score", "demand", "growth", "competition", "price_min", "price_max", "monthly_units", "monthly_revenue", "signal", "confidence", "source"];
+  const headers = [
+    "product", "marketplace", "category", "keyword", "country", "period", "opportunity_score", "demand", "growth", "competition",
+    "price_min", "price_max", "sold_7d", "sold_30d", "revenue_7d", "revenue_30d", "monthly_units", "monthly_revenue",
+    "seller_count", "creator_count", "video_count", "live_count", "ad_count", "avg_rating", "review_count", "signal", "confidence", "source", "source_url", "notes"
+  ];
   const lines = [headers.join(","), ...rows.map((item) => [
     item.productName,
     item.marketplace,
@@ -265,11 +284,24 @@ function exportTrendRows(rows: MarketTrend[]) {
     item.competitionScore,
     item.priceMin,
     item.priceMax,
+    item.sold7d || 0,
+    item.sold30d || item.monthlyUnits,
+    item.revenue7d || 0,
+    item.revenue30d || item.monthlyRevenue,
     item.monthlyUnits,
     item.monthlyRevenue,
+    item.sellerCount || 0,
+    item.creatorCount || 0,
+    item.videoCount || 0,
+    item.liveCount || 0,
+    item.adCount || 0,
+    item.avgRating || 0,
+    item.reviewCount || 0,
     item.signal,
     item.confidence,
     item.source,
+    item.sourceUrl || "",
+    item.notes || "",
   ].map(csvEscape).join(","))];
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -329,7 +361,7 @@ function buildAnswer(question: MarketQuestion, rows: MarketTrend[], c: typeof CO
     return map;
   }, new Map<string, { marketplace: string; units: number; revenue: number; count: number; score: number }>()).values()).sort((a, b) => b.score / b.count - a.score / a.count);
 
-  const listTop = rows.slice(0, 5).map((item, index) => `${index + 1}. ${item.productName} - ${item.marketplace} · ${c.demand} ${item.demandScore}/100 · ${c.growth} ${item.growthScore}/100 · ${c.priceRange} ${money(item.priceMin, locale)}-${money(item.priceMax, locale)}`).join("\n");
+  const listTop = rows.slice(0, 5).map((item, index) => `${index + 1}. ${item.productName} - ${item.marketplace} · ${c.demand} ${item.demandScore}/100 · ${c.growth} ${item.growthScore}/100 · ${c.priceRange} ${money(item.priceMin, locale)}-${money(item.priceMax, locale)}${researchSignal(item) ? ` · ${researchSignal(item)}` : ""}`).join("\n");
 
   if (question === "category") {
     const best = categoryScores[0];
@@ -483,7 +515,7 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
                 <strong>{index + 1}. {item.productName}</strong>
                 <Badge label={`${Math.round(scoreTrend(item))}/100`} tone={toneFor(item)} />
               </div>
-              <small style={{ color: "#64748b" }}>{item.marketplace} · {item.category} · {money(item.priceMin, locale)}-{money(item.priceMax, locale)}</small>
+              <small style={{ color: "#64748b" }}>{item.marketplace} · {item.category} · {money(item.priceMin, locale)}-{money(item.priceMax, locale)}{researchSignal(item) ? ` · ${researchSignal(item)}` : ""}</small>
               <p style={{ margin: "8px 0 0", color: "#334155", fontSize: 13, lineHeight: 1.55 }}>{actionFor(item, locale)}</p>
             </div>)}
           </div>
@@ -509,14 +541,26 @@ export function ProductTrendAdvisor({ products }: { products?: Product[] }) {
               <span>{c.competition}: <b>{item.competitionScore}/100</b></span>
               <span>{c.confidence}: <b>{item.confidence}/100</b></span>
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginTop: 10, fontSize: 12, color: "#64748b" }} className="metrics-grid">
+              <span>Sold 7d: <b>{compactCount(item.sold7d || 0)}</b></span>
+              <span>Sold 30d: <b>{compactCount(item.sold30d || item.monthlyUnits)}</b></span>
+              <span>Kreator: <b>{compactCount(item.creatorCount)}</b></span>
+              <span>Video: <b>{compactCount(item.videoCount)}</b></span>
+              <span>Live: <b>{compactCount(item.liveCount)}</b></span>
+              <span>Iklan: <b>{compactCount(item.adCount)}</b></span>
+              <span>Seller: <b>{compactCount(item.sellerCount)}</b></span>
+              <span>Rating: <b>{item.avgRating ? `${item.avgRating}/5 (${compactCount(item.reviewCount)} review)` : "-"}</b></span>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10, fontSize: 12, color: "#64748b" }}>
               <span>{c.priceRange}: <b>{money(item.priceMin, locale)}-{money(item.priceMax, locale)}</b></span>
               <span>{c.monthlyUnits}: <b>{item.monthlyUnits.toLocaleString()}</b></span>
               <span>{c.monthlyRevenue}: <b>{compactMoney(item.monthlyRevenue, locale)}</b></span>
+              <span>Revenue 30d: <b>{compactMoney(item.revenue30d || item.monthlyRevenue, locale)}</b></span>
               <span>{c.lastUpdated}: <b>{new Date(item.lastUpdated).toLocaleDateString()}</b></span>
+              <span>Top creator: <b>{item.topCreator || "-"}</b></span>
             </div>
             <div style={{ marginTop: 10 }}><Progress value={trendScore} /></div>
-            <p style={{ margin: "8px 0 0", color: "#94a3b8", fontSize: 12 }}>{c.source}: {item.source}</p>
+            <p style={{ margin: "8px 0 0", color: "#94a3b8", fontSize: 12 }}>{c.source}: {item.source}{item.sourceUrl ? <> · <a href={item.sourceUrl} target="_blank" rel="noreferrer">buka sumber</a></> : null}{item.notes ? ` · ${item.notes}` : ""}</p>
           </div>;
         })}
       </div>
