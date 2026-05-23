@@ -18,7 +18,7 @@ const marketplaceGuides = [
   },
   {
     name: "TikTok Shop",
-    status: "Connected",
+    status: "Beta Testing",
     detail: "TikTok Shop OAuth aktif dan feed trend sudah ready."
   },
   {
