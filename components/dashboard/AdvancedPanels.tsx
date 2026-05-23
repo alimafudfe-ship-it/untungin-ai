@@ -6,10 +6,26 @@ import { cardStyle, Badge, Progress, StatCard, ctaButtonStyle, ghostButtonStyle 
 import { ForecastChartCard, MarketplaceBarChart } from "./Charts";
 
 const marketplaceGuides = [
-  { name: "Shopee", status: "CSV ready", detail: "Import order CSV, fee admin, voucher seller, biaya iklan." },
-  { name: "Tokopedia", status: "CSV ready", detail: "Import transaksi, biaya layanan, dan margin produk." },
-  { name: "TikTok Shop", status: "Coming soon", detail: "Connector API disiapkan untuk Phase 3 automation." },
-  { name: "Lazada", status: "Coming soon", detail: "Mapping CSV dan product sync disiapkan." },
+  {
+    name: "Shopee",
+    status: "OAuth ready",
+    detail: "Shopee menunggu approval. CSV import sudah siap."
+  },
+  {
+    name: "Tokopedia",
+    status: "OAuth ready",
+    detail: "OAuth Tokopedia siap dan feed trend aktif."
+  },
+  {
+    name: "TikTok Shop",
+    status: "Connected",
+    detail: "TikTok Shop OAuth aktif dan feed trend sudah ready."
+  },
+  {
+    name: "Lazada",
+    status: "Planned",
+    detail: "Lazada disiapkan tahap berikutnya."
+  },
 ];
 
 export function AIRecommendationPanel({ products = [], expenses = [], metrics }: { products?: Product[]; expenses?: Expense[]; metrics: DashboardMetrics }) {
