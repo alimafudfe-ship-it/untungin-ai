@@ -353,24 +353,35 @@ export async function GET(req: Request) {
     }
 
     // Production SaaS schema fallback: marketplace column keyed by workspace.
-    if (!saved && workspaceId) {
-      const { error: marketplaceError } = await db.from("marketplace_connections").insert({
-        workspace_id: workspaceId,
-        marketplace: "tiktok",
-        status,
-        access_token: tokenResult.ok ? tokenResult.accessToken : null,
-        refresh_token: tokenResult.ok ? tokenResult.refreshToken : null,
-        metadata,
-        last_sync_at: null,
-      } as any);
+if (!saved && workspaceId) {
+  const payload = {
+    workspace_id: workspaceId,
+    marketplace: "tiktok_shop",
+    status: "connected",
+    access_token: tokenResult.ok ? tokenResult.accessToken : "oauth_only",
+    refresh_token: tokenResult.ok ? tokenResult.refreshToken : null,
+    metadata,
+    last_sync_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 
-      if (!marketplaceError) {
-        saved = true;
-      } else {
-        lastError = marketplaceError;
-      }
-    }
+  console.log("INSERTING MARKETPLACE CONNECTION:", payload);
 
+  const { data, error } = await db
+    .from("marketplace_connections")
+    .insert(payload)
+    .select();
+
+  console.log("INSERT RESULT:", data);
+  console.log("INSERT ERROR:", error);
+
+  if (!error) {
+    saved = true;
+  } else {
+    lastError = error;
+  }
+}
     if (!saved) {
       console.error("Supabase marketplace_connections save failed:", {
         lastError,
