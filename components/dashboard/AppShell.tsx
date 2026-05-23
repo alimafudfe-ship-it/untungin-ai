@@ -16,9 +16,9 @@ const LOCALES: { key: Locale; label: string; short: string }[] = [
 const NAV: Record<Locale, NavGroup[]> = {
   id: [
     { label: "Menu Utama", items: [
-      { key: "overview", label: "Dashboard", helper: "KPI & aksi", icon: "D" },
-      { key: "marketplace", label: "Integrasi", helper: "CSV & API", icon: "I" },
-      { key: "trend", label: "Trend Produk", helper: "Produk laris", icon: "TP" },
+      { key: "overview", label: "Dashboard", helper: "Ringkasan bisnis", icon: "D" },
+      { key: "marketplace", label: "Integrasi", helper: "Connect & import", icon: "I" },
+      { key: "trends", label: "Trend Produk", helper: "Produk laris", icon: "TP" },
       { key: "ai", label: "Insight AI", helper: "Rekomendasi", icon: "AI" },
       { key: "reports", label: "Laporan", helper: "PDF & CSV", icon: "L" },
     ] },
@@ -28,10 +28,10 @@ const NAV: Record<Locale, NavGroup[]> = {
       { key: "inventory", label: "Stok", helper: "Kontrol stok", icon: "S" },
       { key: "sales", label: "Sales", helper: "Input order", icon: "SA" },
       { key: "forecast", label: "Forecast", helper: "30 hari", icon: "F" },
-      { key: "automation", label: "Automation", helper: "Peringatan", icon: "A" },
+      { key: "automation", label: "Automation", helper: "Peringatan", icon: "AU" },
       { key: "team", label: "Team", helper: "Ruang kerja", icon: "T" },
       { key: "pricing", label: "Billing", helper: "Langganan", icon: "B" },
-      { key: "growth", label: "Growth", helper: "Aktivasi & retensi", icon: "G" },
+      { key: "growth", label: "Growth", helper: "Aktivasi", icon: "G" },
     ] },
     { label: "Tambahan", items: [
       { key: "assistant", label: "Chat Keuangan", helper: "Tanya data", icon: "FC" },
@@ -40,9 +40,9 @@ const NAV: Record<Locale, NavGroup[]> = {
   ],
   en: [
     { label: "Main Menu", items: [
-      { key: "overview", label: "Dashboard", helper: "KPIs & actions", icon: "D" },
-      { key: "marketplace", label: "Integrations", helper: "CSV & API", icon: "I" },
-      { key: "trend", label: "Product Trends", helper: "Best sellers", icon: "PT" },
+      { key: "overview", label: "Dashboard", helper: "Business summary", icon: "D" },
+      { key: "marketplace", label: "Integrations", helper: "Connect & import", icon: "I" },
+      { key: "trends", label: "Product Trends", helper: "Winning products", icon: "PT" },
       { key: "ai", label: "AI Insights", helper: "Recommendations", icon: "AI" },
       { key: "reports", label: "Reports", helper: "PDF & CSV", icon: "R" },
     ] },
@@ -52,21 +52,21 @@ const NAV: Record<Locale, NavGroup[]> = {
       { key: "inventory", label: "Stock", helper: "Stock control", icon: "S" },
       { key: "sales", label: "Sales", helper: "Sales entry", icon: "SA" },
       { key: "forecast", label: "Forecast", helper: "30 days", icon: "F" },
-      { key: "automation", label: "Automation", helper: "Alerts", icon: "A" },
+      { key: "automation", label: "Automation", helper: "Alerts", icon: "AU" },
       { key: "team", label: "Team", helper: "Workspace", icon: "T" },
-      { key: "pricing", label: "Billing", helper: "Subscription", icon: "B" },
-      { key: "growth", label: "Growth", helper: "Activation & retention", icon: "G" },
+      { key: "pricing", label: "Billing", helper: "Plans", icon: "B" },
+      { key: "growth", label: "Growth", helper: "Activation", icon: "G" },
     ] },
-    { label: "Extra", items: [
-      { key: "assistant", label: "Finance Copilot", helper: "Ask your data", icon: "FC" },
+    { label: "More", items: [
+      { key: "assistant", label: "Finance Chat", helper: "Ask your data", icon: "FC" },
       { key: "goals", label: "Goals", helper: "Targets", icon: "TG" },
     ] },
   ],
   ms: [
     { label: "Menu Utama", items: [
-      { key: "overview", label: "Dashboard", helper: "KPI & tindakan", icon: "D" },
-      { key: "marketplace", label: "Integrasi", helper: "CSV & API", icon: "I" },
-      { key: "trend", label: "Trend Produk", helper: "Produk laris", icon: "TP" },
+      { key: "overview", label: "Dashboard", helper: "Ringkasan bisnis", icon: "D" },
+      { key: "marketplace", label: "Integrasi", helper: "Connect & import", icon: "I" },
+      { key: "trends", label: "Trend Produk", helper: "Produk laris", icon: "TP" },
       { key: "ai", label: "Insight AI", helper: "Cadangan", icon: "AI" },
       { key: "reports", label: "Laporan", helper: "PDF & CSV", icon: "L" },
     ] },
@@ -76,14 +76,14 @@ const NAV: Record<Locale, NavGroup[]> = {
       { key: "inventory", label: "Stok", helper: "Kawalan stok", icon: "S" },
       { key: "sales", label: "Sales", helper: "Input pesanan", icon: "SA" },
       { key: "forecast", label: "Forecast", helper: "30 hari", icon: "F" },
-      { key: "automation", label: "Automation", helper: "Amaran", icon: "A" },
+      { key: "automation", label: "Automation", helper: "Amaran", icon: "AU" },
       { key: "team", label: "Team", helper: "Ruang kerja", icon: "T" },
       { key: "pricing", label: "Billing", helper: "Bil", icon: "B" },
-      { key: "growth", label: "Growth", helper: "Aktivasi & retensi", icon: "G" },
+      { key: "growth", label: "Growth", helper: "Aktivasi", icon: "G" },
     ] },
     { label: "Tambahan", items: [
-      { key: "assistant", label: "Copilot Kewangan", helper: "Tanya data", icon: "FC" },
-      { key: "goals", label: "Sasaran", helper: "Target", icon: "TG" },
+      { key: "assistant", label: "Chat Keuangan", helper: "Tanya data", icon: "FC" },
+      { key: "goals", label: "Target", helper: "Sasaran", icon: "TG" },
     ] },
   ],
 };
@@ -97,8 +97,8 @@ const META: Record<Locale, MetaMap> = {
     sales: { eyebrow: "Order", title: "Input Penjualan", subtitle: "Catat order cepat dan update stok otomatis." },
     ai: { eyebrow: "AI CFO", title: "Rencana Aksi AI", subtitle: "Rekomendasi berdasarkan profit, stok, biaya, dan target." },
     reports: { eyebrow: "Pelaporan", title: "Laporan Eksekutif", subtitle: "Ekspor laporan untuk owner, mitra, dan arsip bisnis." },
-    marketplace: { eyebrow: "Data", title: "Integrasi Marketplace", subtitle: "Impor dan sinkronisasi channel penjualan." },
-    trend: { eyebrow: "Riset Produk", title: "Trend Produk Marketplace", subtitle: "Shopee, TikTok Shop, Tokopedia, dan Lazada trend analyzer." },
+    marketplace: { eyebrow: "Integrasi", title: "Integrasi Marketplace", subtitle: "Hubungkan Shopee, TikTok Shop, Tokopedia, Lazada, atau import CSV." },
+    trends: { eyebrow: "Trend Produk", title: "Marketplace Trend Analyzer", subtitle: "Cari produk laris di Shopee, TikTok Shop, Tokopedia, dan Lazada." },
     forecast: { eyebrow: "Perencanaan", title: "Proyeksi Bisnis", subtitle: "Prediksi profit, arus kas, dan risiko 30 hari." },
     automation: { eyebrow: "Alur kerja", title: "Pusat Otomasi", subtitle: "Laporan harian, WhatsApp alert, dan operasi otomatis." },
     team: { eyebrow: "Ruang kerja", title: "Akses Tim", subtitle: "Akses admin, finance, dan operator toko." },
@@ -116,8 +116,8 @@ const META: Record<Locale, MetaMap> = {
     sales: { eyebrow: "Orders", title: "Sales Entry", subtitle: "Record orders quickly and update inventory automatically." },
     ai: { eyebrow: "AI CFO", title: "AI Action Plan", subtitle: "Recommendations based on profit, stock, expenses, and goals." },
     reports: { eyebrow: "Reporting", title: "Executive Reports", subtitle: "Export reports for owners, partners, and business archives." },
-    marketplace: { eyebrow: "Data", title: "Marketplace Integrations", subtitle: "Import and sync sales channels." },
-    trend: { eyebrow: "Product Research", title: "Marketplace Product Trends", subtitle: "Shopee, TikTok Shop, Tokopedia, and Lazada trend analyzer." },
+    marketplace: { eyebrow: "Integrations", title: "Marketplace Integrations", subtitle: "Connect Shopee, TikTok Shop, Tokopedia, Lazada, or import CSV." },
+    trends: { eyebrow: "Product Trends", title: "Marketplace Trend Analyzer", subtitle: "Find winning products across Shopee, TikTok Shop, Tokopedia, and Lazada." },
     forecast: { eyebrow: "Planning", title: "Business Forecast", subtitle: "Forecast profit, cash flow, and risk for the next 30 days." },
     automation: { eyebrow: "Workflow", title: "Automation Center", subtitle: "Daily reports, WhatsApp alerts, and automated operations." },
     team: { eyebrow: "Workspace", title: "Team Access", subtitle: "Admin, finance, and store-operator access." },
@@ -135,8 +135,8 @@ const META: Record<Locale, MetaMap> = {
     sales: { eyebrow: "Pesanan", title: "Input Jualan", subtitle: "Catat pesanan cepat dan kemas kini stok automatik." },
     ai: { eyebrow: "AI CFO", title: "Pelan Tindakan AI", subtitle: "Cadangan berdasarkan untung, stok, belanja, dan sasaran." },
     reports: { eyebrow: "Laporan", title: "Laporan Eksekutif", subtitle: "Eksport laporan untuk pemilik, rakan niaga, dan arkib." },
-    marketplace: { eyebrow: "Data", title: "Integrasi Marketplace", subtitle: "Import dan sinkronkan channel jualan." },
-    trend: { eyebrow: "Riset Produk", title: "Trend Produk Marketplace", subtitle: "Shopee, TikTok Shop, Tokopedia, dan Lazada trend analyzer." },
+    marketplace: { eyebrow: "Integrasi", title: "Integrasi Marketplace", subtitle: "Hubungkan Shopee, TikTok Shop, Tokopedia, Lazada, atau import CSV." },
+    trends: { eyebrow: "Trend Produk", title: "Marketplace Trend Analyzer", subtitle: "Cari produk laris di Shopee, TikTok Shop, Tokopedia, dan Lazada." },
     forecast: { eyebrow: "Perancangan", title: "Ramalan Bisnes", subtitle: "Ramalan untung, tunai, dan risiko 30 hari." },
     automation: { eyebrow: "Alur kerja", title: "Pusat Automasi", subtitle: "Laporan harian, WhatsApp alert, dan operasi automatik." },
     team: { eyebrow: "Ruang kerja", title: "Akses Pasukan", subtitle: "Akses admin, kewangan, dan operator toko." },
@@ -154,7 +154,7 @@ const UI = {
   ms: { system: "Sistem Operasi Seller", workspace: "Ruang kerja", mainStore: "Toko Utama", channels: "Shopee, Tokopedia, TikTok Shop", scalePro: "PRO Skala", proHelper: "Buka SKU tanpa had, AI CFO, laporan automatik, dan akses pasukan.", managePlan: "Urus pelan", upgrade: "Naik taraf PRO", search: "Cari produk, laporan, atau insight...", dark: "Mode gelap", light: "Mode terang", export: "Eksport", owner: "Pemilik", logout: "Keluar", language: "Bahasa", expired: "Tamat tempoh", free: "Percuma" },
 };
 
-const mobileKeys: TabKey[] = ["overview", "marketplace", "trend", "ai", "reports"];
+const mobileKeys: TabKey[] = ["overview", "marketplace", "trends", "ai", "reports"];
 
 export function AppShell({
   activeTab,

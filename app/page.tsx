@@ -678,7 +678,7 @@ export default function DashboardPage() {
 
     {activeTab === "reports" && <ReportsPanel metrics={metrics} products={products} expenses={expenses} onExportCSV={handleExport} onExportPDF={handleExportPDF} />}
 
-    {activeTab === "trend" && <ProductTrendAdvisor products={products} />}
+    {activeTab === "trends" && <ProductTrendAdvisor products={products} />}
 
     {activeTab === "marketplace" && <div style={{ display: "grid", gap: 18 }}><MarketplaceSyncPanel products={products} syncing={syncing} lastSync={lastSync} onCSVUpload={handleCSVUpload} /><MarketplaceApiPanel products={products} userId={currentUserId} workspaceId={workspaceId} /></div>}
 

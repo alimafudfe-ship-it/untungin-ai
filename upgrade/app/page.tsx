@@ -4,28 +4,29 @@ import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
-import { supabase } from "@/lib/supabaseClient";
+import { hasSupabaseEnv, supabase, supabaseConfigError } from "@/lib/supabaseClient";
 import type { Expense, ExpenseRow, Goal, Product, ProductFilter, ProductRow, Profile, StockMoveType, TabKey, UpgradePlan } from "@/types/dashboard";
-import { DEMO_EXPENSES, DEMO_GOALS, DEMO_PRODUCTS, FREE_PRODUCT_LIMIT, LIFETIME_PRICE, MIDTRANS_REVIEW_MODE, MONTHLY_PRICE } from "@/lib/dashboard/constants";
+import { DEMO_EXPENSES, DEMO_GOALS, DEMO_PRODUCTS, FREE_PRODUCT_LIMIT, MIDTRANS_REVIEW_MODE, getPlanPriceLabel } from "@/lib/dashboard/constants";
+import { useDashboardLocale } from "@/lib/dashboard/i18n";
 import { calculateMargin, calculateProfit, getDashboardMetrics, isProfileExpired, isProfilePro, mapExpenseRow, mapProductRow } from "@/lib/dashboard/calculations";
 import { generateInsightText, getOneThingAction, buildInsightCards } from "@/lib/dashboard/insights";
 import { exportCashflowCSV, exportExpensesCSV, exportProductsCSV, exportSummaryJSON, exportRealPDF } from "@/lib/dashboard/reports";
 import { compactMoney, getErrorMessage, money, parseNumber, percent } from "@/lib/dashboard/format";
 import { AppShell } from "@/components/dashboard/AppShell";
-import { Hero } from "@/components/dashboard/Hero";
 import { Badge, cardStyle, ctaButtonStyle, EmptyState, ghostButtonStyle, Progress, StatCard } from "@/components/dashboard/ui";
 import { ExpensePanel, ExpenseFormState, ProductForm, ProductFormState, SaleForm, StockForm } from "@/components/dashboard/Forms";
 import { ProductCards, ProductFilters, ProductTable } from "@/components/dashboard/ProductTable";
 import { AnalyticsTable, DonutChartCard, LineChartCard } from "@/components/dashboard/Charts";
 import { ReportsPanel } from "@/components/dashboard/ReportsPanel";
 import { AIRecommendationPanel, ForecastingPanel, MarketplaceSyncPanel } from "@/components/dashboard/AdvancedPanels";
-import { SaaSPlatformPanel } from "@/components/dashboard/SaaSPlatformPanel";
 import { StartupMoatPanel } from "@/components/dashboard/StartupMoatPanel";
 import { GrowthEnginePanel } from "@/components/dashboard/GrowthEnginePanel";
-import { FirstCustomerReadyPanel } from "@/components/saas/FirstCustomerReadyPanel";
-import { AutomationPanel, FinanceChatPanel, LiveChartsPanel, MarketplaceApiPanel, MidtransSubscriptionPanel, TeamAccessPanel, type ChatMessage } from "@/components/dashboard/Step4Panels";
+import { ImportPreviewModal } from "@/components/saas/ImportPreviewModal";
+import { AutomationPanel, FinanceChatPanel, MarketplaceApiPanel, MidtransSubscriptionPanel, TeamAccessPanel, type ChatMessage } from "@/components/dashboard/Step4Panels";
+import { ExecutiveDashboard } from "@/components/dashboard/ExecutiveDashboard";
+import { ProductTrendAdvisor } from "@/components/dashboard/ProductTrendAdvisor";
 import { getCashflowTrend, getExpenseBreakdown, getInventoryAnalytics, getProductAnalytics, getProfitTrend } from "@/lib/dashboard/analytics";
-import { parseMarketplaceRow } from "@/lib/dashboard/marketplaceImport";
+import { createImportPreview, type ImportPreview } from "@/lib/dashboard/marketplaceImport";
 import { getOrCreateDefaultWorkspace, listWorkspaceStores, type Store } from "@/lib/saas/workspace";
 
 declare global {
@@ -46,10 +47,11 @@ function getPlanAmount(plan: UpgradePlan) {
 }
 
 export default function DashboardPage() {
+  const locale = useDashboardLocale();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [products, setProducts] = useState<Product[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>(DEMO_EXPENSES);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [goals] = useState<Goal[]>(DEMO_GOALS);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -62,6 +64,7 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<ProductFilter>("all");
   const [selectedPlan, setSelectedPlan] = useState<UpgradePlan>("lifetime");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -75,6 +78,8 @@ export default function DashboardPage() {
   const [saleForm, setSaleForm] = useState({ productId: "", qty: "", otherCost: "" });
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(initialExpenseForm);
   const [form, setForm] = useState<ProductFormState>(initialProductForm);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [pendingImportPreview, setPendingImportPreview] = useState<ImportPreview | null>(null);
 
   const isPro = isProfilePro(profile);
   const proExpired = isProfileExpired(profile);
@@ -111,24 +116,81 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
+    const DEMO_SESSION_KEY = "untungin_demo_session";
+    function getDemoSession() {
+      if (typeof window === "undefined") return null;
+      try {
+        const raw = window.localStorage.getItem(DEMO_SESSION_KEY);
+        return raw ? JSON.parse(raw) as { id?: string; email?: string } : null;
+      } catch {
+        return null;
+      }
+    }
+    function loadDemoDashboard(demoSession?: { id?: string; email?: string } | null) {
+      if (!isMounted) return;
+      setSetupError(null);
+      setCurrentUserId(demoSession?.id || "demo-user");
+      setUserEmail(demoSession?.email || "alimafudfe+demo@gmail.com");
+      setProducts(DEMO_PRODUCTS);
+      setExpenses(DEMO_EXPENSES);
+      setProfile({ role: "user", plan: "free", pro_until: null, email: demoSession?.email || "alimafudfe+demo@gmail.com" });
+      setWorkspaceId(null);
+      setStores([]);
+      setSelectedStoreId(null);
+      setIsDemoMode(true);
+      setPageLoading(false);
+    }
     async function loadUserAndData() {
       if (isMounted) setPageLoading(true);
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      const user = sessionData.session?.user ?? null;
-      if (sessionError || !user) {
+      const demoSession = getDemoSession();
+      if (demoSession?.id) {
+        loadDemoDashboard(demoSession);
+        return;
+      }
+      if (!hasSupabaseEnv) {
         if (!isMounted) return;
-        setCurrentUserId("demo-user");
+        setSetupError(supabaseConfigError || "Supabase ENV belum lengkap.");
+        setCurrentUserId(null);
         setUserEmail(null);
-        setProducts(DEMO_PRODUCTS);
-        setExpenses(DEMO_EXPENSES);
-        setProfile({ role: "user", plan: "free", pro_until: null, email: null });
+        setProducts([]);
+        setExpenses([]);
+        setProfile(null);
         setWorkspaceId(null);
         setStores([]);
         setSelectedStoreId(null);
-        setIsDemoMode(true);
+        setIsDemoMode(false);
         setPageLoading(false);
         return;
       }
+
+      let sessionData: any = { session: null };
+      let sessionError: any = null;
+      try {
+        const sessionResult = await supabase.auth.getSession();
+        sessionData = sessionResult.data;
+        sessionError = sessionResult.error;
+      } catch (authError) {
+        console.warn("Supabase Auth gagal dihubungi, masuk ke mode demo.", authError);
+        loadDemoDashboard({ id: "demo-user", email: "alimafudfe+demo@gmail.com" });
+        return;
+      }
+      const user = sessionData.session?.user ?? null;
+      if (sessionError || !user) {
+        if (!isMounted) return;
+        setCurrentUserId(null);
+        setUserEmail(null);
+        setProducts([]);
+        setExpenses([]);
+        setProfile(null);
+        setWorkspaceId(null);
+        setStores([]);
+        setSelectedStoreId(null);
+        setIsDemoMode(false);
+        setPageLoading(false);
+        router.replace(`/login?next=${encodeURIComponent("/")}`);
+        return;
+      }
+      setSetupError(null);
 
       if (!isMounted) return;
       setCurrentUserId(user.id);
@@ -171,8 +233,8 @@ export default function DashboardPage() {
         : await expenseQuery.eq("user_id", user.id);
       if (!isMounted) return;
       if (expenseError) {
-        console.warn("Expenses table belum tersedia atau belum diberi RLS. Jalankan supabase/migrations/20260513_expense_engine.sql", expenseError);
-        setExpenses(DEMO_EXPENSES);
+        console.warn("Expenses table belum tersedia atau belum diberi RLS. Jalankan schema Supabase production.", expenseError);
+        setExpenses([]);
       } else {
         setExpenses(((expenseData || []) as ExpenseRow[]).map(mapExpenseRow));
       }
@@ -183,14 +245,15 @@ export default function DashboardPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") { loadUserAndData(); return; }
       if (event === "SIGNED_OUT" || !session?.user) {
-        setCurrentUserId("demo-user"); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts(DEMO_PRODUCTS); setExpenses(DEMO_EXPENSES); setProfile({ role: "user", plan: "free", pro_until: null, email: null }); setIsDemoMode(true); setPageLoading(false);
+        if (getDemoSession()?.id) return;
+        setCurrentUserId(null); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts([]); setExpenses([]); setProfile(null); setIsDemoMode(false); setPageLoading(false); router.replace(`/login?next=${encodeURIComponent("/")}`);
       }
     });
     return () => { isMounted = false; subscription.unsubscribe(); };
   }, [router]);
 
   useEffect(() => {
-    if (!currentUserId || currentUserId === "demo-user" || isDemoMode) return;
+    if (!currentUserId || isDemoMode) return;
     const channel = supabase
       .channel(`dashboard-realtime-${currentUserId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `user_id=eq.${currentUserId}` }, (payload: any) => {
@@ -220,7 +283,8 @@ export default function DashboardPage() {
   }, [currentUserId, isDemoMode]);
 
   function ensureLoggedIn() {
-    if (!currentUserId) { alert("Harus login dulu supaya data tersimpan."); return false; }
+    if (!hasSupabaseEnv) { alert("Supabase ENV belum lengkap. Isi ENV di Vercel dulu."); return false; }
+    if (!currentUserId || isDemoMode) { router.replace(`/login?next=${encodeURIComponent("/")}`); return false; }
     return true;
   }
 
@@ -270,35 +334,125 @@ export default function DashboardPage() {
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    if (typeof window !== "undefined") window.localStorage.removeItem("untungin_demo_session");
+    await supabase.auth.signOut().catch(() => null);
     setCurrentUserId(null); setUserEmail(null); setProducts([]); setProfile(null); router.replace("/login");
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function findExistingProductByFormName(name: string, marketplace: string) {
+    const normalizedName = name.trim().toLowerCase();
+    const normalizedMarketplace = marketplace.trim().toLowerCase();
+    return products.find((item) => {
+      const sameName = item.name.trim().toLowerCase() === normalizedName;
+      const sameMarketplace = (item.marketplace || "Manual").trim().toLowerCase() === normalizedMarketplace;
+      return sameName && sameMarketplace;
+    }) || products.find((item) => item.name.trim().toLowerCase() === normalizedName);
+  }
+
+  async function logManualSaleOrder(product: Product, qty: number, extraCost: number, stockBefore: number, stockAfter: number) {
+    if (isDemoMode || !workspaceId || !selectedStoreId) return;
+    try {
+      const saleProfit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold: qty, otherCost: extraCost });
+      const grossRevenue = product.sellingPrice * qty;
+      const { data: order } = await db.from("orders").insert({
+        workspace_id: workspaceId,
+        store_id: selectedStoreId,
+        marketplace: product.marketplace || "Manual",
+        external_order_id: `manual-${product.id}-${Date.now()}`,
+        status: "completed",
+        gross_revenue: grossRevenue,
+        marketplace_fee: 0,
+        ads_cost: 0,
+        voucher_cost: 0,
+        affiliate_cost: 0,
+        net_revenue: grossRevenue - extraCost,
+        source_file: "manual-sale",
+        raw: { source: "product_form_autocomplete", auto_stock_deducted: true, stock_before: stockBefore, stock_after: stockAfter },
+      }).select("id").single();
+      if (order?.id) {
+        await db.from("order_items").insert({
+          order_id: order.id,
+          product_id: product.id,
+          product_name: product.name,
+          quantity: qty,
+          unit_price: product.sellingPrice,
+          cost_price: product.costPrice,
+          total_fee: extraCost,
+          profit: saleProfit,
+          raw: { source: "product_form_autocomplete", marketplace: product.marketplace || "Manual" },
+        });
+      }
+    } catch (orderError) {
+      console.warn("Order log belum tersimpan, tapi stok sudah otomatis berkurang.", orderError);
+    }
+  }
+
+  async function saveProduct(finishAfterSave = false) {
     if (!ensureLoggedIn()) return;
-    if (!isPro && products.length >= FREE_PRODUCT_LIMIT) { openUpgradeModal("lifetime"); return; }
     const name = form.productName.trim();
     const costPrice = parseNumber(form.costPrice);
     const sellingPrice = parseNumber(form.sellingPrice);
     const stockInitial = parseNumber(form.stockInitial);
     const quantitySold = parseNumber(form.quantitySold);
     const otherCost = parseNumber(form.otherCost);
+    const existingProduct = name ? findExistingProductByFormName(name, form.marketplace) : null;
+
+    if (existingProduct) {
+      if (quantitySold <= 0) { alert("Produk sudah ada. Isi jumlah terjual untuk mengurangi stok otomatis, atau gunakan menu Stok untuk restock."); return; }
+      if (quantitySold > existingProduct.stockRemaining) { alert(`Qty terjual melebihi stok tersedia (${existingProduct.stockRemaining}).`); return; }
+      if (costPrice < 0 || sellingPrice <= 0 || otherCost < 0) { alert("Cek lagi modal, harga jual, dan biaya lain."); return; }
+      setLoading(true);
+      try {
+        const stockBefore = existingProduct.stockRemaining;
+        const updatedCostPrice = costPrice || existingProduct.costPrice;
+        const updatedSellingPrice = sellingPrice || existingProduct.sellingPrice;
+        const updatedQuantitySold = existingProduct.quantitySold + quantitySold;
+        const updatedStockRemaining = Math.max(existingProduct.stockRemaining - quantitySold, 0);
+        const updatedOtherCost = existingProduct.otherCost + otherCost;
+        const profit = calculateProfit({ costPrice: updatedCostPrice, sellingPrice: updatedSellingPrice, quantitySold: updatedQuantitySold, otherCost: updatedOtherCost });
+        const margin = calculateMargin(updatedCostPrice, updatedSellingPrice);
+        const ok = await persistProductUpdate(existingProduct.id, {
+          costPrice: updatedCostPrice,
+          sellingPrice: updatedSellingPrice,
+          quantitySold: updatedQuantitySold,
+          stockRemaining: updatedStockRemaining,
+          otherCost: updatedOtherCost,
+          profit,
+          margin,
+          marketplace: existingProduct.marketplace || form.marketplace,
+        });
+        if (ok) {
+          await logManualSaleOrder({ ...existingProduct, costPrice: updatedCostPrice, sellingPrice: updatedSellingPrice }, quantitySold, otherCost, stockBefore, updatedStockRemaining);
+          setForm(initialProductForm);
+          setActiveTab(finishAfterSave ? "overview" : "products");
+          alert("Penjualan produk lama tersimpan. Stok otomatis berkurang tanpa membuat produk dobel.");
+        }
+      } catch (error) { console.error(error); alert("Gagal menyimpan penjualan produk."); } finally { setLoading(false); }
+      return;
+    }
+
+    if (!isPro && products.length >= FREE_PRODUCT_LIMIT) { openUpgradeModal("lifetime"); return; }
     if (!name || costPrice < 0 || sellingPrice <= 0 || stockInitial < 0 || quantitySold < 0 || quantitySold > stockInitial || otherCost < 0) { alert("Cek lagi input. Nama, harga jual, stok, dan terjual harus valid."); return; }
     const stockRemaining = Math.max(stockInitial - quantitySold, 0);
     const profit = calculateProfit({ costPrice, sellingPrice, quantitySold, otherCost });
     const margin = calculateMargin(costPrice, sellingPrice);
     setLoading(true);
     try {
-      if (isDemoMode) {
-        setProducts((prev) => [{ id: `demo-${Date.now()}`, name, costPrice, sellingPrice, stockInitial, stockRemaining, quantitySold, otherCost, profit, margin, marketplace: form.marketplace }, ...prev]);
-      } else {
-        const { data, error } = await db.from("products").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, name, cost_price: costPrice, selling_price: sellingPrice, stock_initial: stockInitial, stock_remaining: stockRemaining, quantity_sold: quantitySold, other_cost: otherCost, profit, margin, marketplace: form.marketplace } as any]).select("*").single();
-        if (error) throw error;
-        if (data) setProducts((prev) => [mapProductRow(data as ProductRow), ...prev]);
-      }
-      setForm(initialProductForm); setActiveTab("overview");
+      const { data, error } = await db.from("products").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, name, cost_price: costPrice, selling_price: sellingPrice, stock_initial: stockInitial, stock_remaining: stockRemaining, quantity_sold: quantitySold, other_cost: otherCost, profit, margin, marketplace: form.marketplace } as any]).select("*").single();
+      if (error) throw error;
+      if (data) setProducts((prev) => [mapProductRow(data as ProductRow), ...prev]);
+      setForm(initialProductForm);
+      setActiveTab(finishAfterSave ? "overview" : "products");
     } catch (error) { console.error(error); alert("Gagal menyimpan produk."); } finally { setLoading(false); }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await saveProduct(false);
+  }
+
+  async function handleSubmitAndFinish() {
+    await saveProduct(true);
   }
 
   async function recordSale(e: React.FormEvent) {
@@ -315,7 +469,44 @@ export default function DashboardPage() {
     const profit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold, otherCost });
     const margin = calculateMargin(product.costPrice, product.sellingPrice);
     const ok = await persistProductUpdate(product.id, { quantitySold, stockRemaining, otherCost, profit, margin });
-    if (ok) { setSaleForm({ productId: product.id, qty: "", otherCost: "" }); alert("Penjualan tersimpan. Stok otomatis berkurang dan profit ikut update."); }
+    if (ok) {
+      try {
+        const saleProfit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold: qty, otherCost: extraCost });
+        const grossRevenue = product.sellingPrice * qty;
+        const { data: order } = await db.from("orders").insert({
+          workspace_id: workspaceId,
+          store_id: selectedStoreId,
+          marketplace: product.marketplace || "Manual",
+          external_order_id: `manual-${product.id}-${Date.now()}`,
+          status: "completed",
+          gross_revenue: grossRevenue,
+          marketplace_fee: 0,
+          ads_cost: 0,
+          voucher_cost: 0,
+          affiliate_cost: 0,
+          net_revenue: grossRevenue - extraCost,
+          source_file: "manual-sale",
+          raw: { source: "manual_input", auto_stock_deducted: true, stock_before: product.stockRemaining, stock_after: stockRemaining },
+        }).select("id").single();
+        if (order?.id) {
+          await db.from("order_items").insert({
+            order_id: order.id,
+            product_id: product.id,
+            product_name: product.name,
+            quantity: qty,
+            unit_price: product.sellingPrice,
+            cost_price: product.costPrice,
+            total_fee: extraCost,
+            profit: saleProfit,
+            raw: { source: "manual_input", marketplace: product.marketplace || "Manual" },
+          });
+        }
+      } catch (orderError) {
+        console.warn("Order log belum tersimpan, tapi stok sudah otomatis berkurang.", orderError);
+      }
+      setSaleForm({ productId: product.id, qty: "", otherCost: "" });
+      alert("Penjualan tersimpan. Stok otomatis berkurang dan histori order ikut dicatat.");
+    }
   }
 
   async function applyStockMove(e: React.FormEvent) {
@@ -334,7 +525,6 @@ export default function DashboardPage() {
   async function deleteProduct(id: string) {
     if (!ensureLoggedIn()) return;
     if (!window.confirm("Hapus produk ini?")) return;
-    if (isDemoMode) { setProducts((prev) => prev.filter((item) => item.id !== id)); return; }
     const { error } = await db.from("products").delete().eq("id", id).eq("user_id", currentUserId);
     if (error) { console.error(error); alert("Gagal menghapus produk."); return; }
     setProducts((prev) => prev.filter((item) => item.id !== id));
@@ -346,11 +536,6 @@ export default function DashboardPage() {
     const amount = parseNumber(expenseForm.amount);
     if (!expenseForm.label.trim() || amount <= 0) { alert("Isi nama dan nominal biaya."); return; }
     const localExpense: Expense = { id: `exp-${Date.now()}`, label: expenseForm.label.trim(), category: expenseForm.category, amount, date: expenseForm.date || new Date().toISOString().slice(0, 10), notes: expenseForm.notes.trim() || null };
-    if (isDemoMode) {
-      setExpenses((prev) => [localExpense, ...prev]);
-      setExpenseForm(initialExpenseForm);
-      return;
-    }
     const { data, error } = await db.from("expenses").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, title: localExpense.label, label: localExpense.label, category: localExpense.category, amount: localExpense.amount, expense_date: localExpense.date, notes: localExpense.notes }]).select("*").single();
     if (error) {
       console.error(error);
@@ -363,42 +548,43 @@ export default function DashboardPage() {
 
   async function handleCSVUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (!ensureLoggedIn()) { e.target.value = ""; return; }
-    if (!isDemoMode && (!workspaceId || !currentUserId)) {
+    if (!ensureLoggedIn()) return;
+    if (!workspaceId || !currentUserId) {
       alert("Workspace belum siap. Refresh halaman atau cek Supabase ENV.");
-      e.target.value = "";
       return;
     }
     setSyncing(true);
     try {
-      if (isDemoMode) {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            const rows = results.data as Record<string, unknown>[];
-            const imported = rows
-              .map((row, index) => ({ ...parseMarketplaceRow(row, currentUserId || "demo-user", index), workspace_id: workspaceId, store_id: selectedStoreId }))
-              .filter((row) => row.name.trim().length > 0 && (row.selling_price > 0 || row.cost_price > 0 || row.quantity_sold > 0));
-            setProducts((prev) => [...imported.map((row, index) => mapProductRow({ id: `demo-csv-${Date.now()}-${index}`, ...row } as ProductRow)), ...prev]);
-            setLastSync(new Date().toLocaleString("id-ID"));
-            setAiAnswer(`Import demo berhasil: ${imported.length} baris. Sekarang lihat produk paling profit, stok kritis, dan biaya marketplace sebelum scale.`);
-            setActiveTab("overview");
-            e.target.value = "";
-            setSyncing(false);
-          },
-          error: (error) => { console.error(error); alert("Gagal membaca file CSV."); e.target.value = ""; setSyncing(false); },
-        });
-        return;
-      }
+      const text = await file.text();
+      const parsed = Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
+      if (parsed.errors.length) console.warn("CSV parse warnings", parsed.errors);
+      const rows = (parsed.data || []).filter((row) => Object.values(row).some((value) => String(value || "").trim() !== ""));
+      const preview = createImportPreview(rows, currentUserId, "auto");
+      setPendingImportFile(file);
+      setPendingImportPreview(preview);
+      setAiAnswer(`Preview import marketplace siap: ${preview.summary.validRows}/${preview.summary.totalRows} baris valid, marketplace ${preview.detectedMarketplace}, confidence ${preview.confidence}%. Cek mapping fee, voucher, ongkir, pajak, dan HPP sebelum confirm.`);
+    } catch (error) {
+      console.error(error);
+      alert(`Gagal membaca CSV: ${getErrorMessage(error)}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
+  async function confirmCSVImport() {
+    if (!pendingImportFile || !pendingImportPreview) return;
+    if (!ensureLoggedIn()) return;
+    setSyncing(true);
+    try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", pendingImportFile);
       formData.append("workspaceId", workspaceId || "");
       formData.append("storeId", selectedStoreId || "");
       formData.append("userId", currentUserId || "");
-      formData.append("marketplace", "auto");
+      formData.append("marketplace", pendingImportPreview.detectedMarketplace || "auto");
+      formData.append("mappingPreview", JSON.stringify({ confidence: pendingImportPreview.confidence, mappings: pendingImportPreview.mappings, summary: pendingImportPreview.summary, warnings: pendingImportPreview.warnings }));
 
       const res = await fetch("/api/import/marketplace", { method: "POST", body: formData });
       const data = await res.json().catch(() => null);
@@ -414,15 +600,16 @@ export default function DashboardPage() {
       setLastSync(new Date().toLocaleString("id-ID"));
       const insightText = Array.isArray(data?.insights) && data.insights.length
         ? data.insights.map((item: any, index: number) => `${index + 1}. ${item.title}: ${item.body}`).join("\n")
-        : `Import berhasil: ${data?.successRows || 0} baris. Dashboard sudah memakai data real.`;
+        : `Import marketplace berhasil: ${data?.successRows || 0} baris. Mapping confidence ${pendingImportPreview.confidence}%.`;
       setAiAnswer(insightText);
+      setPendingImportFile(null);
+      setPendingImportPreview(null);
       setActiveTab("overview");
-      alert(`Berhasil import ${data?.successRows || 0} baris. Orders, produk, import job, activation event, dan AI insight sudah dibuat.`);
+      alert(`Berhasil import ${data?.successRows || 0} baris. Stok produk otomatis dikurangi untuk ${data?.stockUpdates || 0} transaksi marketplace.`);
     } catch (error) {
       console.error(error);
       alert(`Gagal import CSV: ${getErrorMessage(error)}`);
     } finally {
-      e.target.value = "";
       setSyncing(false);
     }
   }
@@ -470,16 +657,16 @@ export default function DashboardPage() {
   function goStock(id: string) { setStockMove((prev) => ({ ...prev, productId: id })); setActiveTab("inventory"); }
   function goSale(id: string) { setSaleForm((prev) => ({ ...prev, productId: id })); setActiveTab("sales"); }
 
+  if (setupError) return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#020617", color: "white", fontFamily: "Inter, Arial, sans-serif", padding: 24 }}><section style={{ width: "100%", maxWidth: 720, borderRadius: 28, padding: 28, background: "rgba(15,23,42,0.92)", border: "1px solid rgba(148,163,184,0.18)", boxShadow: "0 30px 100px rgba(0,0,0,0.38)" }}><Badge label="Setup Supabase" tone="warning" /><h1 style={{ margin: "14px 0 10px", fontSize: 30 }}>Database belum tersambung</h1><p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>{setupError}</p><div style={{ display: "grid", gap: 10, marginTop: 16, color: "#e2e8f0", lineHeight: 1.7 }}><code>NEXT_PUBLIC_SUPABASE_URL</code><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code><code>SUPABASE_SERVICE_ROLE_KEY</code></div><p style={{ color: "#94a3b8", lineHeight: 1.7, marginTop: 18 }}>Tambahkan ENV di Vercel, jalankan schema di folder <code>supabase/</code>, lalu redeploy. Dashboard production tidak lagi memakai data demo otomatis.</p><button onClick={() => window.location.reload()} style={ctaButtonStyle}>Refresh setelah ENV diisi</button></section></main>;
+
   if (pageLoading) return <main style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", display: "grid", placeItems: "center", fontFamily: "Inter, Arial" }}><div style={{ textAlign: "center" }}><div style={{ width: 44, height: 44, borderRadius: 999, border: "4px solid #dbe3ef", borderTopColor: "#0f766e", margin: "0 auto 16px" }} /><p>Loading Untungin.ai...</p></div></main>;
 
   return <AppShell activeTab={activeTab} onTabChange={setActiveTab} isPro={isPro} proExpired={proExpired} onExport={handleExport} onUpgrade={() => openUpgradeModal("lifetime")} onLogout={handleLogout}>
-    {showUpgradeModal && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,23,42,0.62)", display: "grid", placeItems: "center", padding: 20 }}><div style={{ ...cardStyle, maxWidth: 650, width: "100%", border: "1px solid #99f6e4" }}><button onClick={() => setShowUpgradeModal(false)} style={{ float: "right", background: "transparent", color: "#0f172a", border: "none", fontSize: 24, cursor: "pointer" }}>×</button><Badge label="Untungin.ai PRO" tone="success" /><h2 style={{ fontSize: 30, margin: "14px 0 8px" }}>Buka insight lengkap untuk profit, cashflow, stok, dan pricing</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>PRO membuka unlimited produk, multi marketplace import, AI insights, export laporan, goal tracker, dan analisis cashflow.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>{([ ["monthly", "PRO Bulanan", MONTHLY_PRICE], ["lifetime", "PRO Lifetime", LIFETIME_PRICE] ] as const).map(([key, title, price]) => <button key={key} onClick={() => setSelectedPlan(key)} style={{ padding: 18, textAlign: "left", borderRadius: 18, border: selectedPlan === key ? "1px solid #0f766e" : "1px solid #dbe3ef", background: selectedPlan === key ? "#ecfdf5" : "#ffffff", color: "#0f172a" }}><strong>{title}</strong><br /><span style={{ color: "#0f766e", fontWeight: 900 }}>{price}</span></button>)}</div><button onClick={() => handleUpgradeMidtrans(selectedPlan)} disabled={upgradeLoading} style={{ ...ctaButtonStyle, width: "100%", marginTop: 18, opacity: upgradeLoading ? 0.7 : 1 }}>{upgradeLoading ? "Membuka pembayaran..." : "Bayar / buat invoice"}</button></div></div>}
+    {showUpgradeModal && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,23,42,0.62)", display: "grid", placeItems: "center", padding: 20 }}><div style={{ ...cardStyle, maxWidth: 650, width: "100%", border: "1px solid #99f6e4" }}><button onClick={() => setShowUpgradeModal(false)} style={{ float: "right", background: "transparent", color: "#0f172a", border: "none", fontSize: 24, cursor: "pointer" }}>×</button><Badge label="Untungin.ai PRO" tone="success" /><h2 style={{ fontSize: 30, margin: "14px 0 8px" }}>Buka insight lengkap untuk profit, cashflow, stok, dan pricing</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>PRO membuka unlimited produk, multi marketplace import, AI insights, export laporan, goal tracker, dan analisis cashflow.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>{([ ["monthly", "PRO Bulanan", getPlanPriceLabel("monthly", locale)], ["lifetime", "PRO Lifetime", getPlanPriceLabel("lifetime", locale)] ] as const).map(([key, title, price]) => <button key={key} onClick={() => setSelectedPlan(key)} style={{ padding: 18, textAlign: "left", borderRadius: 18, border: selectedPlan === key ? "1px solid #0f766e" : "1px solid #dbe3ef", background: selectedPlan === key ? "#ecfdf5" : "#ffffff", color: "#0f172a" }}><strong>{title}</strong><br /><span style={{ color: "#0f766e", fontWeight: 900 }}>{price}</span></button>)}</div><button onClick={() => handleUpgradeMidtrans(selectedPlan)} disabled={upgradeLoading} style={{ ...ctaButtonStyle, width: "100%", marginTop: 18, opacity: upgradeLoading ? 0.7 : 1 }}>{upgradeLoading ? "Membuka pembayaran..." : "Bayar / buat invoice"}</button></div></div>}
 
-    <Hero netCash={metrics.netCash} totalRevenue={metrics.totalRevenue} inventoryValue={metrics.inventoryValue} sparklineData={sparklineData} onAddProduct={() => setActiveTab("products")} onAddCashflow={() => setActiveTab("cashflow")} syncing={syncing} onCSVUpload={handleCSVUpload} />
+    {activeTab === "overview" && <ExecutiveDashboard products={products} metrics={metrics} filteredProducts={filteredProducts} cashflowTrend={cashflowTrend} profitTrend={profitTrend} isPro={isPro} isDemoMode={isDemoMode} lastSync={lastSync} onAddProduct={() => setActiveTab("products")} onAddCashflow={() => setActiveTab("cashflow")} onImportCSV={handleCSVUpload} syncing={syncing} onGoAI={() => setActiveTab("ai")} onGoProducts={() => setActiveTab("products")} onGoMarketplace={() => setActiveTab("marketplace")} onGoReports={() => setActiveTab("reports")} onGoBilling={() => setActiveTab("pricing")} onStock={goStock} onSale={goSale} onDelete={deleteProduct} />}
 
-    {activeTab === "overview" && <div style={{ display: "grid", gap: 18 }}><FirstCustomerReadyPanel products={products} metrics={metrics} stores={stores} workspaceId={workspaceId} userEmail={userEmail} isDemoMode={isDemoMode} syncing={syncing} lastSync={lastSync} onImportCSV={handleCSVUpload} onGoMarketplace={() => setActiveTab("marketplace")} onGoProducts={() => setActiveTab("products")} onGoAI={() => setActiveTab("ai")} onGoBilling={() => setActiveTab("pricing")} /><SaaSPlatformPanel products={products} metrics={metrics} userEmail={userEmail} isPro={isPro} lastSync={lastSync} onGoMarketplace={() => setActiveTab("marketplace")} onGoTeam={() => setActiveTab("team")} onUpgrade={() => openUpgradeModal("lifetime")} onGoMoat={() => setActiveTab("growth")} /><LiveChartsPanel products={products} expenses={expenses} metrics={metrics} /><section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}><StatCard label="Omzet" value={money(metrics.totalRevenue)} helper={`${metrics.totalUnits} unit terjual`} tone="blue" /><StatCard label="Profit produk" value={money(metrics.totalProfit)} helper={`Margin rata-rata ${percent(metrics.avgMargin)}`} tone={metrics.totalProfit >= 0 ? "success" : "danger"} /><StatCard label="Cashflow bersih" value={money(metrics.netCash)} helper={`Biaya operasional ${money(metrics.totalExpenses)}`} tone={metrics.netCash >= 0 ? "success" : "danger"} /><StatCard label="Risk score" value={`${metrics.riskScore}/100`} helper={`Estimasi bocor ${money(metrics.dailyLeakEstimate)} per hari`} tone={metrics.riskScore >= 50 ? "danger" : metrics.riskScore >= 25 ? "warning" : "success"} /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><LineChartCard title="Cashflow Trend" subtitle="Uang masuk vs keluar" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><LineChartCard title="Profit Trend" subtitle="Estimasi profit 7 hari" data={profitTrend} valueLabel="Profit" /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}><div style={cardStyle}><Badge label="Rekomendasi Hari Ini" tone="success" /><h2 style={{ margin: "12px 0", lineHeight: 1.35 }}>{getOneThingAction(products)}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Prioritas dihitung dari profit, margin, stok, dan cashflow agar keputusan tidak hanya berdasarkan omzet.</p><button onClick={() => setActiveTab("ai")} style={ctaButtonStyle}>Lihat insight</button></div><div style={cardStyle}><Badge label="Business Health" tone="warning" /><h2 style={{ margin: "12px 0" }}>{money(metrics.inventoryValue)} modal di stok</h2><div style={{ display: "grid", gap: 10, marginTop: 16 }}><div><small>Stock value <b style={{ float: "right" }}>{compactMoney(metrics.inventoryValue)}</b></small><Progress value={100} /></div><div><small>Profit <b style={{ float: "right" }}>{compactMoney(metrics.totalProfit)}</b></small><Progress value={Math.min(100, (metrics.totalProfit / Math.max(metrics.inventoryValue, 1)) * 100)} /></div><div><small>Expenses <b style={{ float: "right" }}>{compactMoney(metrics.totalExpenses)}</b></small><Progress value={Math.min(100, (metrics.totalExpenses / Math.max(metrics.totalProfit, 1)) * 100)} /></div></div></div></section><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}><div><Badge label="Performa Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Profit, risiko, marketplace, dan stok</h2></div><button onClick={() => setActiveTab("products")} style={ghostButtonStyle}>Lihat semua</button></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
-
-    {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} onChange={setForm} onSubmit={handleSubmit} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
+    {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} products={products} onChange={setForm} onSubmit={handleSubmit} onFinish={handleSubmitAndFinish} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
 
     {activeTab === "cashflow" && <div style={{ display: "grid", gap: 18 }}><div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.8fr 1.2fr", gap: 18 }}><ExpensePanel expenses={expenses} form={expenseForm} metrics={{ totalRevenue: metrics.totalRevenue, totalProfit: metrics.totalProfit, totalExpenses: metrics.totalExpenses, netCash: metrics.netCash }} onChange={setExpenseForm} onSubmit={addExpense} /></div><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}><LineChartCard title="Real Cashflow" subtitle="Cash in vs cash out" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><DonutChartCard title="Expense Analytics" subtitle="Biaya berdasarkan kategori" segments={expenseBreakdown} centerLabel={compactMoney(metrics.totalExpenses)} /></section></div>}
 
@@ -491,7 +678,9 @@ export default function DashboardPage() {
 
     {activeTab === "reports" && <ReportsPanel metrics={metrics} products={products} expenses={expenses} onExportCSV={handleExport} onExportPDF={handleExportPDF} />}
 
-    {activeTab === "marketplace" && <div style={{ display: "grid", gap: 18 }}><MarketplaceSyncPanel products={products} syncing={syncing} lastSync={lastSync} onCSVUpload={handleCSVUpload} /><MarketplaceApiPanel products={products} /></div>}
+    {activeTab === "trends" && <ProductTrendAdvisor products={products} />}
+
+    {activeTab === "marketplace" && <div style={{ display: "grid", gap: 18 }}><MarketplaceSyncPanel products={products} syncing={syncing} lastSync={lastSync} onCSVUpload={handleCSVUpload} /><MarketplaceApiPanel products={products} userId={currentUserId} workspaceId={workspaceId} /></div>}
 
     {activeTab === "forecast" && <ForecastingPanel products={products} expenses={expenses} metrics={metrics} />}
 
@@ -507,7 +696,9 @@ export default function DashboardPage() {
 
     {activeTab === "growth" && <GrowthEnginePanel products={products} expenses={expenses} metrics={metrics} userEmail={userEmail} onGoMarketplace={() => setActiveTab("marketplace")} onGoAI={() => setActiveTab("ai")} onGoBilling={() => setActiveTab("pricing")} />}
 
-    {activeTab === "pricing" && <div style={{ display: "grid", gap: 18 }}><MidtransSubscriptionPanel /><section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller serius</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, AI CFO, daily briefing, inventory center, export laporan, dan team workspace. Billing v10 mendukung manual request dan Xendit fallback agar user pertama tetap bisa upgrade tanpa Midtrans.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{MONTHLY_PRICE}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{LIFETIME_PRICE}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section></div>}
+    {activeTab === "pricing" && <div style={{ display: "grid", gap: 18 }}><MidtransSubscriptionPanel /><section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller serius</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, AI CFO, daily briefing, inventory center, export laporan, dan team workspace. Billing v11 mendukung manual request dan Xendit fallback agar user pertama tetap bisa upgrade tanpa Midtrans.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{getPlanPriceLabel("monthly", locale)}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{getPlanPriceLabel("lifetime", locale)}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section></div>}
+
+    <ImportPreviewModal preview={pendingImportPreview} loading={syncing} onCancel={() => { setPendingImportFile(null); setPendingImportPreview(null); }} onConfirm={confirmCSVImport} />
 
     <footer style={{ marginTop: 30, padding: "24px 0", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", color: "#64748b", fontSize: 14 }}><div>© 2026 Untungin.ai · Built for Indonesian marketplace sellers</div><div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}><span>Privacy</span><span>Terms</span><span>Support</span><span>Xendit/manual billing</span></div></footer><div style={{ height: 80 }} />
   </AppShell>;

@@ -61,7 +61,7 @@ export type ExpenseRow = {
 
 export type Goal = { id: string; label: string; target: number; current: number; period: string };
 export type UpgradePlan = "monthly" | "lifetime";
-export type TabKey = "overview" | "products" | "cashflow" | "inventory" | "sales" | "ai" | "reports" | "marketplace" | "trend" | "forecast" | "automation" | "team" | "assistant" | "goals" | "moat" | "growth" | "pricing";
+export type TabKey = "overview" | "marketplace" | "trends" | "ai" | "reports" | "products" | "cashflow" | "inventory" | "sales" | "forecast" | "automation" | "team" | "assistant" | "goals" | "moat" | "growth" | "pricing";
 export type ProductFilter = "all" | "loss" | "fix" | "scale" | "stock";
 export type StockMoveType = "in" | "out" | "adjust";
 export type Tone = "success" | "warning" | "danger" | "blue" | "muted" | "neutral";
