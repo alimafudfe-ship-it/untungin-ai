@@ -66,18 +66,12 @@ const SORT_LABEL: Record<MISortKey, string> = {
 
 
 const AI_FEATURES = [
-  "AI hook video viral",
-  "AI script konten otomatis",
-  "AI prediksi produk musiman",
-  "Deteksi produk mau trending",
-  "AI rekomendasi harga jual",
-  "AI anti boncos produk",
-  "AI produk winner harian",
-  "Spy kompetitor TikTok Shop",
-  "Generator hashtag viral",
-  "AI landing page jualan",
-  "Dashboard cuan realtime",
-  "Prediksi FYP TikTok affiliate",
+  { title: "AI hook video viral", result: "Hook terbaik hari ini: 'Produk receh ini ternyata bikin dapur rapi dalam 5 menit'" },
+  { title: "AI script konten otomatis", result: "Script: Masalah → demo produk → bukti hasil → CTA checkout sekarang." },
+  { title: "AI prediksi produk musiman", result: "Prediksi: kategori fashion muslim dan perlengkapan hujan naik 34% minggu ini." },
+  { title: "Deteksi produk mau trending", result: "Alert: produk organizer kosmetik naik cepat di TikTok Shop." },
+  { title: "AI rekomendasi harga jual", result: "Harga optimal: Rp49.900 dengan estimasi margin bersih 32%." },
+  { title: "AI anti boncos produk", result: "Warning: kompetisi tinggi dan rating supplier menurun." },
 ];
 
 const CSV_COLUMNS = [
@@ -636,6 +630,7 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
   const [query, setQuery] = useState("");
   const [bundle, setBundle] = useState<ApiState>(EMPTY_BUNDLE);
   const [loading, setLoading] = useState(false);
+  const [activeFeature, setActiveFeature] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -675,17 +670,6 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
           <p style={{ margin: 0, color: colors.muted, lineHeight: 1.7 }}>Dashboard riset produk dengan ranking peluang, kategori naik, kompetitor, kreator affiliate, video/ads, live commerce, export CSV, dan partner feed/API legal-ready.</p>
         </div>
         <button onClick={() => exportProducts(bundle.products)} disabled={!bundle.products.length} style={{ ...ctaButtonStyle, opacity: bundle.products.length ? 1 : 0.55 }}>Export produk CSV</button>
-      </div>
-
-      <div style={{ marginTop: 18, padding: 16, borderRadius: 20, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-        <h3 style={{ marginTop: 0, marginBottom: 12 }}>Fitur AI Untungin</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
-          {AI_FEATURES.map((feature) => (
-            <div key={feature} style={{ padding: 12, borderRadius: 14, background: "white", border: "1px solid #e2e8f0", fontSize: 14, fontWeight: 600 }}>
-              • {feature}
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="market-intel-tabs" style={{ display: "grid", gridTemplateColumns: "repeat(8, minmax(0, 1fr))", gap: 8, marginTop: 18 }}>
