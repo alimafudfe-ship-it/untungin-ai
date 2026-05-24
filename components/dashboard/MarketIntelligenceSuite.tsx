@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Product, Tone } from "@/types/dashboard";
 import type { MIBundle, MICategory, MICreator, MILivestream, MIMarketplace, MIProduct, MIProviderStatus, MIShop, MISortKey, MITrendPeriod, MIVideoAd } from "@/lib/market-intelligence/types";
-import { MI_SAMPLE_BUNDLE } from "@/lib/market-intelligence/sampleData";
 import { scoreCategory, scoreCreator, scoreLive, scoreProduct, scoreShop, scoreVideo, summarizeBundle } from "@/lib/market-intelligence/scoring";
 import { compactMoney, money, percent } from "@/lib/dashboard/format";
 import { Badge, cardStyle, colors, ctaButtonStyle, EmptyState, ghostButtonStyle, inputStyle, Progress, StatCard } from "./ui";
@@ -12,6 +11,22 @@ type IntelligenceTab = "overview" | "products" | "categories" | "shops" | "creat
 type QuickMarket = "All" | "Shopee" | "TikTok Shop" | "Tokopedia" | "Lazada";
 
 type ApiState = MIBundle;
+
+const EMPTY_BUNDLE: MIBundle = {
+  products: [],
+  categories: [],
+  shops: [],
+  creators: [],
+  videos: [],
+  lives: [],
+  providers: [],
+  errors: [],
+  generatedAt: new Date().toISOString(),
+  dataMode: "empty",
+  activeSource: "Memuat sumber data",
+  isDemo: false,
+  rowCount: 0,
+};
 
 const TABS: { key: IntelligenceTab; label: string; helper: string }[] = [
   { key: "overview", label: "Overview", helper: "Ringkasan peluang" },
@@ -102,6 +117,12 @@ function providerTone(status: MIProviderStatus["status"]): Tone {
   if (status === "ready") return "success";
   if (status === "demo") return "blue";
   if (status === "error") return "danger";
+  return "neutral";
+}
+
+function dataModeTone(mode?: MIBundle["dataMode"]): Tone {
+  if (mode === "supabase" || mode === "feed" || mode === "mixed") return "success";
+  if (mode === "demo") return "warning";
   return "neutral";
 }
 
@@ -371,7 +392,7 @@ function ImportPanel() {
     <section style={cardStyle}>
       <Badge label="Import/Admin Ready" tone="success" />
       <h2 style={{ margin: "10px 0 6px" }}>Masukkan data riset manual tanpa scraping ilegal</h2>
-      <p style={{ color: colors.muted, lineHeight: 1.7, marginTop: 0 }}>V2 ini sudah siap menerima data dari CSV manual, JSON feed legal, atau partner data. Untuk produksi, hubungkan sumber resmi/partner supaya klaim data tetap aman.</p>
+      <p style={{ color: colors.muted, lineHeight: 1.7, marginTop: 0 }}>V3 ini sudah siap membaca data dari Supabase, JSON feed legal, atau partner data. Untuk produksi, masukkan hasil riset ke tabel Supabase agar data tidak lagi berasal dari file lokal.</p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button style={ctaButtonStyle} onClick={exportTemplate}>Download template CSV</button>
         <button style={ghostButtonStyle} onClick={() => downloadText("market-intelligence-feed-example.json", jsonExample, "application/json;charset=utf-8")}>Download contoh JSON feed</button>
@@ -379,10 +400,16 @@ function ImportPanel() {
     </section>
     <section style={cardStyle}>
       <Badge label="Environment Variables" tone="blue" />
-      <h3>Feed yang didukung</h3>
-      <pre style={{ whiteSpace: "pre-wrap", background: "#0f172a", color: "#e2e8f0", padding: 16, borderRadius: 16, overflowX: "auto" }}>{`MARKET_INTELLIGENCE_FEED_URL=https://domain-kamu.com/feeds/market-intelligence-v2.json
+      <h3>Supabase / Feed yang didukung</h3>
+      <pre style={{ whiteSpace: "pre-wrap", background: "#0f172a", color: "#e2e8f0", padding: 16, borderRadius: 16, overflowX: "auto" }}>{`NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+MARKET_INTELLIGENCE_MODE=supabase
+MARKET_INTELLIGENCE_USE_DEMO=false
+
+# Opsional kalau pakai JSON feed eksternal/legal:
+MARKET_INTELLIGENCE_FEED_URL=https://domain-kamu.com/feeds/market-intelligence-v2.json
 KALODATA_LIKE_FEED_URL=https://domain-kamu.com/feeds/market-intelligence-v2.json`}</pre>
-      <p style={{ color: colors.muted, lineHeight: 1.7 }}>Kalau ENV belum diisi, app otomatis memakai data demo V2 supaya halaman tetap bisa dilihat buyer/reviewer.</p>
+      <p style={{ color: colors.muted, lineHeight: 1.7 }}>Set <strong>MARKET_INTELLIGENCE_MODE=supabase</strong> dan <strong>MARKET_INTELLIGENCE_USE_DEMO=false</strong> agar dashboard hanya membaca database, bukan sample lokal.</p>
     </section>
     <section style={cardStyle}>
       <Badge label="Kolom CSV" tone="neutral" />
@@ -402,7 +429,7 @@ function OverviewPanel({ bundle, products }: { bundle: MIBundle; products?: Prod
     <div className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
       <StatCard label="Top opportunity" value={summary.topProduct?.productName || "-"} helper={summary.topProduct ? `${summary.topProduct.marketplace} · skor ${Math.round(scoreProduct(summary.topProduct))}/100` : "-"} tone="success" />
       <StatCard label="Sales 30d" value={count(summary.totalSales)} helper="Gabungan produk terfilter" tone="blue" />
-      <StatCard label="Revenue 30d" value={compactMoney(summary.totalRevenue)} helper="Estimasi/demo intelligence" tone="success" />
+      <StatCard label="Revenue 30d" value={compactMoney(summary.totalRevenue)} helper={bundle.isDemo ? "Demo intelligence" : "Live/feed intelligence"} tone="success" />
       <StatCard label="Avg opportunity" value={`${Math.round(summary.avgOpportunity)}/100`} helper={userSkuHint} tone="warning" />
     </div>
     <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -426,9 +453,10 @@ function OverviewPanel({ bundle, products }: { bundle: MIBundle; products?: Prod
       <section style={cardStyle}>
         <Badge label="Status data" tone="neutral" />
         <h3>Provider aktif</h3>
+        <div style={{ marginBottom: 10 }}><Badge label={`Sumber data: ${bundle.activeSource || "-"}`} tone={dataModeTone(bundle.dataMode)} /> <Badge label={bundle.isDemo ? "Mode demo lokal" : "Bukan data lokal"} tone={bundle.isDemo ? "warning" : "success"} /></div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{bundle.providers.map((provider) => <Badge key={provider.id} label={`${provider.name}: ${provider.status}`} tone={providerTone(provider.status)} />)}</div>
         {bundle.errors.length ? <div style={{ marginTop: 10, display: "grid", gap: 6 }}>{bundle.errors.map((error, index) => <Badge key={index} label={error} tone="warning" />)}</div> : null}
-        <p style={{ color: colors.muted, lineHeight: 1.65 }}>Label demo/estimasi sengaja ditampilkan agar app aman untuk validasi produk. Data real-time perlu API resmi, partner feed, atau upload riset legal.</p>
+        <p style={{ color: colors.muted, lineHeight: 1.65 }}>Jika mode Supabase aktif dan tabel sudah terisi, data akan berasal dari database. Data real-time marketplace tetap membutuhkan API resmi, partner feed, atau upload riset legal.</p>
       </section>
     </div>
   </div>;
@@ -442,7 +470,7 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
   const [category, setCategory] = useState("All");
   const [sort, setSort] = useState<MISortKey>("opportunity");
   const [query, setQuery] = useState("");
-  const [bundle, setBundle] = useState<ApiState>(MI_SAMPLE_BUNDLE);
+  const [bundle, setBundle] = useState<ApiState>(EMPTY_BUNDLE);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -453,15 +481,15 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Market Intelligence API error")))
       .then((payload: ApiState) => setBundle(payload))
       .catch((error: Error) => {
-        if (error.name !== "AbortError") setBundle({ ...MI_SAMPLE_BUNDLE, errors: ["API belum tersedia, memakai data demo lokal."], generatedAt: new Date().toISOString() });
+        if (error.name !== "AbortError") setBundle({ ...EMPTY_BUNDLE, errors: ["API Market Intelligence belum tersedia atau gagal dibaca."], generatedAt: new Date().toISOString() });
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
   }, [period, marketplace, country, category, sort, query]);
 
-  const categories = useMemo(() => categoryOptions({ ...MI_SAMPLE_BUNDLE, products: [...MI_SAMPLE_BUNDLE.products, ...bundle.products], categories: [...MI_SAMPLE_BUNDLE.categories, ...bundle.categories] }), [bundle]);
-  const marketplaces = useMemo(() => marketplaceOptions({ ...MI_SAMPLE_BUNDLE, products: [...MI_SAMPLE_BUNDLE.products, ...bundle.products] }), [bundle]);
-  const countries = useMemo(() => countryOptions({ ...MI_SAMPLE_BUNDLE, products: [...MI_SAMPLE_BUNDLE.products, ...bundle.products] }), [bundle]);
+  const categories = useMemo(() => categoryOptions(bundle), [bundle]);
+  const marketplaces = useMemo(() => marketplaceOptions(bundle), [bundle]);
+  const countries = useMemo(() => countryOptions(bundle), [bundle]);
   const summary = useMemo(() => summarizeBundle(bundle), [bundle]);
 
   return <section style={{ display: "grid", gap: 14 }}>
@@ -474,9 +502,10 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 920 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Badge label="V2 Full Market Intelligence" tone="success" />
+            <Badge label="V3 Supabase Live Data Ready" tone="success" />
             <Badge label="Produk · Kategori · Toko · Kreator · Video & Ads · Live" tone="blue" />
             {loading ? <Badge label="Memuat data..." tone="warning" /> : <Badge label={`Generated ${new Date(bundle.generatedAt).toLocaleTimeString("id-ID")}`} tone="neutral" />}
+            <Badge label={`Source: ${bundle.activeSource || "-"}`} tone={dataModeTone(bundle.dataMode)} />
           </div>
           <h2 style={{ margin: "10px 0 6px", fontSize: 30, letterSpacing: -0.9 }}>Market Intelligence seperti Kalodata, versi Untungin</h2>
           <p style={{ margin: 0, color: colors.muted, lineHeight: 1.7 }}>Dashboard riset produk dengan ranking peluang, kategori naik, kompetitor, kreator affiliate, video/ads, live commerce, export CSV, dan feed legal-ready.</p>
@@ -516,17 +545,17 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
     <div className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
       <StatCard label="Produk terfilter" value={bundle.products.length} helper="Ranking siap dianalisis" tone="blue" />
       <StatCard label="Top product" value={summary.topProduct?.productName || "-"} helper={summary.topProduct ? `${summary.topProduct.marketplace} · ${Math.round(scoreProduct(summary.topProduct))}/100` : "-"} tone="success" />
-      <StatCard label="Revenue 30d" value={compactMoney(summary.totalRevenue)} helper="Estimasi/demo intelligence" tone="success" />
+      <StatCard label="Revenue 30d" value={compactMoney(summary.totalRevenue)} helper={bundle.isDemo ? "Demo intelligence" : "Live/feed intelligence"} tone="success" />
       <StatCard label="Low competition" value={summary.lowCompetition?.productName || "-"} helper={summary.lowCompetition ? `Kompetisi ${summary.lowCompetition.competitionScore}/100` : "Ubah filter untuk cari peluang"} tone={summary.lowCompetition ? "warning" : "neutral"} />
     </div>
 
     {activeTab === "overview" && <OverviewPanel bundle={bundle} products={products} />}
     {activeTab === "products" && <div style={{ display: "grid", gap: 12 }}>{bundle.products.length ? bundle.products.map((item) => <ProductCard key={item.id} item={item} />) : <EmptyState title="Produk belum ditemukan" description="Ubah filter, marketplace, atau keyword pencarian." />}</div>}
     {activeTab === "categories" && (bundle.categories.length ? <CategoryTable rows={bundle.categories} /> : <EmptyState title="Kategori belum ditemukan" description="Ubah filter untuk melihat kategori lain." />)}
-    {activeTab === "shops" && (bundle.shops.length ? <ShopTable rows={bundle.shops} products={bundle.products.length ? bundle.products : MI_SAMPLE_BUNDLE.products} /> : <EmptyState title="Toko belum ditemukan" description="Ubah filter untuk melihat kompetitor lain." />)}
-    {activeTab === "creators" && (bundle.creators.length ? <CreatorTable rows={bundle.creators} products={bundle.products.length ? bundle.products : MI_SAMPLE_BUNDLE.products} /> : <EmptyState title="Kreator belum ditemukan" description="Ubah filter untuk melihat kreator affiliate lain." />)}
-    {activeTab === "videos" && (bundle.videos.length ? <VideoTable rows={bundle.videos} products={bundle.products.length ? bundle.products : MI_SAMPLE_BUNDLE.products} /> : <EmptyState title="Video belum ditemukan" description="Ubah filter untuk melihat video/ads lain." />)}
-    {activeTab === "lives" && (bundle.lives.length ? <LiveTable rows={bundle.lives} products={bundle.products.length ? bundle.products : MI_SAMPLE_BUNDLE.products} /> : <EmptyState title="Live belum ditemukan" description="Ubah filter untuk melihat live commerce lain." />)}
+    {activeTab === "shops" && (bundle.shops.length ? <ShopTable rows={bundle.shops} products={bundle.products} /> : <EmptyState title="Toko belum ditemukan" description="Ubah filter untuk melihat kompetitor lain." />)}
+    {activeTab === "creators" && (bundle.creators.length ? <CreatorTable rows={bundle.creators} products={bundle.products} /> : <EmptyState title="Kreator belum ditemukan" description="Ubah filter untuk melihat kreator affiliate lain." />)}
+    {activeTab === "videos" && (bundle.videos.length ? <VideoTable rows={bundle.videos} products={bundle.products} /> : <EmptyState title="Video belum ditemukan" description="Ubah filter untuk melihat video/ads lain." />)}
+    {activeTab === "lives" && (bundle.lives.length ? <LiveTable rows={bundle.lives} products={bundle.products} /> : <EmptyState title="Live belum ditemukan" description="Ubah filter untuk melihat live commerce lain." />)}
     {activeTab === "import" && <ImportPanel />}
   </section>;
 }

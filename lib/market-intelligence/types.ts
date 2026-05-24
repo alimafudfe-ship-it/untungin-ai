@@ -166,6 +166,8 @@ export type MIProviderStatus = {
   message: string;
 };
 
+export type MIDataMode = "supabase" | "feed" | "mixed" | "demo" | "empty";
+
 export type MIBundle = {
   products: MIProduct[];
   categories: MICategory[];
@@ -176,6 +178,10 @@ export type MIBundle = {
   providers: MIProviderStatus[];
   errors: string[];
   generatedAt: string;
+  dataMode?: MIDataMode;
+  activeSource?: string;
+  isDemo?: boolean;
+  rowCount?: number;
 };
 
 export type MIQuery = {

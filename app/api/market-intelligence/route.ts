@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { NextResponse } from "next/server";
 import { collectMarketIntelligence } from "@/lib/market-intelligence/providers";
 import type { MITrendPeriod, MISortKey } from "@/lib/market-intelligence/types";
