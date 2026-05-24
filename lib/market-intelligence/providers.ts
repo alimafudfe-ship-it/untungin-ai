@@ -37,6 +37,7 @@ function emptyBundle(errors: string[] = []): MIBundle {
     creators: [],
     videos: [],
     lives: [],
+    sources: [],
     providers: [],
     errors,
     generatedAt: new Date().toISOString(),
@@ -47,8 +48,8 @@ function emptyBundle(errors: string[] = []): MIBundle {
   };
 }
 
-function countRows(bundle: Pick<MIBundle, "products" | "categories" | "shops" | "creators" | "videos" | "lives">) {
-  return bundle.products.length + bundle.categories.length + bundle.shops.length + bundle.creators.length + bundle.videos.length + bundle.lives.length;
+function countRows(bundle: Pick<MIBundle, "products" | "categories" | "shops" | "creators" | "videos" | "lives"> & { sources?: unknown[] }) {
+  return bundle.products.length + bundle.categories.length + bundle.shops.length + bundle.creators.length + bundle.videos.length + bundle.lives.length + (bundle.sources?.length || 0);
 }
 
 function withMetadata(bundle: MIBundle, dataMode: MIBundle["dataMode"], activeSource: string, isDemo = false): MIBundle {
@@ -73,6 +74,7 @@ function mergeBundle(base: MIBundle, extra: Partial<MIBundle>, sourceName: strin
     creators: [...base.creators, ...toArray(extra.creators).map(tag)],
     videos: [...base.videos, ...toArray(extra.videos).map(tag)],
     lives: [...base.lives, ...toArray(extra.lives).map(tag)],
+    sources: [...(base.sources || []), ...toArray((extra as any).sources)],
     providers: base.providers,
     generatedAt: stamp,
   };
@@ -299,6 +301,27 @@ function mapLive(row: any) {
   };
 }
 
+function mapSource(row: any) {
+  return {
+    id: String(row.external_id || row.id),
+    title: row.title || row.keyword || row.source_url || "Source marketplace",
+    marketplace: row.marketplace || "TikTok Shop",
+    sourceType: row.source_type || row.sourceType || "search",
+    sourceUrl: row.source_url || row.sourceUrl || "",
+    keyword: row.keyword || undefined,
+    category: row.category || undefined,
+    country: row.country || "ID",
+    status: row.status || "queued",
+    lastCheckedAt: row.last_checked_at || row.lastCheckedAt || undefined,
+    nextCheckAt: row.next_check_at || row.nextCheckAt || undefined,
+    extractedCount: toNumber(row.extracted_count ?? row.extractedCount),
+    createdBy: row.created_by || row.createdBy || undefined,
+    notes: row.notes || undefined,
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || row.created_at || new Date().toISOString(),
+  };
+}
+
 async function readSupabaseBundle(errors: string[]): Promise<MIBundle> {
   const config = getSupabaseConfig();
   if (!config.enabled) return emptyBundle(errors);
@@ -307,16 +330,17 @@ async function readSupabaseBundle(errors: string[]): Promise<MIBundle> {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const [products, categories, shops, creators, videos, lives] = await Promise.all([
+  const [products, categories, shops, creators, videos, lives, sources] = await Promise.all([
     supabase.from("market_intelligence_products").select("*").order("opportunity_score", { ascending: false }).limit(500),
     supabase.from("market_intelligence_categories").select("*").order("opportunity_score", { ascending: false }).limit(300),
     supabase.from("market_intelligence_shops").select("*").order("revenue_30d", { ascending: false }).limit(300),
     supabase.from("market_intelligence_creators").select("*").order("fit_score", { ascending: false }).limit(300),
     supabase.from("market_intelligence_videos").select("*").order("views", { ascending: false }).limit(500),
     supabase.from("market_intelligence_livestreams").select("*").order("live_date", { ascending: false, nullsFirst: false }).limit(300),
+    supabase.from("market_intelligence_sources").select("*").order("created_at", { ascending: false }).limit(300),
   ]);
 
-  for (const result of [products, categories, shops, creators, videos, lives]) {
+  for (const result of [products, categories, shops, creators, videos, lives, sources]) {
     if (result.error) errors.push(`Supabase: ${result.error.message}`);
   }
 
@@ -327,6 +351,7 @@ async function readSupabaseBundle(errors: string[]): Promise<MIBundle> {
     creators: toArray(creators.data).map(mapCreator),
     videos: toArray(videos.data).map(mapVideo),
     lives: toArray(lives.data).map(mapLive),
+    sources: sources.error ? [] : toArray(sources.data).map(mapSource),
     providers: getMarketIntelligenceProviders(),
     errors,
     generatedAt: new Date().toISOString(),
@@ -383,6 +408,7 @@ export async function collectMarketIntelligence(query: MIQuery = {}) {
       creators: [...MI_SAMPLE_BUNDLE.creators],
       videos: [...MI_SAMPLE_BUNDLE.videos],
       lives: [...MI_SAMPLE_BUNDLE.lives],
+      sources: [...MI_SAMPLE_BUNDLE.sources],
       providers: getMarketIntelligenceProviders(),
       errors,
       generatedAt: new Date().toISOString(),

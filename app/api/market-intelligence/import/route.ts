@@ -197,7 +197,27 @@ function liveRow(item: any) {
   };
 }
 
-async function upsert(supabase: ReturnType<typeof createClient>, table: string, rows: Record<string, unknown>[]) {
+function sourceRow(item: any) {
+  return {
+    external_id: nonEmpty(item.external_id || item.externalId || item.id || item.sourceUrl || item.source_url || item.title),
+    title: nonEmpty(item.title || item.keyword || item.sourceUrl || item.source_url, "Source marketplace"),
+    marketplace: nonEmpty(item.marketplace, "TikTok Shop"),
+    source_type: nonEmpty(item.source_type || item.sourceType, "search"),
+    source_url: nonEmpty(item.source_url || item.sourceUrl),
+    keyword: item.keyword || null,
+    category: item.category || null,
+    country: nonEmpty(item.country, "ID"),
+    status: nonEmpty(item.status, "queued"),
+    last_checked_at: item.last_checked_at || item.lastCheckedAt || null,
+    next_check_at: item.next_check_at || item.nextCheckAt || null,
+    extracted_count: num(item.extracted_count ?? item.extractedCount),
+    created_by: item.created_by || item.createdBy || "JSON import",
+    notes: item.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function upsert(supabase: any, table: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return { count: 0 };
   const { error } = await supabase.from(table).upsert(rows, { onConflict: "external_id" });
   if (error) throw new Error(`${table}: ${error.message}`);
@@ -221,6 +241,7 @@ export async function POST(req: Request) {
   const creators = Array.isArray(payload.creators) ? payload.creators.map(creatorRow) : [];
   const videos = Array.isArray(payload.videos) ? payload.videos.map(videoRow) : [];
   const lives = Array.isArray(payload.lives) ? payload.lives.map(liveRow) : [];
+  const sources = Array.isArray((payload as any).sources) ? (payload as any).sources.map(sourceRow) : [];
 
   const results = await Promise.all([
     upsert(supabase, "market_intelligence_products", products),
@@ -229,6 +250,7 @@ export async function POST(req: Request) {
     upsert(supabase, "market_intelligence_creators", creators),
     upsert(supabase, "market_intelligence_videos", videos),
     upsert(supabase, "market_intelligence_livestreams", lives),
+    upsert(supabase, "market_intelligence_sources", sources),
   ]);
 
   const rowCount = results.reduce((sum, item) => sum + item.count, 0);
@@ -241,5 +263,5 @@ export async function POST(req: Request) {
     errors: [],
   });
 
-  return NextResponse.json({ ok: true, rowCount, products: products.length, categories: categories.length, shops: shops.length, creators: creators.length, videos: videos.length, lives: lives.length });
+  return NextResponse.json({ ok: true, rowCount, products: products.length, categories: categories.length, shops: shops.length, creators: creators.length, videos: videos.length, lives: lives.length, sources: sources.length });
 }

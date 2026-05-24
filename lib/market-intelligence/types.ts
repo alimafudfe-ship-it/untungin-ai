@@ -2,7 +2,9 @@ export type MITrendPeriod = "today" | "week" | "month" | "special_day";
 export type MIMarketplace = "All" | "Shopee" | "TikTok Shop" | "Tokopedia" | "Lazada" | "Manual" | "Public Feed";
 export type MICountry = "ID" | "MY" | "SG";
 export type MISignal = "viral" | "rising" | "stable" | "seasonal" | "declining";
-export type MISourceKind = "official_api" | "partner_feed" | "manual_upload" | "public_signal" | "demo_seed" | "csv_import";
+export type MISourceKind = "official_api" | "partner_feed" | "manual_upload" | "public_signal" | "demo_seed" | "csv_import" | "marketplace_link" | "json_import";
+export type MISourceType = "search" | "product" | "shop" | "category" | "creator" | "video" | "live" | "keyword" | "other";
+export type MISourceStatus = "draft" | "queued" | "active" | "checked" | "failed" | "archived";
 export type MIVideoFormat = "organic" | "affiliate_video" | "ad" | "shop_video";
 export type MILiveHostType = "seller" | "creator" | "brand";
 export type MISortKey = "opportunity" | "sales" | "revenue" | "growth" | "competition" | "updated";
@@ -157,6 +159,26 @@ export type MILivestream = {
   notes?: string;
 };
 
+
+export type MIResearchSource = {
+  id: string;
+  title: string;
+  marketplace: Exclude<MIMarketplace, "All">;
+  sourceType: MISourceType;
+  sourceUrl: string;
+  keyword?: string;
+  category?: string;
+  country: MICountry;
+  status: MISourceStatus;
+  lastCheckedAt?: string;
+  nextCheckAt?: string;
+  extractedCount: number;
+  createdBy?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type MIProviderStatus = {
   id: string;
   name: string;
@@ -175,6 +197,7 @@ export type MIBundle = {
   creators: MICreator[];
   videos: MIVideoAd[];
   lives: MILivestream[];
+  sources: MIResearchSource[];
   providers: MIProviderStatus[];
   errors: string[];
   generatedAt: string;

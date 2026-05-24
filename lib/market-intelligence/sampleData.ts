@@ -1,4 +1,4 @@
-import type { MIBundle, MICategory, MICreator, MILivestream, MIProduct, MIProviderStatus, MIShop, MIVideoAd } from "./types";
+import type { MIBundle, MICategory, MICreator, MILivestream, MIProduct, MIProviderStatus, MIResearchSource, MIShop, MIVideoAd } from "./types";
 
 const now = new Date().toISOString();
 const daysAgo = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
@@ -534,6 +534,39 @@ export const MI_LIVES: MILivestream[] = [
   { id: "l-party-001", title: "Ide Pesta Anak Hemat", hostName: "Ide Pesta Anak", hostType: "creator", marketplace: "TikTok Shop", country: "ID", categoryFocus: "Party Supplies", productIds: ["p-tiktok-party-001"], viewersPeak: 2900, durationMin: 88, soldUnits: 860, revenue: 49000000, conversionRate: 2.6, liveDate: daysAgo(9), source: "Untungin V2 demo intelligence seed", sourceKind: "demo_seed" },
 ];
 
+export const MI_SOURCES: MIResearchSource[] = [
+  {
+    id: "src-tiktok-parfum-search",
+    title: "TikTok Shop keyword parfum roll on viral",
+    marketplace: "TikTok Shop",
+    sourceType: "search",
+    sourceUrl: "https://www.tiktok.com/search?q=parfum%20roll%20on%20viral",
+    keyword: "parfum roll on viral",
+    category: "Beauty",
+    country: "ID",
+    status: "active",
+    extractedCount: 0,
+    notes: "Contoh source link. Link disimpan sebagai referensi riset, bukan scraping otomatis.",
+    createdAt: daysAgo(1),
+    updatedAt: now,
+  },
+  {
+    id: "src-shopee-pel-search",
+    title: "Shopee keyword pel lantai viral",
+    marketplace: "Shopee",
+    sourceType: "search",
+    sourceUrl: "https://shopee.co.id/search?keyword=pel%20lantai%20viral",
+    keyword: "pel lantai viral",
+    category: "Home Living",
+    country: "ID",
+    status: "queued",
+    extractedCount: 0,
+    notes: "Gunakan sebagai daftar antrean riset manual/partner feed.",
+    createdAt: daysAgo(2),
+    updatedAt: now,
+  },
+];
+
 export const MI_PROVIDERS: MIProviderStatus[] = [
   { id: "demo-v2", name: "V2 Market Intelligence demo", kind: "demo_seed", enabled: true, status: "demo", message: "Produk, kategori, toko, kreator, video & ads, dan live commerce siap untuk demo." },
 ];
@@ -545,6 +578,7 @@ export const MI_SAMPLE_BUNDLE: MIBundle = {
   creators: MI_CREATORS,
   videos: MI_VIDEOS,
   lives: MI_LIVES,
+  sources: MI_SOURCES,
   providers: MI_PROVIDERS,
   errors: [],
   generatedAt: now,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Product, Tone } from "@/types/dashboard";
-import type { MIBundle, MICategory, MICreator, MILivestream, MIMarketplace, MIProduct, MIProviderStatus, MIShop, MISortKey, MITrendPeriod, MIVideoAd } from "@/lib/market-intelligence/types";
+import type { MIBundle, MICategory, MICreator, MILivestream, MIMarketplace, MIProduct, MIProviderStatus, MIResearchSource, MIShop, MISortKey, MISourceType, MITrendPeriod, MIVideoAd } from "@/lib/market-intelligence/types";
 import { scoreCategory, scoreCreator, scoreLive, scoreProduct, scoreShop, scoreVideo, summarizeBundle } from "@/lib/market-intelligence/scoring";
 import { compactMoney, money, percent } from "@/lib/dashboard/format";
 import { Badge, cardStyle, colors, ctaButtonStyle, EmptyState, ghostButtonStyle, inputStyle, Progress, StatCard } from "./ui";
@@ -19,6 +19,7 @@ const EMPTY_BUNDLE: MIBundle = {
   creators: [],
   videos: [],
   lives: [],
+  sources: [],
   providers: [],
   errors: [],
   generatedAt: new Date().toISOString(),
@@ -379,6 +380,30 @@ function LiveTable({ rows, products }: { rows: MILivestream[]; products: MIProdu
   </div>;
 }
 
+function SourceStatusBadge({ status }: { status: string }) {
+  const tone: Tone = status === "active" || status === "checked" ? "success" : status === "failed" ? "danger" : status === "archived" ? "neutral" : "warning";
+  return <Badge label={status} tone={tone} />;
+}
+
+function SourceLinkCard({ item }: { item: MIResearchSource }) {
+  return <div style={{ padding: 14, borderRadius: 18, background: "#fff", border: "1px solid #e2e8f0", display: "grid", gap: 8 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
+      <div style={{ minWidth: 0 }}>
+        <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</strong>
+        <div style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{item.marketplace} · {item.sourceType} · {item.country} · {item.category || "Tanpa kategori"}</div>
+      </div>
+      <SourceStatusBadge status={item.status} />
+    </div>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {item.keyword ? <Badge label={`Keyword: ${item.keyword}`} tone="blue" /> : null}
+      <Badge label={`Extracted: ${count(item.extractedCount)}`} tone="neutral" />
+      <Badge label={`Update: ${new Date(item.updatedAt).toLocaleDateString("id-ID")}`} tone="neutral" />
+    </div>
+    <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ color: colors.brand, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.sourceUrl}</a>
+    {item.notes ? <p style={{ color: colors.muted, fontSize: 12, lineHeight: 1.55, margin: 0 }}>{item.notes}</p> : null}
+  </div>;
+}
+
 function ImportPanel() {
   const jsonExample = `{
   "products": [],
@@ -386,30 +411,143 @@ function ImportPanel() {
   "shops": [],
   "creators": [],
   "videos": [],
-  "lives": []
+  "lives": [],
+  "sources": []
 }`;
+  const [adminToken, setAdminToken] = useState("");
+  const [sourceRows, setSourceRows] = useState<MIResearchSource[]>([]);
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceMessage, setSourceMessage] = useState("");
+  const [sourceError, setSourceError] = useState("");
+  const [form, setForm] = useState({
+    title: "",
+    marketplace: "Tokopedia",
+    sourceType: "search" as MISourceType,
+    sourceUrl: "",
+    keyword: "",
+    category: "",
+    country: "ID",
+    status: "queued",
+    notes: "",
+  });
+
+  const updateForm = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
+
+  const loadSources = () => {
+    setSourceLoading(true);
+    fetch("/api/market-intelligence/sources")
+      .then((response) => response.json())
+      .then((payload) => {
+        if (!payload.ok) throw new Error(payload.error || "Gagal membaca source link.");
+        setSourceRows(payload.sources || []);
+        setSourceError("");
+      })
+      .catch((error: Error) => setSourceError(error.message || "Gagal membaca source link. Pastikan migration V4 sudah dijalankan."))
+      .finally(() => setSourceLoading(false));
+  };
+
+  useEffect(() => {
+    loadSources();
+  }, []);
+
+  const saveSource = async () => {
+    setSourceMessage("");
+    setSourceError("");
+    if (!adminToken.trim()) {
+      setSourceError("Masukkan Admin Token yang sama dengan MARKET_INTELLIGENCE_ADMIN_TOKEN di Vercel.");
+      return;
+    }
+    if (!form.sourceUrl.trim()) {
+      setSourceError("Paste URL marketplace dulu.");
+      return;
+    }
+    setSourceLoading(true);
+    try {
+      const response = await fetch("/api/market-intelligence/sources", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-market-intelligence-token": adminToken.trim(),
+        },
+        body: JSON.stringify(form),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Gagal menyimpan source link.");
+      setSourceMessage("Link marketplace berhasil disimpan ke Supabase.");
+      setForm((current) => ({ ...current, title: "", sourceUrl: "", keyword: "", notes: "" }));
+      loadSources();
+    } catch (error) {
+      setSourceError(error instanceof Error ? error.message : "Gagal menyimpan source link.");
+    } finally {
+      setSourceLoading(false);
+    }
+  };
+
   return <div style={{ display: "grid", gap: 14 }}>
     <section style={cardStyle}>
-      <Badge label="Import/Admin Ready" tone="success" />
-      <h2 style={{ margin: "10px 0 6px" }}>Masukkan data riset manual tanpa scraping ilegal</h2>
-      <p style={{ color: colors.muted, lineHeight: 1.7, marginTop: 0 }}>V3 ini sudah siap membaca data dari Supabase, JSON feed legal, atau partner data. Untuk produksi, masukkan hasil riset ke tabel Supabase agar data tidak lagi berasal dari file lokal.</p>
+      <Badge label="V4 Source Manager Ready" tone="success" />
+      <h2 style={{ margin: "10px 0 6px" }}>Paste link marketplace, simpan sebagai sumber riset</h2>
+      <p style={{ color: colors.muted, lineHeight: 1.7, marginTop: 0 }}>Fitur ini menyimpan link Tokopedia, Shopee, TikTok Shop, atau Lazada ke Supabase sebagai antrean riset. Link ini bukan scraping otomatis; data produk tetap harus diisi dari riset legal, upload CSV/JSON, API resmi, atau partner feed.</p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button style={ctaButtonStyle} onClick={exportTemplate}>Download template CSV</button>
         <button style={ghostButtonStyle} onClick={() => downloadText("market-intelligence-feed-example.json", jsonExample, "application/json;charset=utf-8")}>Download contoh JSON feed</button>
+        <button style={ghostButtonStyle} onClick={() => downloadText("template-marketplace-source-links-v4.csv", "external_id,title,marketplace,source_type,source_url,keyword,category,country,status,notes\nsrc-tokopedia-powerbank-search,Tokopedia powerbank fast charging,Tokopedia,search,https://www.tokopedia.com/search?st=product&q=powerbank%20fast%20charging,powerbank fast charging,Elektronik,ID,queued,Catatan riset", "text/csv;charset=utf-8")}>Download template source link</button>
+        <button style={ghostButtonStyle} onClick={loadSources} disabled={sourceLoading}>{sourceLoading ? "Memuat..." : "Refresh source link"}</button>
       </div>
     </section>
+
+    <section style={cardStyle}>
+      <Badge label="Tambah link sumber" tone="blue" />
+      <h3>Simpan link marketplace ke Supabase</h3>
+      <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+        <input value={adminToken} onChange={(event) => setAdminToken(event.target.value)} placeholder="Admin token" type="password" style={inputStyle} />
+        <select value={form.marketplace} onChange={(event) => updateForm("marketplace", event.target.value)} style={inputStyle}>
+          {["TikTok Shop", "Shopee", "Tokopedia", "Lazada", "Manual", "Public Feed"].map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
+        <select value={form.sourceType} onChange={(event) => updateForm("sourceType", event.target.value)} style={inputStyle}>
+          {["search", "product", "shop", "category", "creator", "video", "live", "keyword", "other"].map((item) => <option key={item} value={item}>Jenis: {item}</option>)}
+        </select>
+      </div>
+      <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+        <input value={form.title} onChange={(event) => updateForm("title", event.target.value)} placeholder="Judul sumber, contoh: Tokopedia powerbank fast charging" style={inputStyle} />
+        <input value={form.sourceUrl} onChange={(event) => updateForm("sourceUrl", event.target.value)} placeholder="Paste URL marketplace" style={inputStyle} />
+      </div>
+      <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 0.5fr 0.7fr", gap: 10, marginTop: 10 }}>
+        <input value={form.keyword} onChange={(event) => updateForm("keyword", event.target.value)} placeholder="Keyword, contoh: powerbank fast charging" style={inputStyle} />
+        <input value={form.category} onChange={(event) => updateForm("category", event.target.value)} placeholder="Kategori, contoh: Elektronik" style={inputStyle} />
+        <select value={form.country} onChange={(event) => updateForm("country", event.target.value)} style={inputStyle}>{["ID", "MY", "SG"].map((item) => <option key={item} value={item}>{item}</option>)}</select>
+        <select value={form.status} onChange={(event) => updateForm("status", event.target.value)} style={inputStyle}>{["draft", "queued", "active", "checked", "failed", "archived"].map((item) => <option key={item} value={item}>Status: {item}</option>)}</select>
+      </div>
+      <textarea value={form.notes} onChange={(event) => updateForm("notes", event.target.value)} placeholder="Catatan riset, contoh: cek 20 produk pertama, catat harga dan review negatif" style={{ ...inputStyle, minHeight: 90, marginTop: 10, resize: "vertical" }} />
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
+        <button style={ctaButtonStyle} onClick={saveSource} disabled={sourceLoading}>{sourceLoading ? "Menyimpan..." : "Simpan link marketplace"}</button>
+        {sourceMessage ? <Badge label={sourceMessage} tone="success" /> : null}
+        {sourceError ? <Badge label={sourceError} tone="warning" /> : null}
+      </div>
+    </section>
+
+    <section style={cardStyle}>
+      <Badge label={`Source tersimpan: ${sourceRows.length}`} tone="success" />
+      <h3>Daftar link sumber riset</h3>
+      {sourceRows.length ? <div style={{ display: "grid", gap: 10 }}>{sourceRows.map((item) => <SourceLinkCard key={item.id} item={item} />)}</div> : <EmptyState title="Belum ada source link" description="Jalankan migration V4, lalu paste link marketplace di form atas." />}
+    </section>
+
     <section style={cardStyle}>
       <Badge label="Environment Variables" tone="blue" />
       <h3>Supabase / Feed yang didukung</h3>
       <pre style={{ whiteSpace: "pre-wrap", background: "#0f172a", color: "#e2e8f0", padding: 16, borderRadius: 16, overflowX: "auto" }}>{`NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
 MARKET_INTELLIGENCE_MODE=supabase
 MARKET_INTELLIGENCE_USE_DEMO=false
+
+# Wajib untuk tombol Simpan Link Marketplace:
+SUPABASE_SERVICE_ROLE_KEY=eyJ...service_role...
+MARKET_INTELLIGENCE_ADMIN_TOKEN=token-rahasia-kamu
 
 # Opsional kalau pakai JSON feed eksternal/legal:
 MARKET_INTELLIGENCE_FEED_URL=https://domain-kamu.com/feeds/market-intelligence-v2.json
 KALODATA_LIKE_FEED_URL=https://domain-kamu.com/feeds/market-intelligence-v2.json`}</pre>
-      <p style={{ color: colors.muted, lineHeight: 1.7 }}>Set <strong>MARKET_INTELLIGENCE_MODE=supabase</strong> dan <strong>MARKET_INTELLIGENCE_USE_DEMO=false</strong> agar dashboard hanya membaca database, bukan sample lokal.</p>
+      <p style={{ color: colors.muted, lineHeight: 1.7 }}>Set <strong>MARKET_INTELLIGENCE_MODE=supabase</strong> dan <strong>MARKET_INTELLIGENCE_USE_DEMO=false</strong> agar dashboard hanya membaca database. <strong>SUPABASE_SERVICE_ROLE_KEY</strong> hanya dipakai server API, jangan taruh di kode frontend.</p>
     </section>
     <section style={cardStyle}>
       <Badge label="Kolom CSV" tone="neutral" />
@@ -502,8 +640,8 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 920 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Badge label="V3 Supabase Live Data Ready" tone="success" />
-            <Badge label="Produk · Kategori · Toko · Kreator · Video & Ads · Live" tone="blue" />
+            <Badge label="V4 Source Manager + Supabase Live" tone="success" />
+            <Badge label="Produk · Kategori · Toko · Kreator · Video & Ads · Live · Source Link" tone="blue" />
             {loading ? <Badge label="Memuat data..." tone="warning" /> : <Badge label={`Generated ${new Date(bundle.generatedAt).toLocaleTimeString("id-ID")}`} tone="neutral" />}
             <Badge label={`Source: ${bundle.activeSource || "-"}`} tone={dataModeTone(bundle.dataMode)} />
           </div>

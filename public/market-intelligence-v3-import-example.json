@@ -50,7 +50,11 @@
       "growthScore": 84,
       "competitionScore": 68,
       "opportunityScore": 79,
-      "topKeywords": ["parfum roll on", "serum wajah", "lip tint viral"]
+      "topKeywords": [
+        "parfum roll on",
+        "serum wajah",
+        "lip tint viral"
+      ]
     }
   ],
   "shops": [
@@ -123,13 +127,29 @@
       "marketplace": "TikTok Shop",
       "country": "ID",
       "categoryFocus": "Beauty",
-      "productIds": ["manual-parfum-001"],
+      "productIds": [
+        "manual-parfum-001"
+      ],
       "viewersPeak": 5400,
       "durationMin": 180,
       "soldUnits": 3200,
       "revenue": 176000000,
       "conversionRate": 5.9,
       "liveDate": "2026-05-23T12:00:00.000Z"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src-tokopedia-powerbank-search",
+      "title": "Tokopedia powerbank fast charging",
+      "marketplace": "Tokopedia",
+      "sourceType": "search",
+      "sourceUrl": "https://www.tokopedia.com/search?st=product&q=powerbank%20fast%20charging",
+      "keyword": "powerbank fast charging",
+      "category": "Elektronik",
+      "country": "ID",
+      "status": "queued",
+      "notes": "Contoh source link untuk antrean riset."
     }
   ]
 }

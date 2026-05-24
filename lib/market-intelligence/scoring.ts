@@ -1,4 +1,4 @@
-import type { MIBundle, MICategory, MICreator, MILivestream, MIProduct, MIQuery, MIShop, MIVideoAd } from "./types";
+import type { MIBundle, MICategory, MICreator, MILivestream, MIProduct, MIQuery, MIResearchSource, MIShop, MIVideoAd } from "./types";
 
 export function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Number.isFinite(value) ? value : 0));
@@ -42,6 +42,14 @@ function matchProduct(item: MIProduct, query: MIQuery) {
   const q = String(query.q || "").trim().toLowerCase();
   return matchesText([item.productName, item.keyword, item.category, item.subcategory, item.marketplace, item.notes], q)
     && (!query.period || item.period === query.period)
+    && (!query.country || query.country === "All" || item.country === query.country)
+    && (!query.marketplace || query.marketplace === "All" || item.marketplace === query.marketplace)
+    && (!query.category || query.category === "All" || item.category === query.category);
+}
+
+function matchSource(item: MIResearchSource, query: MIQuery) {
+  const q = String(query.q || "").trim().toLowerCase();
+  return matchesText([item.title, item.keyword, item.category, item.marketplace, item.sourceType, item.status, item.sourceUrl, item.notes], q)
     && (!query.country || query.country === "All" || item.country === query.country)
     && (!query.marketplace || query.marketplace === "All" || item.marketplace === query.marketplace)
     && (!query.category || query.category === "All" || item.category === query.category);
@@ -105,6 +113,9 @@ export function filterBundle(bundle: MIBundle, query: MIQuery = {}): MIBundle {
         && (!query.category || query.category === "All" || item.categoryFocus === query.category)
         && matchesText([item.title, item.hostName, item.hostType, item.categoryFocus, item.notes], q))
       .sort((a, b) => scoreLive(b) - scoreLive(a)),
+    sources: (bundle.sources || [])
+      .filter((item) => matchSource(item, query))
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()),
   };
 }
 
