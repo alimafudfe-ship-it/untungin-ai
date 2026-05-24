@@ -24,7 +24,7 @@ import { GrowthEnginePanel } from "@/components/dashboard/GrowthEnginePanel";
 import { ImportPreviewModal } from "@/components/saas/ImportPreviewModal";
 import { AutomationPanel, FinanceChatPanel, MarketplaceApiPanel, MidtransSubscriptionPanel, TeamAccessPanel, type ChatMessage } from "@/components/dashboard/Step4Panels";
 import { ExecutiveDashboard } from "@/components/dashboard/ExecutiveDashboard";
-import { ProductTrendAdvisor } from "@/components/dashboard/ProductTrendAdvisor";
+import { MarketIntelligenceSuite } from "@/components/dashboard/MarketIntelligenceSuite";
 import { getCashflowTrend, getExpenseBreakdown, getInventoryAnalytics, getProductAnalytics, getProfitTrend } from "@/lib/dashboard/analytics";
 import { createImportPreview, type ImportPreview } from "@/lib/dashboard/marketplaceImport";
 import { getOrCreateDefaultWorkspace, listWorkspaceStores, type Store } from "@/lib/saas/workspace";
@@ -678,7 +678,7 @@ export default function DashboardPage() {
 
     {activeTab === "reports" && <ReportsPanel metrics={metrics} products={products} expenses={expenses} onExportCSV={handleExport} onExportPDF={handleExportPDF} />}
 
-    {activeTab === "trends" && <ProductTrendAdvisor products={products} />}
+    {activeTab === "trends" && <MarketIntelligenceSuite products={products} />}
 
     {activeTab === "marketplace" && <div style={{ display: "grid", gap: 18 }}><MarketplaceSyncPanel products={products} syncing={syncing} lastSync={lastSync} onCSVUpload={handleCSVUpload} /><MarketplaceApiPanel products={products} userId={currentUserId} workspaceId={workspaceId} /></div>}
 
