@@ -485,13 +485,15 @@ function ImportPanel() {
 
   return <div style={{ display: "grid", gap: 14 }}>
     <section style={cardStyle}>
-      <Badge label="V4 Source Manager Ready" tone="success" />
-      <h2 style={{ margin: "10px 0 6px" }}>Paste link marketplace, simpan sebagai sumber riset</h2>
-      <p style={{ color: colors.muted, lineHeight: 1.7, marginTop: 0 }}>Fitur ini menyimpan link Tokopedia, Shopee, TikTok Shop, atau Lazada ke Supabase sebagai antrean riset. Link ini bukan scraping otomatis; data produk tetap harus diisi dari riset legal, upload CSV/JSON, API resmi, atau partner feed.</p>
+      <Badge label="V5 Partner Feed Ready" tone="success" />
+      <h2 style={{ margin: "10px 0 6px" }}>Partner Feed API + source link manager</h2>
+      <p style={{ color: colors.muted, lineHeight: 1.7, marginTop: 0 }}>V5 menyiapkan aplikasi untuk dijual sebagai SaaS: simpan link sumber riset, terima data legal dari partner/API resmi, lalu upsert otomatis ke Supabase untuk produk, toko, kreator, video, live, kategori, dan source link.</p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button style={ctaButtonStyle} onClick={exportTemplate}>Download template CSV</button>
         <button style={ghostButtonStyle} onClick={() => downloadText("market-intelligence-feed-example.json", jsonExample, "application/json;charset=utf-8")}>Download contoh JSON feed</button>
         <button style={ghostButtonStyle} onClick={() => downloadText("template-marketplace-source-links-v4.csv", "external_id,title,marketplace,source_type,source_url,keyword,category,country,status,notes\nsrc-tokopedia-powerbank-search,Tokopedia powerbank fast charging,Tokopedia,search,https://www.tokopedia.com/search?st=product&q=powerbank%20fast%20charging,powerbank fast charging,Elektronik,ID,queued,Catatan riset", "text/csv;charset=utf-8")}>Download template source link</button>
+        <button style={ghostButtonStyle} onClick={() => window.open("/examples/partner-feed-products-v5.json", "_blank")}>Contoh partner products JSON</button>
+        <button style={ghostButtonStyle} onClick={() => window.open("/api/market-intelligence/partner-feed", "_blank")}>Cek Partner API</button>
         <button style={ghostButtonStyle} onClick={loadSources} disabled={sourceLoading}>{sourceLoading ? "Memuat..." : "Refresh source link"}</button>
       </div>
     </section>
@@ -540,9 +542,17 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
 MARKET_INTELLIGENCE_MODE=supabase
 MARKET_INTELLIGENCE_USE_DEMO=false
 
-# Wajib untuk tombol Simpan Link Marketplace:
+# Wajib untuk tombol Simpan Link Marketplace dan Partner Feed API:
 SUPABASE_SERVICE_ROLE_KEY=eyJ...service_role...
 MARKET_INTELLIGENCE_ADMIN_TOKEN=token-rahasia-kamu
+MARKET_INTELLIGENCE_PARTNER_TOKEN=token-partner-rahasia
+
+# Endpoint partner feed V5:
+POST /api/market-intelligence/partner-feed/products
+POST /api/market-intelligence/partner-feed/shops
+POST /api/market-intelligence/partner-feed/creators
+POST /api/market-intelligence/partner-feed/videos
+POST /api/market-intelligence/partner-feed/lives
 
 # Opsional kalau pakai JSON feed eksternal/legal:
 MARKET_INTELLIGENCE_FEED_URL=https://domain-kamu.com/feeds/market-intelligence-v2.json
@@ -640,13 +650,13 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 920 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Badge label="V4 Source Manager + Supabase Live" tone="success" />
-            <Badge label="Produk · Kategori · Toko · Kreator · Video & Ads · Live · Source Link" tone="blue" />
+            <Badge label="V5 Partner Feed + Supabase Live" tone="success" />
+            <Badge label="Produk · Kategori · Toko · Kreator · Video & Ads · Live · Partner API" tone="blue" />
             {loading ? <Badge label="Memuat data..." tone="warning" /> : <Badge label={`Generated ${new Date(bundle.generatedAt).toLocaleTimeString("id-ID")}`} tone="neutral" />}
             <Badge label={`Source: ${bundle.activeSource || "-"}`} tone={dataModeTone(bundle.dataMode)} />
           </div>
           <h2 style={{ margin: "10px 0 6px", fontSize: 30, letterSpacing: -0.9 }}>Market Intelligence seperti Kalodata, versi Untungin</h2>
-          <p style={{ margin: 0, color: colors.muted, lineHeight: 1.7 }}>Dashboard riset produk dengan ranking peluang, kategori naik, kompetitor, kreator affiliate, video/ads, live commerce, export CSV, dan feed legal-ready.</p>
+          <p style={{ margin: 0, color: colors.muted, lineHeight: 1.7 }}>Dashboard riset produk dengan ranking peluang, kategori naik, kompetitor, kreator affiliate, video/ads, live commerce, export CSV, dan partner feed/API legal-ready.</p>
         </div>
         <button onClick={() => exportProducts(bundle.products)} disabled={!bundle.products.length} style={{ ...ctaButtonStyle, opacity: bundle.products.length ? 1 : 0.55 }}>Export produk CSV</button>
       </div>
