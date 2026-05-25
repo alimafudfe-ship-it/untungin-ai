@@ -638,41 +638,7 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
     setLoading(true);
     fetch(`/api/market-intelligence?${params.toString()}`, { signal: controller.signal })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Market Intelligence API error")))
-      
-      .then((payload: any) => {
-        if (Array.isArray(payload?.data)) {
-          const normalizedProducts = payload.data.map((item: any, index: number) => ({
-            id: `${item.marketplace || "market"}-${index}`,
-            name: item.product_name || item.name || "Unknown Product",
-            marketplace: item.marketplace || "Unknown",
-            category: item.category || "General",
-            country: item.country || "ID",
-            keyword: item.keyword || query || "",
-            sold30d: Number(item.sales || 0),
-            revenue30d: Number(item.sales || 0) * Number(item.price || 0),
-            growth30d: Number(item.growth || 0),
-            opportunityScore: Number(item.opportunity_score || 0),
-            competitionScore: 40,
-            demandScore: 80,
-            rating: Number(item.rating || 0),
-            priceMin: Number(item.price || 0),
-            priceMax: Number(item.price || 0),
-            source: item.marketplace || "API",
-          }));
-
-          setBundle({
-            ...EMPTY_BUNDLE,
-            products: normalizedProducts,
-            rowCount: normalizedProducts.length,
-            generatedAt: new Date().toISOString(),
-            dataMode: "mixed",
-            activeSource: "Marketplace API",
-          });
-          return;
-        }
-
-        setBundle(payload as ApiState);
-      })
+      .then((payload: ApiState) => setBundle(payload))
       .catch((error: Error) => {
         if (error.name !== "AbortError") setBundle({ ...EMPTY_BUNDLE, errors: ["API Market Intelligence belum tersedia atau gagal dibaca."], generatedAt: new Date().toISOString() });
       })
