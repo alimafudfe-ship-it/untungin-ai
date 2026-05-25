@@ -440,3 +440,4 @@ try {
     generatedAt: new Date().toISOString(),
   };
 }
+}
