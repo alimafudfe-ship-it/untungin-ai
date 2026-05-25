@@ -5,7 +5,7 @@ export class TokopediaCrawler extends BaseCrawler {
     return [{
       marketplace: 'Tokopedia',
       keyword,
-      product_name: 'Sample Tokopedia Product',
+      product_name: `${keyword} - Tokopedia Product`,
       sales: 800,
       price: 99000,
       rating: 4.7,
