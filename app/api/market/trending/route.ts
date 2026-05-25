@@ -1,21 +1,9 @@
-// /app/api/market/trending/route.ts
-
-export const runtime = "edge"; // 🔥 WAJIB
-
-import { getShopeeProducts } from "@/services/shopee";
-import { calculateTrendScore } from "@/services/trendEngine";
-
 export async function GET() {
-  let products = await getShopeeProducts();
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .order("sold", { ascending: false })
+    .limit(20)
 
-  products = products.map((p) => ({
-    ...p,
-    score: calculateTrendScore(p),
-  }));
-
-  products.sort((a, b) => b.score - a.score);
-
-  return new Response(JSON.stringify({ products }), {
-    headers: { "Content-Type": "application/json" },
-  });
+  return Response.json({ products: data })
 }
