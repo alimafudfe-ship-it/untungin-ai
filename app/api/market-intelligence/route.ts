@@ -30,17 +30,5 @@ export async function GET(req: Request) {
     q: url.searchParams.get("q") || "",
     sort: sort(url.searchParams.get("sort")) || "opportunity",
   });
-
-
-  // snapshot auto-save hook
-  const snapshots = (result as any)?.items?.map((item: any) => ({
-    marketplace: item.marketplace || url.searchParams.get("marketplace") || "All",
-    product_name: item.title || item.name || "Unknown Product",
-    price: Number(item.price || 0),
-    sales: Number(item.sales || 0),
-    revenue: Number(item.revenue || 0),
-    snapshot_date: new Date().toISOString(),
-  })) || [];
-
-  return NextResponse.json({ ...result, snapshotsSaved: snapshots.length });
+  return NextResponse.json(result);
 }
