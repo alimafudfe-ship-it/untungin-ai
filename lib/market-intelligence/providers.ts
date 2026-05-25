@@ -415,7 +415,9 @@ export async function collectMarketIntelligence(query: MIQuery = {}) {
     }, "demo", "Demo local fallback", true);
   }
 
+try {
   const filtered = filterBundle(bundle, query);
+
   return {
     ...filtered,
     errors,
@@ -425,5 +427,16 @@ export async function collectMarketIntelligence(query: MIQuery = {}) {
     activeSource: bundle.activeSource,
     isDemo: bundle.isDemo,
     rowCount: countRows(filtered),
+  };
+} catch (error) {
+  console.error("MARKET INTELLIGENCE ERROR:", error);
+
+  return {
+    ...emptyBundle([
+      error instanceof Error
+        ? error.message
+        : "Unknown market intelligence error",
+    ]),
+    generatedAt: new Date().toISOString(),
   };
 }
