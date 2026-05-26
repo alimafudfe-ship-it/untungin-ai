@@ -1,0 +1,2 @@
+module,id,name,marketplace,country,category,keyword,price_min,price_max,sold_7d,sold_30d,revenue_7d,revenue_30d,growth_7d,growth_30d,seller_count,creator_count,video_count,live_count,ad_count,rating,review_count,demand_score,growth_score,competition_score,opportunity_score,source,source_url,notes
+product,manual-001,Nama produk contoh,TikTok Shop,ID,Beauty,keyword produk,15000,49000,120,800,3000000,21000000,15,42,18,12,40,6,3,4.7,120,80,76,44,78,Manual research,,Catatan riset

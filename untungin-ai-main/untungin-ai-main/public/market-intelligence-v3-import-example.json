@@ -1,0 +1,155 @@
+{
+  "sourceName": "Manual research batch 001",
+  "sourceKind": "csv_import",
+  "products": [
+    {
+      "id": "manual-parfum-001",
+      "productName": "Parfum roll on viral 10ml",
+      "category": "Beauty",
+      "keyword": "parfum roll on",
+      "marketplace": "TikTok Shop",
+      "country": "ID",
+      "period": "week",
+      "priceMin": 15000,
+      "priceMax": 49000,
+      "sold7d": 1200,
+      "sold30d": 94000,
+      "revenue7d": 48000000,
+      "revenue30d": 5200000000,
+      "growth7d": 24,
+      "growth30d": 68,
+      "sellerCount": 180,
+      "creatorCount": 240,
+      "videoCount": 850,
+      "liveCount": 72,
+      "adCount": 34,
+      "avgRating": 4.7,
+      "reviewCount": 12800,
+      "demandScore": 92,
+      "growthScore": 88,
+      "competitionScore": 63,
+      "opportunityScore": 86,
+      "saturationScore": 64,
+      "marginSignal": 78,
+      "signal": "viral",
+      "source": "Manual TikTok Shop research",
+      "sourceKind": "manual_upload",
+      "notes": "Data riset manual, bukan scraping ilegal."
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-beauty-tiktok-id",
+      "name": "Beauty",
+      "marketplace": "TikTok Shop",
+      "country": "ID",
+      "productCount": 420,
+      "sold30d": 312000,
+      "revenue30d": 18600000000,
+      "demandScore": 90,
+      "growthScore": 84,
+      "competitionScore": 68,
+      "opportunityScore": 79,
+      "topKeywords": [
+        "parfum roll on",
+        "serum wajah",
+        "lip tint viral"
+      ]
+    }
+  ],
+  "shops": [
+    {
+      "id": "shop-glow-lab-official",
+      "shopName": "Glow Lab Official",
+      "marketplace": "TikTok Shop",
+      "country": "ID",
+      "categoryFocus": "Beauty",
+      "productCount": 42,
+      "sold30d": 94000,
+      "revenue30d": 5200000000,
+      "avgPrice": 55000,
+      "avgRating": 4.7,
+      "reviewCount": 12800,
+      "followers": 168000,
+      "liveCount": 22,
+      "adCount": 18,
+      "topProductId": "manual-parfum-001",
+      "opportunityGap": "Bundling sample size dan free gift masih bisa ditiru."
+    }
+  ],
+  "creators": [
+    {
+      "id": "creator-beauty-fit-001",
+      "creatorName": "Beauty Daily Review",
+      "handle": "@beautydailyreview",
+      "marketplace": "TikTok Shop",
+      "country": "ID",
+      "categoryFocus": "Beauty",
+      "followers": 78000,
+      "avgViews": 32000,
+      "engagementRate": 6.4,
+      "productCount": 18,
+      "sold30d": 6200,
+      "revenue30d": 342000000,
+      "commissionRate": 12,
+      "fitScore": 86,
+      "topProductId": "manual-parfum-001"
+    }
+  ],
+  "videos": [
+    {
+      "id": "video-parfum-hook-001",
+      "title": "Parfum mini yang wanginya awet seharian",
+      "format": "affiliate_video",
+      "productId": "manual-parfum-001",
+      "creatorId": "creator-beauty-fit-001",
+      "marketplace": "TikTok Shop",
+      "country": "ID",
+      "views": 840000,
+      "likes": 38200,
+      "comments": 2100,
+      "shares": 4200,
+      "ctr": 3.8,
+      "cvr": 4.4,
+      "gmvEstimate": 128000000,
+      "hook": "Aku kira parfum murah cepat hilang, ternyata ini...",
+      "cta": "Cek keranjang kuning sebelum stok habis",
+      "durationSec": 29,
+      "postedAt": "2026-05-23T08:00:00.000Z"
+    }
+  ],
+  "lives": [
+    {
+      "id": "live-parfum-001",
+      "title": "Flash sale parfum roll on viral",
+      "hostName": "Glow Lab Official",
+      "hostType": "seller",
+      "marketplace": "TikTok Shop",
+      "country": "ID",
+      "categoryFocus": "Beauty",
+      "productIds": [
+        "manual-parfum-001"
+      ],
+      "viewersPeak": 5400,
+      "durationMin": 180,
+      "soldUnits": 3200,
+      "revenue": 176000000,
+      "conversionRate": 5.9,
+      "liveDate": "2026-05-23T12:00:00.000Z"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src-tokopedia-powerbank-search",
+      "title": "Tokopedia powerbank fast charging",
+      "marketplace": "Tokopedia",
+      "sourceType": "search",
+      "sourceUrl": "https://www.tokopedia.com/search?st=product&q=powerbank%20fast%20charging",
+      "keyword": "powerbank fast charging",
+      "category": "Elektronik",
+      "country": "ID",
+      "status": "queued",
+      "notes": "Contoh source link untuk antrean riset."
+    }
+  ]
+}

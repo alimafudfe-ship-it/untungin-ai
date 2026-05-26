@@ -1,0 +1,10 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-report",
+      "schedule": "0 1 * * *"
+    }
+  ],
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --no-package-lock --registry=https://registry.npmjs.org/ --no-audit --no-fund --prefer-online --fetch-retries=2 --fetch-timeout=60000"
+}

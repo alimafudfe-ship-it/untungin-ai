@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "id": "tiktok-bola-001",
+      "productName": "Bola futsal size 4 viral",
+      "category": "Olahraga",
+      "keyword": "bola futsal sepak bola",
+      "marketplace": "TikTok Shop",
+      "country": "ID",
+      "period": "week",
+      "demandScore": 88,
+      "growthScore": 79,
+      "competitionScore": 45,
+      "priceMin": 25000,
+      "priceMax": 99000,
+      "monthlyUnits": 12000,
+      "monthlyRevenue": 780000000,
+      "signal": "rising",
+      "source": "Trend provider",
+      "sourceKind": "analytics_feed",
+      "confidence": 82
+    }
+  ]
+}

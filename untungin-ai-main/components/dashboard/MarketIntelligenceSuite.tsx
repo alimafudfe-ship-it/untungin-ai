@@ -636,7 +636,10 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
     const controller = new AbortController();
     const params = new URLSearchParams({ period, marketplace, country, category, sort, q: query });
     setLoading(true);
-    fetch(`/api/market-intelligence?${params.toString()}`, { signal: controller.signal })
+fetch(`/api/market-intelligence?${params.toString()}`, {
+  signal: controller.signal,
+  cache: "no-store",
+})
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Market Intelligence API error")))
       .then((payload: ApiState) => setBundle(payload))
       .catch((error: Error) => {

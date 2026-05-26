@@ -1,0 +1,362 @@
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
+import type React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { hasSupabaseEnv, supabase, supabaseConfigError } from "@/lib/supabaseClient";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+
+function LoginContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [loadingEmail, setLoadingEmail] = useState(false);
+  const [loadingPassword, setLoadingPassword] = useState(false);
+
+  const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const DEMO_LOGIN_EMAILS = new Set(["alimafudfe+demo@gmail.com", "demo@untungin.ai"]);
+  const DEMO_SESSION_KEY = "untungin_demo_session";
+
+  function startDemoSession(cleanEmail: string) {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        DEMO_SESSION_KEY,
+        JSON.stringify({
+          id: "demo-user",
+          email: cleanEmail,
+          createdAt: new Date().toISOString(),
+        }),
+      );
+    }
+    router.replace(nextPath);
+  }
+
+  const nextPath = searchParams.get("next") || "/";
+  const urlError = searchParams.get("error") || "";
+
+  useEffect(() => {
+    if (urlError) setErrorMessage(urlError);
+  }, [urlError]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function redirectIfLoggedIn() {
+      if (!hasSupabaseEnv) return;
+      const { data } = await supabase.auth.getSession();
+      if (mounted && data.session?.user) {
+        router.replace(nextPath);
+      }
+    }
+
+    void redirectIfLoggedIn();
+
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return () => {
+        mounted = false;
+      };
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        if (
+          (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+          session?.user
+        ) {
+          router.replace(nextPath);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [nextPath, router]);
+
+  async function loginWithGoogle() {
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return;
+    }
+
+    setErrorMessage("");
+    setMessage("");
+    setLoadingGoogle(true);
+
+    const origin = window.location.origin;
+    const redirectTo = `${origin}/auth/callback`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+      },
+    });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setLoadingGoogle(false);
+    }
+  }
+
+  async function loginWithPassword(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return;
+    }
+
+    setErrorMessage("");
+    setMessage("");
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      setErrorMessage("Masukkan email dan password.");
+      return;
+    }
+
+    // Login demo darurat untuk reviewer / testing marketplace.
+    // Ini membuat dashboard tetap bisa dibuka walau Supabase Auth sedang gagal fetch/CORS/network.
+    if (DEMO_LOGIN_EMAILS.has(cleanEmail)) {
+      startDemoSession(cleanEmail);
+      return;
+    }
+
+    setLoadingPassword(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error) {
+        setErrorMessage(error.message);
+        setLoadingPassword(false);
+        return;
+      }
+
+      router.replace(nextPath);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Gagal konek ke Supabase Auth.";
+      setErrorMessage(`${detail}. Cek NEXT_PUBLIC_SUPABASE_URL / ANON_KEY dan URL Configuration Supabase.`);
+      setLoadingPassword(false);
+    }
+  }
+
+  async function sendMagicLink() {
+    if (!hasSupabaseEnv) {
+      setErrorMessage(supabaseConfigError || "Supabase ENV belum lengkap.");
+      return;
+    }
+
+    setErrorMessage("");
+    setMessage("");
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setErrorMessage("Masukkan email dulu.");
+      return;
+    }
+
+    setLoadingEmail(true);
+
+    const origin = window.location.origin;
+    const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: cleanEmail,
+      options: {
+        emailRedirectTo,
+        shouldCreateUser: true,
+      },
+    });
+
+    if (error) {
+      setErrorMessage(error.message);
+    } else {
+      setMessage("Link login sudah dikirim. Cek email kamu.");
+    }
+
+    setLoadingEmail(false);
+  }
+
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at 20% 10%, rgba(34,197,94,0.28), transparent 35%), linear-gradient(135deg, #020617 0%, #030712 60%, #000 100%)",
+        color: "white",
+        fontFamily: "Inter, Arial, sans-serif",
+        display: "grid",
+        placeItems: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 420,
+          background: "rgba(15,23,42,0.92)",
+          border: "1px solid rgba(148,163,184,0.16)",
+          borderRadius: 28,
+          padding: 28,
+          boxShadow: "0 30px 100px rgba(0,0,0,0.45)",
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            padding: "8px 12px",
+            borderRadius: 999,
+            background: "rgba(34,197,94,0.14)",
+            color: "#22c55e",
+            fontWeight: 900,
+            marginBottom: 20,
+          }}
+        >
+          Untungin.ai
+        </div>
+
+        <h1 style={{ margin: "0 0 8px", fontSize: 24 }}>Masuk ke Dashboard</h1>
+        <p style={{ margin: "0 0 22px", color: "#cbd5e1", lineHeight: 1.6 }}>
+          Login untuk menyimpan data produk, cek profit, dan aktivasi PRO.
+        </p>
+
+        <button
+          onClick={loginWithGoogle}
+          disabled={loadingGoogle || !hasSupabaseEnv}
+          style={{
+            width: "100%",
+            padding: "15px 16px",
+            borderRadius: 16,
+            border: "none",
+            background: "white",
+            color: "#111827",
+            fontWeight: 900,
+            cursor: loadingGoogle ? "not-allowed" : "pointer",
+            opacity: loadingGoogle ? 0.75 : 1,
+          }}
+        >
+          {loadingGoogle ? "Membuka Google..." : "🔐 Login dengan Google"}
+        </button>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            margin: "22px 0",
+            color: "#64748b",
+            fontSize: 13,
+          }}
+        >
+          <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
+          atau login via email
+          <div style={{ height: 1, background: "rgba(148,163,184,0.18)", flex: 1 }} />
+        </div>
+
+        <form onSubmit={loginWithPassword} style={{ display: "grid", gap: 12 }}>
+          <input
+            type="email"
+            value={email}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+            placeholder="Email kamu"
+            style={{
+              width: "100%",
+              padding: "15px 16px",
+              borderRadius: 16,
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.74)",
+              color: "white",
+              fontSize: 15,
+              outline: "none",
+            }}
+          />
+
+          <input
+            type="password"
+            value={password}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            placeholder="Password"
+            style={{
+              width: "100%",
+              padding: "15px 16px",
+              borderRadius: 16,
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.74)",
+              color: "white",
+              fontSize: 15,
+              outline: "none",
+            }}
+          />
+
+          <button
+            type="submit"
+            disabled={loadingPassword || !hasSupabaseEnv}
+            style={{
+              width: "100%",
+              padding: "15px 16px",
+              borderRadius: 16,
+              border: "none",
+              background: "linear-gradient(135deg, #22c55e, #14b8a6)",
+              color: "white",
+              fontWeight: 900,
+              cursor: loadingPassword ? "not-allowed" : "pointer",
+              opacity: loadingPassword ? 0.75 : 1,
+            }}
+          >
+            {loadingPassword ? "Masuk..." : "Login dengan Email & Password"}
+          </button>
+
+          <button
+            type="button"
+            onClick={sendMagicLink}
+            disabled={loadingEmail || !hasSupabaseEnv}
+            style={{
+              width: "100%",
+              padding: "13px 16px",
+              borderRadius: 16,
+              border: "1px solid rgba(148,163,184,0.25)",
+              background: "transparent",
+              color: "#cbd5e1",
+              fontWeight: 800,
+              cursor: loadingEmail ? "not-allowed" : "pointer",
+              opacity: loadingEmail ? 0.75 : 1,
+            }}
+          >
+            {loadingEmail ? "Mengirim..." : "Kirim Magic Link"}
+          </button>
+        </form>
+
+        {message && <p style={{ color: "#86efac", fontSize: 13 }}>{message}</p>}
+        {errorMessage && <p style={{ color: "#fca5a5", fontSize: 13 }}>{errorMessage}</p>}
+
+        <p style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.6, marginBottom: 0 }}>
+          Untuk reviewer marketplace, gunakan akun demo email dan password yang disediakan.
+        </p>
+      </div>
+    </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  );
+}
