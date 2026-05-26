@@ -106,6 +106,14 @@ const CSV_COLUMNS = [
   "notes",
 ];
 
+function revenueFormatter(value: number | undefined) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+}
+
 function count(value: number | undefined) {
   return Number(value || 0).toLocaleString("id-ID");
 }
@@ -263,7 +271,7 @@ function ProductCard({ item }: { item: MIProduct }) {
       <MiniMetric label="Sold 30d" value={count(item.sold30d)} helper={`7d ${count(item.sold7d)}`} tone="blue" />
       <MiniMetric label="Revenue 30d" value={compactMoney(item.revenue30d)} helper={`7d ${compactMoney(item.revenue7d)}`} tone="success" />
       <MiniMetric label="Growth" value={`${item.growth30d}%`} helper={`7d ${item.growth7d}%`} tone="warning" />
-      <MiniMetric label="Harga" value={`${money(item.priceMin)}-${money(item.priceMax)}`} helper="range pasar" />
+      <MiniMetric label="Harga" value={`${revenueFormatter(item.priceMin)}-${revenueFormatter(item.priceMax)}`} helper="range pasar" />
     </div>
     <div className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 8 }}>
       <MiniMetric label="Seller" value={count(item.sellerCount)} />
@@ -495,6 +503,15 @@ function ImportPanel() {
 
   return <div style={{ display: "grid", gap: 14 }}>
     <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
       <Badge label="V5 Partner Feed Ready" tone="success" />
       <h2 style={{ margin: "10px 0 6px" }}>Partner Feed API + source link manager</h2>
       <p style={{ color: colors.muted, lineHeight: 1.7, marginTop: 0 }}>V5 menyiapkan aplikasi untuk dijual sebagai SaaS: simpan link sumber riset, terima data legal dari partner/API resmi, lalu upsert otomatis ke Supabase untuk produk, toko, kreator, video, live, kategori, dan source link.</p>
@@ -509,6 +526,15 @@ function ImportPanel() {
     </section>
 
     <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
       <Badge label="Tambah link sumber" tone="blue" />
       <h3>Simpan link marketplace ke Supabase</h3>
       <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
@@ -539,12 +565,30 @@ function ImportPanel() {
     </section>
 
     <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
       <Badge label={`Source tersimpan: ${sourceRows.length}`} tone="success" />
       <h3>Daftar link sumber riset</h3>
       {sourceRows.length ? <div style={{ display: "grid", gap: 10 }}>{sourceRows.map((item) => <SourceLinkCard key={item.id} item={item} />)}</div> : <EmptyState title="Belum ada source link" description="Jalankan migration V4, lalu paste link marketplace di form atas." />}
     </section>
 
     <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
       <Badge label="Environment Variables" tone="blue" />
       <h3>Supabase / Feed yang didukung</h3>
       <pre style={{ whiteSpace: "pre-wrap", background: "#0f172a", color: "#e2e8f0", padding: 16, borderRadius: 16, overflowX: "auto" }}>{`NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
@@ -570,6 +614,15 @@ KALODATA_LIKE_FEED_URL=https://domain-kamu.com/feeds/market-intelligence-v2.json
       <p style={{ color: colors.muted, lineHeight: 1.7 }}>Set <strong>MARKET_INTELLIGENCE_MODE=supabase</strong> dan <strong>MARKET_INTELLIGENCE_USE_DEMO=false</strong> agar dashboard hanya membaca database. <strong>SUPABASE_SERVICE_ROLE_KEY</strong> hanya dipakai server API, jangan taruh di kode frontend.</p>
     </section>
     <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
       <Badge label="Kolom CSV" tone="neutral" />
       <p style={{ color: colors.muted, lineHeight: 1.7 }}>{CSV_COLUMNS.join(", ")}</p>
     </section>
@@ -592,11 +645,29 @@ function OverviewPanel({ bundle, products }: { bundle: MIBundle; products?: Prod
     </div>
     <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
       <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
         <Badge label="AI Research Playbook" tone="success" />
         <h2 style={{ margin: "10px 0 8px" }}>Aksi riset hari ini</h2>
         <div style={{ display: "grid", gap: 10 }}>{playbook.map((item, index) => <div key={index} style={{ display: "grid", gridTemplateColumns: "34px 1fr", gap: 10, alignItems: "start", padding: 12, borderRadius: 16, background: "#f8fafc", border: "1px solid #e2e8f0" }}><Badge label={String(index + 1)} tone="blue" /><div style={{ color: colors.ink, lineHeight: 1.55 }}>{item}</div></div>)}</div>
       </section>
       <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
         <Badge label="Kategori naik" tone="blue" />
         <h2 style={{ margin: "10px 0 8px" }}>Niche prioritas</h2>
         <div style={{ display: "grid", gap: 10 }}>{topCategories.map((item) => <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: 12, borderRadius: 16, background: "#f8fafc", border: "1px solid #e2e8f0" }}><div><strong>{item.name}</strong><div style={{ color: colors.muted, fontSize: 12 }}>{item.topKeywords.slice(0, 3).join(" · ")}</div></div><Badge label={`${Math.round(scoreCategory(item))}/100`} tone={scoreTone(scoreCategory(item))} /></div>)}</div>
@@ -604,11 +675,29 @@ function OverviewPanel({ bundle, products }: { bundle: MIBundle; products?: Prod
     </div>
     <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
       <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
         <Badge label="Kreator affiliate" tone="success" />
         <h3>Prioritas outreach</h3>
         <div style={{ display: "grid", gap: 10 }}>{topCreators.map((item) => <div key={item.id} style={{ padding: 12, borderRadius: 16, background: "#f8fafc", border: "1px solid #e2e8f0" }}><strong>{item.creatorName}</strong><div style={{ color: colors.muted, fontSize: 12 }}>{item.handle} · {count(item.followers)} followers · fit {Math.round(scoreCreator(item))}/100</div></div>)}</div>
       </section>
       <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
         <Badge label="Status data" tone="neutral" />
         <h3>Provider aktif</h3>
         <div style={{ marginBottom: 10 }}><Badge label={`Sumber data: ${bundle.activeSource || "-"}`} tone={dataModeTone(bundle.dataMode)} /> <Badge label={bundle.isDemo ? "Mode demo lokal" : "Bukan data lokal"} tone={bundle.isDemo ? "warning" : "success"} /></div>
@@ -628,13 +717,15 @@ export function MarketIntelligenceSuite({ products }: { products?: Product[] }) 
   const [category, setCategory] = useState("All");
   const [sort, setSort] = useState<MISortKey>("opportunity");
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [bundle, setBundle] = useState<ApiState>(EMPTY_BUNDLE);
   const [loading, setLoading] = useState(false);
+  const [livePulse, setLivePulse] = useState(Date.now());
   const [activeFeature, setActiveFeature] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    const params = new URLSearchParams({ period, marketplace, country, category, sort, q: query });
+    const params = new URLSearchParams({ period, marketplace, country, category, sort, q: debouncedQuery });
     setLoading(true);
 fetch(`/api/market-intelligence?${params.toString()}`, {
   signal: controller.signal,
@@ -647,7 +738,23 @@ fetch(`/api/market-intelligence?${params.toString()}`, {
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [period, marketplace, country, category, sort, query]);
+  }, [period, marketplace, country, category, sort, debouncedQuery]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 450);
+
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLivePulse(Date.now());
+    }, 12000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const categories = useMemo(() => categoryOptions(bundle), [bundle]);
   const marketplaces = useMemo(() => marketplaceOptions(bundle), [bundle]);
@@ -661,6 +768,15 @@ fetch(`/api/market-intelligence?${params.toString()}`, {
       }
     `}</style>
     <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 920 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -684,6 +800,15 @@ fetch(`/api/market-intelligence?${params.toString()}`, {
     </section>
 
     <section style={cardStyle}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Realtime Engine</div>
+          <strong>Live Market Intelligence</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+          ● LIVE {new Date(livePulse).toLocaleTimeString("id-ID")}
+        </div>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
         <div className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10 }}>
           {MARKETPLACES.map((item) => <button key={item.key} onClick={() => setMarketplace(item.key)} style={{ ...(marketplace === item.key ? ctaButtonStyle : ghostButtonStyle), textAlign: "left", padding: 12 }}>
