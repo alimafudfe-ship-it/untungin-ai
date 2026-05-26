@@ -1,5 +1,5 @@
 
-import { ShopeeCrawler } from '../../../services/crawlers/shopeeCrawler';
+import { ShopeeCrawler } from '@/services/crawlers/shopeeCrawler'
 
 export async function POST(req: Request){
  const body=await req.json().catch(()=>({}));
