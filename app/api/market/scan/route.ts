@@ -1,5 +1,9 @@
 
+<<<<<<< HEAD
 import { scanMarketplace } from '@/services/marketConnector';
+=======
+import { ShopeeCrawler } from '@/services/crawlers/shopeeCrawler'
+>>>>>>> a30385a1528dcbcccbe81cf219abb68b835c30c8
 
 export async function POST(req:Request){
  const {keyword=''}=await req.json();
