@@ -1,23 +1,34 @@
-import { chromium } from "playwright";
+import { chromium } from 'playwright';
 
-export async function scrapeShopee(keyword) {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+const proxies=(process.env.PROXY_POOL||'').split(',').filter(Boolean);
 
-  await page.goto(`https://shopee.co.id/search?keyword=${keyword}`, {
-    waitUntil: "domcontentloaded"
+function pickProxy(){
+ return proxies.length? proxies[Math.floor(Math.random()*proxies.length)] : undefined;
+}
+
+export async function scrapeShopee(keyword:string){
+ const browser=await chromium.launch({
+   headless:true,
+   proxy: pickProxy()? {server: pickProxy()!}: undefined
+ });
+
+ try{
+  const ctx=await browser.newContext({
+    userAgent:'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136 Safari/537.36'
   });
 
-  await page.waitForTimeout(3000);
-
-  const data = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('[data-sqe="item"]'))
-      .slice(0, 20)
-      .map(el => ({
-        text: el.innerText
-      }));
+  const page=await ctx.newPage();
+  await page.goto(`https://shopee.co.id/search?keyword=${encodeURIComponent(keyword)}`,{
+    waitUntil:'networkidle',
+    timeout:45000
   });
 
-  await browser.close();
-  return data;
+  await page.waitForTimeout(2500);
+
+  return await page.evaluate(()=>Array.from(document.querySelectorAll('[data-sqe="item"]')).slice(0,20).map((el:any)=>({
+    product_name: el.innerText?.split('\n')[0] || 'unknown'
+  })));
+ } finally{
+   await browser.close();
+ }
 }
