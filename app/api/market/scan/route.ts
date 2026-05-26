@@ -1,20 +1,20 @@
 
-import { ShopeeCrawler } from '../../../services/crawlers/shopeeCrawler';
+import { scanMarketplace } from '@/services/marketConnector';
 
-export async function POST(req: Request){
- const body=await req.json().catch(()=>({}));
- const keyword=(body.keyword||'').trim();
- if(!keyword){
-   return Response.json({success:false,error:'keyword required'},{status:400});
+export async function POST(req:Request){
+ const {keyword=''}=await req.json();
+ if(!keyword?.trim()){
+   return Response.json({success:false,data:[]},{status:400});
  }
- const shopee=new ShopeeCrawler();
- const rows=await shopee.scan(keyword);
 
- return Response.json({
-   success:true,
-   keyword,
-   count:rows.length,
-   data:rows,
-   generatedAt:new Date().toISOString()
- });
+ try{
+  const rows=await scanMarketplace(keyword);
+  return Response.json({
+    success:true,
+    count:rows.length,
+    data:rows
+  });
+ }catch(e){
+  return Response.json({success:false,error:'scan_failed',data:[]},{status:500});
+ }
 }
