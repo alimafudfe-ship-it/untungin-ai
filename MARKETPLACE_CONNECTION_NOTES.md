@@ -1,0 +1,1 @@
+Search input sekarang memanggil /api/market/scan dan menampilkan hasil crawler Shopee.
