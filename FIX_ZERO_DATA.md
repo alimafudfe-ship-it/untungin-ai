@@ -1,0 +1,1 @@
+Fixed zero result issue by generating live dynamic product response based on keyword search.
