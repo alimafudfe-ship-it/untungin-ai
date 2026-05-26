@@ -599,7 +599,7 @@ function OverviewPanel({ bundle, products }: { bundle: MIBundle; products?: Prod
       <section style={cardStyle}>
         <Badge label="Kategori naik" tone="blue" />
         <h2 style={{ margin: "10px 0 8px" }}>Niche prioritas</h2>
-        <div style={{ display: "grid", gap: 10 }}>{topCategories.map((item) => <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: 12, borderRadius: 16, background: "#f8fafc", border: "1px solid #e2e8f0" }}><div><strong>{item.name}</strong><div style={{ color: colors.muted, fontSize: 12 }}>{(item.topKeywords ?? []).slice(0, 3).join(" · ")}</div></div><Badge label={`${Math.round(scoreCategory(item))}/100`} tone={scoreTone(scoreCategory(item))} /></div>)}</div>
+        <div style={{ display: "grid", gap: 10 }}>{topCategories.map((item) => <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: 12, borderRadius: 16, background: "#f8fafc", border: "1px solid #e2e8f0" }}><div><strong>{item.name}</strong><div style={{ color: colors.muted, fontSize: 12 }}>{item.topKeywords.slice(0, 3).join(" · ")}</div></div><Badge label={`${Math.round(scoreCategory(item))}/100`} tone={scoreTone(scoreCategory(item))} /></div>)}</div>
       </section>
     </div>
     <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
