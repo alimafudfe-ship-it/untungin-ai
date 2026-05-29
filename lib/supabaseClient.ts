@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "";
