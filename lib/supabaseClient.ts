@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabaseClient";
+
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -6,38 +7,19 @@ const supabaseUrl =
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-const isSupabaseConfigured =
+export const hasSupabaseEnv =
+
   !!supabaseUrl &&
   !!supabaseAnonKey &&
   !supabaseUrl.includes("example.supabase.co");
 
-function createSafeClient() {
-  if (!isSupabaseConfigured) return null;
+export const supabaseConfigError = hasSupabaseEnv
+  ? null
+  : "Supabase environment variables are missing or invalid.";
 
-  return createClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      auth: {
-        persistSession: false,
-      },
-    }
-  );
-}
-
-export const supabase = createSafeClient();
-
-export const supabaseAdmin = supabase;
-
-export const browserClient = supabase;
-
-export const serverClient = supabase;
-
-export const createBrowserClient = () => supabase;
-
-export const createServerClient = () => supabase;
-
-export default supabase;
+export const supabase = hasSupabaseEnv
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export async function safeSupabaseQuery(table: string) {
   try {
@@ -49,10 +31,7 @@ export async function safeSupabaseQuery(table: string) {
       };
     }
 
-    const result = await supabase
-      .from(table)
-      .select("*")
-      .limit(50);
+    const result = await supabase.from(table).select("*").limit(50);
 
     return {
       data: result.data || [],
