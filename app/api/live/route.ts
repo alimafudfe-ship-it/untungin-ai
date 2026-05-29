@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 // app/api/live/route.ts
 
 let cache: any = null;

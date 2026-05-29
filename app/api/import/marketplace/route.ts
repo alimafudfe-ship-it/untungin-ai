@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import Papa from "papaparse";
 import { createClient } from "@supabase/supabase-js";

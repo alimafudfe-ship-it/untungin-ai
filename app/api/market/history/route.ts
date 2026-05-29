@@ -1,2 +1,3 @@
+export const runtime = "nodejs";
 import { createClient } from '@supabase/supabase-js'
 export async function POST(){const s=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SERVICE_ROLE_KEY!);const {data}=await s.from('products').select('*');const snapshots=(data||[]).map(p=>({product_id:p.id,platform:p.marketplace,sold:p.quantity_sold,price:p.selling_price,captured_at:new Date().toISOString()}));return Response.json({success:true,snapshots:snapshots.length})}

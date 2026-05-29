@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 
 import { scanMarketplace } from '@/services/marketConnector';
 

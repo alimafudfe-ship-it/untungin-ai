@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { collectMarketplaceTrends } from "@/lib/trends/providers";
 import type { TrendPeriod } from "@/lib/trends/types";

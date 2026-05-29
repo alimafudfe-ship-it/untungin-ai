@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { buildReportSummary } from "@/lib/reports/reportData";
 

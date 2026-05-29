@@ -1,0 +1,19 @@
+
+UNTUNGIN AI - PRODUCTION REPAIR REPORT
+
+Repairs Applied:
+- Disabled conflicting src/app router
+- Standardized App Router source
+- Added runtime=nodejs to API handlers
+- Added API health endpoint
+- Added Supabase safe fallback wrapper
+- Added dashboard fallback data
+- Added production vercel.json
+- Stabilized Vercel deployment structure
+
+Recommended ENV:
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+Health Check:
+GET /api/health

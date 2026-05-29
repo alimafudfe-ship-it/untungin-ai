@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getPlanAmount, getPlanName } from "@/lib/billing/providers";
 

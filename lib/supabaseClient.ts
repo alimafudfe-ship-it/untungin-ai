@@ -1,25 +1,43 @@
+
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
-export const hasSupabaseEnv = Boolean(supabaseUrl && supabaseAnonKey);
-export const supabaseConfigError = hasSupabaseEnv
-  ? null
-  : "Supabase ENV belum lengkap. Isi NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di Vercel sebelum app dipakai.";
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-if (!hasSupabaseEnv && typeof window !== "undefined") {
-  console.error(supabaseConfigError);
+const isSupabaseConfigured =
+  !!supabaseUrl &&
+  !!supabaseAnonKey &&
+  !supabaseUrl.includes("example.supabase.co");
+
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+export async function safeSupabaseQuery(table: string) {
+  try {
+    if (!supabase) {
+      return {
+        data: [],
+        error: null,
+        fallback: true,
+      };
+    }
+
+    const result = await supabase.from(table).select("*").limit(50);
+
+    return {
+      data: result.data || [],
+      error: result.error || null,
+      fallback: false,
+    };
+  } catch (err) {
+    return {
+      data: [],
+      error: err,
+      fallback: true,
+    };
+  }
 }
-
-export const supabase: any = createClient(
-  hasSupabaseEnv ? supabaseUrl : "https://example.supabase.co",
-  hasSupabaseEnv ? supabaseAnonKey : "placeholder-anon-key",
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  },
-);

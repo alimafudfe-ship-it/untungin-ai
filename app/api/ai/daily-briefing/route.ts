@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { buildDailyBriefing } from "@/lib/saas/dailyBriefing";
 import type { DashboardMetrics, Expense, Product } from "@/types/dashboard";
