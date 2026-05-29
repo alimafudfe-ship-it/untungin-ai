@@ -11,11 +11,7 @@ const isSupabaseConfigured =
   !!supabaseAnonKey &&
   !supabaseUrl.includes("example.supabase.co");
 
-<<<<<<< HEAD
 function buildClient() {
-=======
-function createSafeClient() {
->>>>>>> b6084b2ca334071d963f988e12dcfcfecd9cf5e9
   if (!isSupabaseConfigured) return null;
 
   return createClient(
@@ -29,7 +25,6 @@ function createSafeClient() {
   );
 }
 
-<<<<<<< HEAD
 export const supabase = buildClient();
 
 export const supabaseAdmin = supabase;
@@ -43,15 +38,6 @@ export const createBrowserClient = () => supabase;
 export const createServerClient = () => supabase;
 
 export default supabase;
-=======
-export const supabase = createSafeClient();
-
-export const supabaseAdmin = supabase;
-
-export const createBrowserClient = () => supabase;
-
-export const createServerClient = () => supabase;
->>>>>>> b6084b2ca334071d963f988e12dcfcfecd9cf5e9
 
 export async function safeSupabaseQuery(table: string) {
   try {
