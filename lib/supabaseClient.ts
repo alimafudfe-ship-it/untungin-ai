@@ -11,7 +11,7 @@ const isSupabaseConfigured =
   !!supabaseAnonKey &&
   !supabaseUrl.includes("example.supabase.co");
 
-function buildClient() {
+function createSafeClient() {
   if (!isSupabaseConfigured) return null;
 
   return createClient(
@@ -25,7 +25,7 @@ function buildClient() {
   );
 }
 
-export const supabase = buildClient();
+export const supabase = createSafeClient();
 
 export const supabaseAdmin = supabase;
 
