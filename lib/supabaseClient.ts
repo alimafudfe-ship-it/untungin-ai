@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl =
@@ -12,9 +11,33 @@ const isSupabaseConfigured =
   !!supabaseAnonKey &&
   !supabaseUrl.includes("example.supabase.co");
 
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+function buildClient() {
+  if (!isSupabaseConfigured) return null;
+
+  return createClient(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      auth: {
+        persistSession: false,
+      },
+    }
+  );
+}
+
+export const supabase = buildClient();
+
+export const supabaseAdmin = supabase;
+
+export const browserClient = supabase;
+
+export const serverClient = supabase;
+
+export const createBrowserClient = () => supabase;
+
+export const createServerClient = () => supabase;
+
+export default supabase;
 
 export async function safeSupabaseQuery(table: string) {
   try {
@@ -26,7 +49,10 @@ export async function safeSupabaseQuery(table: string) {
       };
     }
 
-    const result = await supabase.from(table).select("*").limit(50);
+    const result = await supabase
+      .from(table)
+      .select("*")
+      .limit(50);
 
     return {
       data: result.data || [],
