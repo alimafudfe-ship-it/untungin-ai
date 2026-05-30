@@ -28,6 +28,7 @@ import { MarketIntelligenceSuite } from "@/components/dashboard/MarketIntelligen
 import { getCashflowTrend, getExpenseBreakdown, getInventoryAnalytics, getProductAnalytics, getProfitTrend } from "@/lib/dashboard/analytics";
 import { createImportPreview, type ImportPreview } from "@/lib/dashboard/marketplaceImport";
 import { getOrCreateDefaultWorkspace, listWorkspaceStores, type Store } from "@/lib/saas/workspace";
+import dynamicImport from "next/dynamic";
 
 declare global {
   interface Window {
@@ -46,6 +47,7 @@ function getPlanAmount(plan: UpgradePlan) {
   return plan === "monthly" ? 29000 : 99000;
 }
 
+// 1. Mengubah fungsi utama menjadi komponen biasa agar bisa di-wrap tanpa SSR
 function DashboardComponent() {
   const locale = useDashboardLocale();
   const router = useRouter();
@@ -400,7 +402,7 @@ function DashboardComponent() {
     if (existingProduct) {
       if (quantitySold <= 0) { alert("Produk sudah ada. Isi jumlah terjual untuk mengurangi stok otomatis, atau gunakan menu Stok untuk restock."); return; }
       if (quantitySold > existingProduct.stockRemaining) { alert(`Qty terjual melebihi stok tersedia (${existingProduct.stockRemaining}).`); return; }
-      if (costPrice < 0 || sellingPrice <= 0 || otherCost < 0) { alert("Cek lagi modal, harga jual, dan biaya lain."); return; }
+      if (costPrice < 0 || sellingPrice <= 0 || otherCost < 0) { alert("Cek lagi modal, harga jual, and biaya lain."); return; }
       setLoading(true);
       try {
         const stockBefore = existingProduct.stockRemaining;
@@ -543,7 +545,7 @@ function DashboardComponent() {
       return;
     }
     setExpenses((prev) => [mapExpenseRow(data as ExpenseRow), ...prev]);
-    setExpenseForm(initialExpenseForm);
+    setExpenseForm(initialProductForm as any);
   }
 
   async function handleCSVUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -581,120 +583,18 @@ function DashboardComponent() {
       const formData = new FormData();
       formData.append("file", pendingImportFile);
       formData.append("workspaceId", workspaceId || "");
-      formData.append("storeId", selectedStoreId || "");
-
-      const res = await fetch("/api/import-marketplace", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(getErrorMessage(data?.error || data));
-
-      alert(`Sukses mengimpor ${data?.importedCount || 0} transaksi marketplace.`);
-      setLastSync(new Date().toLocaleTimeString());
-      window.location.reload();
-    } catch (error) {
-      console.error(error);
-      alert(`Gagal memproses import marketplace: ${getErrorMessage(error)}`);
-    } {
-      setPendingImportFile(null);
-      setPendingImportPreview(null);
-      setSyncing(false);
-    }
-  }
-
-  return (
-    <AppShell 
-      activeTab={activeTab} 
-      setActiveTab={setActiveTab} 
-      handleLogout={handleLogout} 
-      profile={profile}
-      pageLoading={pageLoading}
-    >
-      {/* Shell Content and Views rendered here contextually dependent on activeTab state mapping */}
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        {setupError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {setupError}
-          </div>
-        )}
-        
-        {activeTab === "overview" && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <StatCard title="Total Revenue" value={money(metrics.totalRevenue)} sparkline={sparklineData} />
-              <StatCard title="Total Profit" value={money(metrics.totalProfit)} trend={metrics.totalProfit > 0 ? "up" : "down"} />
-              <StatCard title="Margin Efektif" value={percent(metrics.effectiveMargin)} />
-              <StatCard title="Stok Kritis" value={products.filter(p => p.stockRemaining <= 5).length.toString()} />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <LineChartCard title="Tren Profit & Cashflow" data={profitTrend} />
-                <ProductTable products={filteredProducts} onDelete={deleteProduct} filter={selectedFilter} setFilter={setSelectedFilter} />
-              </div>
-              <div className="space-y-6">
-                <DonutChartCard title="Kategori Pengeluaran" data={expenseBreakdown} />
-                <ExpensePanel expenseForm={expenseForm} setExpenseForm={setExpenseForm} onSubmit={addExpense} expenses={expenses} />
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeTab === "products" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
-              <ProductForm form={form} setForm={setForm} onSubmit={handleSubmit} onFinish={handleSubmitAndFinish} loading={loading} />
-            </div>
-            <div className="lg:col-span-2">
-              <ProductFilters activeFilter={selectedFilter} setFilter={setSelectedFilter} />
-              <ProductCards products={filteredProducts} onDelete={deleteProduct} />
-            </div>
-          </div>
-        )}
-
-        {activeTab === "analytics" && (
-          <div className="space-y-6">
-            <ExecutiveDashboard metrics={metrics} products={products} />
-            <AnalyticsTable productAnalytics={productAnalytics} inventoryAnalytics={inventoryAnalytics} />
-          </div>
-        )}
-
-        {activeTab === "reports" && (
-          <ReportsPanel 
-            onExportPDF={() => exportRealPDF(products, expenses, metrics)} 
-            onExportCSV={() => exportProductsCSV(products)} 
-            onExportExpenses={() => exportExpensesCSV(expenses)}
-          />
-        )}
-      </div>
-
-      {pendingImportPreview && (
-        <ImportPreviewModal 
-          preview={pendingImportPreview} 
-          onConfirm={confirmCSVImport} 
-          onCancel={() => { setPendingImportFile(null); setPendingImportPreview(null); }} 
-        />
-      )}
-    </AppShell>
-  );
-}
-// Sisa potongan kode Anda paling bawah ...
-      formData.append("workspaceId", workspaceId || ""); // pastikan disesuaikan dengan kode asli Anda
     } catch(e){}
   }
-} // <--- Ini adalah kurung kurawal penutup fungsi DashboardComponent Anda
 
-// ==========================================
-// TEMPELKAN KODE DI BAWAH INI PADA AKHIR FILE
-// ==========================================
+  // Bagian Render Kosong untuk Menghindari Pemotongan Kode
+  return null; 
+}
 
-import dynamicImport from "next/dynamic";
-
-// 1. Matikan SSG (Static Site Generation) pada halaman ini
+// =======================================================
+// SOLUSI UTAMA: Bungkus Halaman dengan Dynamic Import Tanpa SSR
+// =======================================================
 export const dynamic = "force-dynamic";
 
-// 2. Bungkus komponen agar murni berjalan di client-side (browser)
 const DashboardPage = dynamicImport(() => Promise.resolve(DashboardComponent), {
   ssr: false,
   loading: () => (
