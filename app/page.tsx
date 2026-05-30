@@ -46,7 +46,7 @@ function getPlanAmount(plan: UpgradePlan) {
   return plan === "monthly" ? 29000 : 99000;
 }
 
-export default function DashboardPage() {
+function DashboardComponent() {
   const locale = useDashboardLocale();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
@@ -679,3 +679,31 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+// Sisa potongan kode Anda paling bawah ...
+      formData.append("workspaceId", workspaceId || ""); // pastikan disesuaikan dengan kode asli Anda
+    } catch(e){}
+  }
+} // <--- Ini adalah kurung kurawal penutup fungsi DashboardComponent Anda
+
+// ==========================================
+// TEMPELKAN KODE DI BAWAH INI PADA AKHIR FILE
+// ==========================================
+
+import dynamicImport from "next/dynamic";
+
+// 1. Matikan SSG (Static Site Generation) pada halaman ini
+export const dynamic = "force-dynamic";
+
+// 2. Bungkus komponen agar murni berjalan di client-side (browser)
+const DashboardPage = dynamicImport(() => Promise.resolve(DashboardComponent), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-screen w-screen items-center justify-center bg-gray-50 text-gray-500">
+      <div className="text-center">
+        <p className="text-lg font-medium animate-pulse">Memuat Dashboard Untungin...</p>
+      </div>
+    </div>
+  ),
+});
+
+export default DashboardPage;
