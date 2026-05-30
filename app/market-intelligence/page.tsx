@@ -17,31 +17,34 @@ export default function MarketIntelligencePage() {
   // State untuk menampung hasil produk yang berhasil difilter
   const [filteredProducts, setFilteredProducts] = useState<typeof mockProducts>([]);
   
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Mengambil teks langsung dari elemen input form (Anti-Lag / Anti-Delay State Next.js)
     const formData = new FormData(e.currentTarget);
     const searchInput = formData.get("searchQuery")?.toString() || "";
     
-    // Jika kotak pencarian kosong, reset tampilan
     if (!searchInput.trim()) {
       setFilteredProducts([]);
       setHasSearched(false);
       return;
     }
   
-    const lowerKeyword = searchInput.toLowerCase();
-
-    // Lakukan penyaringan langsung ke data simulasi tanpa sensitif huruf besar/kecil
-    const results = mockProducts.filter((product) =>
-      product.name.toLowerCase().includes(lowerKeyword)
-    );
-
-    // Update hasilnya ke layar beserta kata kunci judulnya
     setKeyword(searchInput);
-    setFilteredProducts(results);
     setHasSearched(true);
+    setFilteredProducts([]); // Kosongkan layar dulu saat loading
+
+    try {
+      // PANGGIL MESIN SCRAPER KITA KE BACKEND
+      const response = await fetch(`/api/scrape?keyword=${encodeURIComponent(searchInput)}`);
+      const data = await response.json();
+
+      if (data.products) {
+        // Masukkan data hasil mata-matai marketplace asli ke dalam tabel!
+        setFilteredProducts(data.products);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data real-time:", error);
+    }
   };
   
   return (
