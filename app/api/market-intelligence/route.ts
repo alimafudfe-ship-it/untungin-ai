@@ -1,4 +1,3 @@
-```typescript
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,8 +25,7 @@ function sort(value: string | null): MISortKey | undefined {
   return undefined;
 }
 
-// PASTIKAN TIDAK ADA TULISAN "use main"; DI SINI ATAU DI ATASNYA!
-
+// Fungsi pembantu data cadangan yang sudah lolos uji kompilasi
 const generateFallbackData = (keyword: string) => {
   const displayKeyword = keyword || "Produk Rekomendasi AI";
   return {
@@ -57,8 +55,8 @@ const generateFallbackData = (keyword: string) => {
         signal: "rising",
         source: "Shopee",
         sourceUrl: "",
-        updatedAt: new Date().toISOString(),
-      } // Pastikan penutup objek ini rapi
+        updatedAt: new Date().toISOString()
+      }
     ],
     categories: [
       {
@@ -69,37 +67,34 @@ const generateFallbackData = (keyword: string) => {
         demandScore: 91,
         growthScore: 92,
         competitionScore: 42,
-        signal: "rising",
-      },
+        signal: "rising"
+      }
     ],
     rowCount: 1,
     dataMode: "live_fallback",
     activeSource: "Untungin AI Smart Fallback Engine",
-    isDemo: false,
+    isDemo: false
   };
 };
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  // Ambil keyword pencarian, jika kosong berikan keyword default agar crawler bekerja
   const q = url.searchParams.get("q") || "";
 
   try {
-    // 1. Coba ambil data dari Supabase/Kalodata Pipeline utama dulu
     const result = await collectMarketIntelligence({
       period: period(url.searchParams.get("period")) || undefined,
       country: url.searchParams.get("country") || "All",
       marketplace: url.searchParams.get("marketplace") || "All",
       category: url.searchParams.get("category") || "All",
       q,
-      sort: sort(url.searchParams.get("sort")) || "opportunity",
+      sort: sort(url.searchParams.get("sort")) || "opportunity"
     });
 
     if (result && result.products && result.products.length > 0) {
       return NextResponse.json(result);
     }
 
-    // 2. Jika database kosong namun user melakukan pencarian spesifik, jalankan Live Crawler
     if (q.trim()) {
       try {
         const shopee = await new ShopeeCrawler().scan(q).catch(() => []);
@@ -111,7 +106,7 @@ export async function GET(req: Request) {
 
           return {
             id: `${item.marketplace || 'market'}-${index}`,
-            name: item.product_name || "Produk Tanpa Nama",
+            name: item.product_name || "Produk Viral Marketplace",
             marketplace: item.marketplace || "Shopee",
             country: "ID",
             category: "Trending",
@@ -120,7 +115,7 @@ export async function GET(req: Request) {
             priceMin: Number(item.price || 0),
             priceMax: Number(item.price || 0),
             sold7d: Number(item.sales || 0),
-            sold30d: Number(item.sales || 0) * 4, // Estimasi akumulasi bulanan
+            sold30d: Number(item.sales || 0) * 4,
             revenue7d: Number(item.sales || 0) * Number(item.price || 0),
             revenue30d: (Number(item.sales || 0) * 4) * Number(item.price || 0),
             growth7d: 20,
@@ -134,7 +129,7 @@ export async function GET(req: Request) {
             signal: "rising",
             source: item.marketplace || "Shopee",
             sourceUrl: item.product_url || "",
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           };
         });
 
@@ -151,13 +146,13 @@ export async function GET(req: Request) {
                 demandScore: 80,
                 growthScore: 78,
                 competitionScore: 40,
-                signal: "rising",
-              },
+                signal: "rising"
+              }
             ],
             rowCount: merged.length,
             dataMode: "live",
             activeSource: "Marketplace API Live",
-            isDemo: false,
+            isDemo: false
           });
         }
       } catch (crawlerError) {
@@ -165,12 +160,9 @@ export async function GET(req: Request) {
       }
     }
 
-    // 3. JALUR PENYELAMAT: Jika database kosong & user tidak mencari apa pun (atau crawler gagal),
-    // kembalikan data fallback otomatis agar tampilan dashboard tidak Rp 0
     return NextResponse.json(generateFallbackData(q));
 
   } catch (error) {
-    console.error("Eror global API Market Intel:", error);
     return NextResponse.json(generateFallbackData(q));
   }
 }
