@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 
 export async function realtimeShopeeWorker(keyword: string) {
-  console.log('[Shopee Worker] Memulai pencarian untuk kata kunci:', keyword);
+  console.log('[Shopee Worker]', keyword);
 
   let browser;
   try {
