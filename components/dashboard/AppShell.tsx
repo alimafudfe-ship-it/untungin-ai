@@ -164,6 +164,7 @@ export function AppShell({
   onExport,
   onUpgrade,
   onLogout,
+  onSearchTrigger, // Tambahan properti baru untuk mengirim kata kunci ke halaman konten
   children,
 }: {
   activeTab: TabKey;
@@ -173,10 +174,12 @@ export function AppShell({
   onExport: () => void;
   onUpgrade: () => void;
   onLogout: () => void;
+  onSearchTrigger?: (query: string) => void; // Definisi tipe properti baru
   children: React.ReactNode;
 }) {
   const [darkMode, setDarkMode] = useState(false);
   const [locale, setLocale] = useState<Locale>("id");
+  const [internalQuery, setInternalQuery] = useState(""); // State baru untuk menyimpan teks ketikan user
 
   useEffect(() => {
     const saved = normalizeLocale(window.localStorage.getItem("untungin_locale"));
@@ -280,9 +283,26 @@ export function AppShell({
             </div>
 
             <div className="topbar-actions">
+              {/* KOLOM PENCARIAN PERBAIKAN: Melepas readOnly dan mengikat Event Enter */}
               <div className="search-shell full-span">
                 <span aria-hidden="true" style={{ color: "#98a2b3", fontSize: 14 }}>⌕</span>
-                <input className="search-input" type="text" placeholder={copy.search} readOnly />
+                <input 
+                  className="search-input" 
+                  type="text" 
+                  placeholder={copy.search} 
+                  value={internalQuery}
+                  onChange={(e) => setInternalQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && internalQuery.trim()) {
+                      // 1. Pindahkan tab aktif secara otomatis ke Market Intel ("trends")
+                      onTabChange("trends");
+                      // 2. Kirimkan teks pencarian ke halaman utama
+                      if (onSearchTrigger) {
+                        onSearchTrigger(internalQuery.trim());
+                      }
+                    }
+                  }}
+                />
               </div>
               <select className="language-select" aria-label={copy.language} value={locale} onChange={(event) => changeLocale(event.target.value as Locale)}>
                 {LOCALES.map((item) => <option key={item.key} value={item.key}>{item.short}</option>)}
