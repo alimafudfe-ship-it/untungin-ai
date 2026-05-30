@@ -26,7 +26,8 @@ function sort(value: string | null): MISortKey | undefined {
   return undefined;
 }
 
-// Data fallback cerdas agar dashboard langsung terisi angka & grafik sejak pertama kali dibuka
+// PASTIKAN TIDAK ADA TULISAN "use main"; DI SINI ATAU DI ATASNYA!
+
 const generateFallbackData = (keyword: string) => {
   const displayKeyword = keyword || "Produk Rekomendasi AI";
   return {
@@ -57,34 +58,7 @@ const generateFallbackData = (keyword: string) => {
         source: "Shopee",
         sourceUrl: "",
         updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "tiktok-fallback-2",
-        name: `${displayKeyword} Hijab/Fashion Trendsetter`,
-        marketplace: "TikTok Shop",
-        country: "ID",
-        category: "Trending",
-        keyword: displayKeyword,
-        imageUrl: "",
-        priceMin: 89000,
-        priceMax: 89000,
-        sold7d: 890,
-        sold30d: 3100,
-        revenue7d: 79210000,
-        revenue30d: 275900000,
-        growth7d: 120,
-        growth30d: 150,
-        rating: 4.7,
-        reviewCount: 910,
-        demandScore: 95,
-        growthScore: 98,
-        competitionScore: 50,
-        opportunityScore: 92,
-        signal: "viral",
-        source: "TikTok Shop",
-        sourceUrl: "",
-        updatedAt: new Date().toISOString(),
-      }
+      } // Pastikan penutup objek ini rapi
     ],
     categories: [
       {
@@ -98,7 +72,7 @@ const generateFallbackData = (keyword: string) => {
         signal: "rising",
       },
     ],
-    rowCount: 2,
+    rowCount: 1,
     dataMode: "live_fallback",
     activeSource: "Untungin AI Smart Fallback Engine",
     isDemo: false,
