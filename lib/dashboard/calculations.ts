@@ -82,17 +82,15 @@ export function productDecision(item: Product) {
   return "Scale bertahap";
 }
 
-// @/lib/dashboard/calculations.ts
-
 export function getDashboardMetrics(products: any[] = [], expenses: any[] = []) {
-  // Ensure we are working with arrays safely
+  // Amankan parameter agar selalu berupa array saat build
   const safeProducts = Array.isArray(products) ? products : [];
   const safeExpenses = Array.isArray(expenses) ? expenses : [];
 
-  // Always check arrays before calling reduce
-  const totalRevenue = safeProducts.reduce((sum, item) => sum + (item?.sellingPrice || 0) * (item?.quantitySold || 0), 0);
-  const totalCost = safeProducts.reduce((sum, item) => sum + (item?.costPrice || 0) * (item?.quantitySold || 0), 0);
-  const totalExpense = safeExpenses.reduce((sum, item) => sum + (item?.amount || 0), 0);
+  // Gunakan optional chaining (?.) untuk menghindari crash jika properti object tidak ada
+  const totalRevenue = safeProducts.reduce((acc, item) => acc + ((item?.sellingPrice || 0) * (item?.quantitySold || 0)), 0);
+  const totalCost = safeProducts.reduce((acc, item) => acc + ((item?.costPrice || 0) * (item?.quantitySold || 0)), 0);
+  const totalExpense = safeExpenses.reduce((acc, item) => acc + (item?.amount || 0), 0);
 
   const totalProfit = totalRevenue - totalCost - totalExpense;
   const effectiveMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
@@ -101,6 +99,5 @@ export function getDashboardMetrics(products: any[] = [], expenses: any[] = []) 
     totalRevenue,
     totalProfit,
     effectiveMargin,
-    // ensure any other calculated property returns a baseline fallback (e.g., 0)
   };
 }
