@@ -606,4 +606,8 @@ const DashboardPage = dynamicImport(() => Promise.resolve(DashboardComponent), {
   ),
 });
 
+<<<<<<< HEAD
 export default DashboardPage;
+=======
+export default DashboardPage;
+>>>>>>> a8e71864d9e65f928c6ff93cae82f5f5773ddfb0

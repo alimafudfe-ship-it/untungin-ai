@@ -12,6 +12,7 @@
     "@supabase/supabase-js": "^2.105.1",
     "bullmq": "^5.77.6",
     "ioredis": "^5.11.0",
+    "lucide-react": "^1.17.0",
     "midtrans-client": "^1.4.2",
     "next": "16.2.4",
     "nodemailer": "^6.9.13",
