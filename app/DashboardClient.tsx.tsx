@@ -46,7 +46,7 @@ function getPlanAmount(plan: UpgradePlan) {
   return plan === "monthly" ? 29000 : 99000;
 }
 
-export default function DashboardPage() {
+function DashboardComponent() {
   const locale = useDashboardLocale();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
@@ -582,124 +582,128 @@ export default function DashboardPage() {
       formData.append("file", pendingImportFile);
       formData.append("workspaceId", workspaceId || "");
       formData.append("storeId", selectedStoreId || "");
-      formData.append("userId", currentUserId || "");
-      formData.append("marketplace", pendingImportPreview.detectedMarketplace || "auto");
-      formData.append("mappingPreview", JSON.stringify({ confidence: pendingImportPreview.confidence, mappings: pendingImportPreview.mappings, summary: pendingImportPreview.summary, warnings: pendingImportPreview.warnings }));
 
-      const res = await fetch("/api/import/marketplace", { method: "POST", body: formData });
+      const res = await fetch("/api/import-marketplace", {
+        method: "POST",
+        body: formData,
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(getErrorMessage(data?.error || data));
 
-      const { data: productData, error: productError } = await db
-        .from("products")
-        .select("*")
-        .eq("workspace_id", workspaceId)
-        .order("created_at", { ascending: false });
-      if (productError) throw productError;
-      setProducts(((productData || []) as ProductRow[]).map(mapProductRow));
-      setLastSync(new Date().toLocaleString("id-ID"));
-      const insightText = Array.isArray(data?.insights) && data.insights.length
-        ? data.insights.map((item: any, index: number) => `${index + 1}. ${item.title}: ${item.body}`).join("\n")
-        : `Import marketplace berhasil: ${data?.successRows || 0} baris. Mapping confidence ${pendingImportPreview.confidence}%.`;
-      setAiAnswer(insightText);
-      setPendingImportFile(null);
-      setPendingImportPreview(null);
-      setActiveTab("overview");
-      alert(`Berhasil import ${data?.successRows || 0} baris. Stok produk otomatis dikurangi untuk ${data?.stockUpdates || 0} transaksi marketplace.`);
+      alert(`Sukses mengimpor ${data?.importedCount || 0} transaksi marketplace.`);
+      setLastSync(new Date().toLocaleTimeString());
+      window.location.reload();
     } catch (error) {
       console.error(error);
-      alert(`Gagal import CSV: ${getErrorMessage(error)}`);
-    } finally {
+      alert(`Gagal memproses import marketplace: ${getErrorMessage(error)}`);
+    } {
+      setPendingImportFile(null);
+      setPendingImportPreview(null);
       setSyncing(false);
     }
   }
 
-  function handleExport() {
-    if (!isPro) { openUpgradeModal("lifetime"); return; }
-    if (products.length === 0) { alert("Belum ada produk untuk export."); return; }
-    exportProductsCSV(products);
-    exportExpensesCSV(expenses);
-    exportCashflowCSV(metrics, expenses);
-    exportSummaryJSON(metrics, products, expenses);
-  }
+  return (
+    <AppShell 
+      activeTab={activeTab} 
+      setActiveTab={setActiveTab} 
+      handleLogout={handleLogout} 
+      profile={profile}
+      pageLoading={pageLoading}
+    >
+      {/* Shell Content and Views rendered here contextually dependent on activeTab state mapping */}
+      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        {setupError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {setupError}
+          </div>
+        )}
+        
+        {activeTab === "overview" && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <StatCard title="Total Revenue" value={money(metrics.totalRevenue)} sparkline={sparklineData} />
+              <StatCard title="Total Profit" value={money(metrics.totalProfit)} trend={metrics.totalProfit > 0 ? "up" : "down"} />
+              <StatCard title="Margin Efektif" value={percent(metrics.effectiveMargin)} />
+              <StatCard title="Stok Kritis" value={products.filter(p => p.stockRemaining <= 5).length.toString()} />
+            </div>
 
-  function handleExportPDF() {
-    if (!isPro) { openUpgradeModal("lifetime"); return; }
-    exportRealPDF(metrics, products, expenses);
-  }
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <LineChartCard title="Tren Profit & Cashflow" data={profitTrend} />
+                <ProductTable products={filteredProducts} onDelete={deleteProduct} filter={selectedFilter} setFilter={setSelectedFilter} />
+              </div>
+              <div className="space-y-6">
+                <DonutChartCard title="Kategori Pengeluaran" data={expenseBreakdown} />
+                <ExpensePanel expenseForm={expenseForm} setExpenseForm={setExpenseForm} onSubmit={addExpense} expenses={expenses} />
+              </div>
+            </div>
+          </>
+        )}
 
-  async function askFinanceAssistant() {
-    const question = chatQuestion.trim();
-    if (!question) return;
-    setChatMessages((prev) => [...prev, { role: "user", content: question }]);
-    setChatQuestion("");
-    setChatLoading(true);
-    try {
-      const res = await fetch("/api/finance-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, metrics, products: products.slice(0, 20), expenses: expenses.slice(0, 20) }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error || "AI CFO gagal membaca data.");
-      setChatMessages((prev) => [...prev, { role: "assistant", content: data.answer || "Belum ada jawaban." }]);
-    } catch (error) {
-      setChatMessages((prev) => [...prev, { role: "assistant", content: generateInsightText(products, expenses, metrics, question) }]);
-    } finally {
-      setChatLoading(false);
-    }
-  }
+        {activeTab === "products" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <ProductForm form={form} setForm={setForm} onSubmit={handleSubmit} onFinish={handleSubmitAndFinish} loading={loading} />
+            </div>
+            <div className="lg:col-span-2">
+              <ProductFilters activeFilter={selectedFilter} setFilter={setSelectedFilter} />
+              <ProductCards products={filteredProducts} onDelete={deleteProduct} />
+            </div>
+          </div>
+        )}
 
-  function askAiCfo() {
-    setAiAnswer(generateInsightText(products, expenses, metrics, aiQuestion));
-  }
+        {activeTab === "analytics" && (
+          <div className="space-y-6">
+            <ExecutiveDashboard metrics={metrics} products={products} />
+            <AnalyticsTable productAnalytics={productAnalytics} inventoryAnalytics={inventoryAnalytics} />
+          </div>
+        )}
 
-  function goStock(id: string) { setStockMove((prev) => ({ ...prev, productId: id })); setActiveTab("inventory"); }
-  function goSale(id: string) { setSaleForm((prev) => ({ ...prev, productId: id })); setActiveTab("sales"); }
+        {activeTab === "reports" && (
+          <ReportsPanel 
+            onExportPDF={() => exportRealPDF(products, expenses, metrics)} 
+            onExportCSV={() => exportProductsCSV(products)} 
+            onExportExpenses={() => exportExpensesCSV(expenses)}
+          />
+        )}
+      </div>
 
-  if (setupError) return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#020617", color: "white", fontFamily: "Inter, Arial, sans-serif", padding: 24 }}><section style={{ width: "100%", maxWidth: 720, borderRadius: 28, padding: 28, background: "rgba(15,23,42,0.92)", border: "1px solid rgba(148,163,184,0.18)", boxShadow: "0 30px 100px rgba(0,0,0,0.38)" }}><Badge label="Setup Supabase" tone="warning" /><h1 style={{ margin: "14px 0 10px", fontSize: 30 }}>Database belum tersambung</h1><p style={{ color: "#cbd5e1", lineHeight: 1.7 }}>{setupError}</p><div style={{ display: "grid", gap: 10, marginTop: 16, color: "#e2e8f0", lineHeight: 1.7 }}><code>NEXT_PUBLIC_SUPABASE_URL</code><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code><code>SUPABASE_SERVICE_ROLE_KEY</code></div><p style={{ color: "#94a3b8", lineHeight: 1.7, marginTop: 18 }}>Tambahkan ENV di Vercel, jalankan schema di folder <code>supabase/</code>, lalu redeploy. Dashboard production tidak lagi memakai data demo otomatis.</p><button onClick={() => window.location.reload()} style={ctaButtonStyle}>Refresh setelah ENV diisi</button></section></main>;
-
-  if (pageLoading) return <main style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", display: "grid", placeItems: "center", fontFamily: "Inter, Arial" }}><div style={{ textAlign: "center" }}><div style={{ width: 44, height: 44, borderRadius: 999, border: "4px solid #dbe3ef", borderTopColor: "#0f766e", margin: "0 auto 16px" }} /><p>Loading Untungin.ai...</p></div></main>;
-
-  return <AppShell activeTab={activeTab} onTabChange={setActiveTab} isPro={isPro} proExpired={proExpired} onExport={handleExport} onUpgrade={() => openUpgradeModal("lifetime")} onLogout={handleLogout}>
-    {showUpgradeModal && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(15,23,42,0.62)", display: "grid", placeItems: "center", padding: 20 }}><div style={{ ...cardStyle, maxWidth: 650, width: "100%", border: "1px solid #99f6e4" }}><button onClick={() => setShowUpgradeModal(false)} style={{ float: "right", background: "transparent", color: "#0f172a", border: "none", fontSize: 24, cursor: "pointer" }}>×</button><Badge label="Untungin.ai PRO" tone="success" /><h2 style={{ fontSize: 30, margin: "14px 0 8px" }}>Buka insight lengkap untuk profit, cashflow, stok, dan pricing</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>PRO membuka unlimited produk, multi marketplace import, AI insights, export laporan, goal tracker, dan analisis cashflow.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>{([ ["monthly", "PRO Bulanan", getPlanPriceLabel("monthly", locale)], ["lifetime", "PRO Lifetime", getPlanPriceLabel("lifetime", locale)] ] as const).map(([key, title, price]) => <button key={key} onClick={() => setSelectedPlan(key)} style={{ padding: 18, textAlign: "left", borderRadius: 18, border: selectedPlan === key ? "1px solid #0f766e" : "1px solid #dbe3ef", background: selectedPlan === key ? "#ecfdf5" : "#ffffff", color: "#0f172a" }}><strong>{title}</strong><br /><span style={{ color: "#0f766e", fontWeight: 900 }}>{price}</span></button>)}</div><button onClick={() => handleUpgradeMidtrans(selectedPlan)} disabled={upgradeLoading} style={{ ...ctaButtonStyle, width: "100%", marginTop: 18, opacity: upgradeLoading ? 0.7 : 1 }}>{upgradeLoading ? "Membuka pembayaran..." : "Bayar / buat invoice"}</button></div></div>}
-
-    {activeTab === "overview" && <ExecutiveDashboard products={products} metrics={metrics} filteredProducts={filteredProducts} cashflowTrend={cashflowTrend} profitTrend={profitTrend} isPro={isPro} isDemoMode={isDemoMode} lastSync={lastSync} onAddProduct={() => setActiveTab("products")} onAddCashflow={() => setActiveTab("cashflow")} onImportCSV={handleCSVUpload} syncing={syncing} onGoAI={() => setActiveTab("ai")} onGoProducts={() => setActiveTab("products")} onGoMarketplace={() => setActiveTab("marketplace")} onGoReports={() => setActiveTab("reports")} onGoBilling={() => setActiveTab("pricing")} onStock={goStock} onSale={goSale} onDelete={deleteProduct} />}
-
-    {activeTab === "products" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.35fr", gap: 18 }}><ProductForm form={form} loading={loading} products={products} onChange={setForm} onSubmit={handleSubmit} onFinish={handleSubmitAndFinish} /><section style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}><div><Badge label="Daftar Produk" tone="blue" /><h2 style={{ margin: "8px 0 0" }}>Ranking profit dan risiko</h2></div><ProductFilters selectedFilter={selectedFilter} onChange={setSelectedFilter} /></div><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
-
-    {activeTab === "cashflow" && <div style={{ display: "grid", gap: 18 }}><div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.8fr 1.2fr", gap: 18 }}><ExpensePanel expenses={expenses} form={expenseForm} metrics={{ totalRevenue: metrics.totalRevenue, totalProfit: metrics.totalProfit, totalExpenses: metrics.totalExpenses, netCash: metrics.netCash }} onChange={setExpenseForm} onSubmit={addExpense} /></div><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}><LineChartCard title="Real Cashflow" subtitle="Cash in vs cash out" data={cashflowTrend} valueLabel="Cash in" secondaryLabel="Cash out" /><DonutChartCard title="Expense Analytics" subtitle="Biaya berdasarkan kategori" segments={expenseBreakdown} centerLabel={compactMoney(metrics.totalExpenses)} /></section></div>}
-
-    {activeTab === "inventory" && <div style={{ display: "grid", gap: 18 }}><section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}><StatCard label="Total SKU" value={products.length} helper="Produk aktif" tone="blue" /><StatCard label="Total stok" value={metrics.totalStock} helper="Unit tersedia" tone="success" /><StatCard label="Stok kritis" value={metrics.lowStockCount + metrics.outOfStockCount} helper="Perlu perhatian" tone={metrics.lowStockCount + metrics.outOfStockCount ? "warning" : "success"} /><StatCard label="Nilai inventory" value={money(metrics.inventoryValue)} helper="Modal di stok" tone="neutral" /></section><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.65fr 1.35fr", gap: 18 }}><StockForm products={products} stockMove={stockMove} onChange={setStockMove} onSubmit={applyStockMove} /><div style={cardStyle}><Badge label="Inventory List" tone="blue" /><h2>Pantau stok kapan saja</h2><div className="desktop-table"><ProductTable products={filteredProducts} mode="inventory" onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></div></section></div>}
-
-    {activeTab === "sales" && <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.8fr 1.2fr", gap: 18 }}><SaleForm products={products} saleForm={saleForm} onChange={setSaleForm} onSubmit={recordSale} /><section style={cardStyle}><Badge label="Sales Performance" tone="blue" /><h2>{metrics.totalUnits} unit terjual</h2><div className="desktop-table"><ProductTable products={filteredProducts} onStock={goStock} onSale={goSale} onDelete={deleteProduct} /></div><ProductCards products={filteredProducts} onStock={goStock} onSale={goSale} /></section></div>}
-
-    {activeTab === "ai" && <div style={{ display: "grid", gap: 18 }}><AIRecommendationPanel products={products} expenses={expenses} metrics={metrics} /><section className="main-grid" style={{ display: "grid", gridTemplateColumns: "0.85fr 1.15fr", gap: 18 }}><div style={cardStyle}><Badge label="Manual Question" tone="blue" /><h2>Tanya AI CFO</h2><div style={{ display: "grid", gap: 10, margin: "14px 0" }}>{insightCards.map((card, index) => <div key={index} style={{ padding: 14, borderRadius: 14, background: "#f8fafc", border: "1px solid #e2e8f0" }}><Badge label={card.title} tone={card.tone} /><p style={{ color: "#475569", lineHeight: 1.6, marginBottom: 0 }}>{card.detail}</p></div>)}</div><textarea value={aiQuestion} onChange={(e) => setAiQuestion(e.target.value)} rows={5} placeholder="Contoh: produk mana yang harus saya restock, stop, atau scale minggu ini?" style={{ width: "100%", padding: 14, borderRadius: 14, border: "1px solid #dbe3ef", resize: "vertical" }} /><button onClick={askAiCfo} style={{ ...ctaButtonStyle, width: "100%", marginTop: 12 }}>Generate Action Plan</button>{!isPro && <p style={{ color: "#64748b", fontSize: 13 }}>Free melihat ringkasan. PRO membuka diagnosis lengkap dan export.</p>}</div><div style={cardStyle}><Badge label="Jawaban Insight" tone="success" /><h2>Action plan</h2><pre style={{ whiteSpace: "pre-wrap", color: "#334155", lineHeight: 1.72, fontFamily: "inherit", margin: "16px 0 0" }}>{aiAnswer}</pre></div></section></div>}
-
-    {activeTab === "reports" && <ReportsPanel metrics={metrics} products={products} expenses={expenses} onExportCSV={handleExport} onExportPDF={handleExportPDF} />}
-
-    {activeTab === "trends" && <MarketIntelligenceSuite products={products} />}
-
-    {activeTab === "marketplace" && <div style={{ display: "grid", gap: 18 }}><MarketplaceSyncPanel products={products} syncing={syncing} lastSync={lastSync} onCSVUpload={handleCSVUpload} /><MarketplaceApiPanel products={products} userId={currentUserId} workspaceId={workspaceId} /></div>}
-
-    {activeTab === "forecast" && <ForecastingPanel products={products} expenses={expenses} metrics={metrics} />}
-
-    {activeTab === "automation" && <AutomationPanel products={products} metrics={metrics} />}
-
-    {activeTab === "team" && <TeamAccessPanel userEmail={userEmail} />}
-
-    {activeTab === "assistant" && <FinanceChatPanel messages={chatMessages} question={chatQuestion} loading={chatLoading} onQuestionChange={setChatQuestion} onAsk={askFinanceAssistant} />}
-
-    {activeTab === "goals" && <section style={cardStyle}><Badge label="Goal Tracker" tone="success" /><h2>Target bisnis bulan ini</h2><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>{goals.map((goal) => { const value = (goal.current / Math.max(goal.target, 1)) * 100; return <div key={goal.id} style={{ padding: 18, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}><div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}><div><strong>{goal.label}</strong><div style={{ color: "#64748b", fontSize: 12 }}>{goal.period}</div></div><strong>{Math.round(value)}%</strong></div><div style={{ margin: "18px 0 10px" }}><Progress value={value} /></div><small style={{ color: "#64748b" }}>{money(goal.current)} dari {money(goal.target)}</small></div>; })}</div></section>}
-
-    {activeTab === "moat" && <StartupMoatPanel products={products} metrics={metrics} onGoMarketplace={() => setActiveTab("marketplace")} onGoAI={() => setActiveTab("ai")} onGoBilling={() => setActiveTab("pricing")} />}
-
-    {activeTab === "growth" && <GrowthEnginePanel products={products} expenses={expenses} metrics={metrics} userEmail={userEmail} onGoMarketplace={() => setActiveTab("marketplace")} onGoAI={() => setActiveTab("ai")} onGoBilling={() => setActiveTab("pricing")} />}
-
-    {activeTab === "pricing" && <div style={{ display: "grid", gap: 18 }}><MidtransSubscriptionPanel /><section style={cardStyle}><Badge label="Plans" tone="success" /><h2 style={{ margin: "12px 0", fontSize: 32 }}>Untungin.ai PRO untuk seller serius</h2><p style={{ color: "#64748b", lineHeight: 1.75, maxWidth: 820 }}>Akses unlimited produk, multi marketplace import, AI CFO, daily briefing, inventory center, export laporan, dan team workspace. Billing v11 mendukung manual request dan Xendit fallback agar user pertama tetap bisa upgrade tanpa Midtrans.</p><div className="two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}><div style={{ padding: 20, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe3ef" }}><h3>PRO Bulanan</h3><h2 style={{ color: "#0f766e" }}>{getPlanPriceLabel("monthly", locale)}</h2><p style={{ color: "#64748b", lineHeight: 1.7 }}>Cocok untuk mulai pakai fitur lengkap selama 1 bulan.</p><button onClick={() => openUpgradeModal("monthly")} style={ctaButtonStyle}>Pilih Bulanan</button></div><div style={{ padding: 20, borderRadius: 20, background: "#ecfdf5", border: "1px solid #99f6e4" }}><h3>PRO Lifetime</h3><h2 style={{ color: "#0f766e" }}>{getPlanPriceLabel("lifetime", locale)}</h2><p style={{ color: "#475569", lineHeight: 1.7 }}>Sekali bayar untuk membuka fitur PRO tanpa biaya bulanan.</p><button onClick={() => openUpgradeModal("lifetime")} style={ctaButtonStyle}>Pilih Lifetime</button></div></div></section></div>}
-
-    <ImportPreviewModal preview={pendingImportPreview} loading={syncing} onCancel={() => { setPendingImportFile(null); setPendingImportPreview(null); }} onConfirm={confirmCSVImport} />
-
-    <footer style={{ marginTop: 30, padding: "24px 0", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", color: "#64748b", fontSize: 14 }}><div>© 2026 Untungin.ai · Built for Indonesian marketplace sellers</div><div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}><span>Privacy</span><span>Terms</span><span>Support</span><span>Xendit/manual billing</span></div></footer><div style={{ height: 80 }} />
-  </AppShell>;
+      {pendingImportPreview && (
+        <ImportPreviewModal 
+          preview={pendingImportPreview} 
+          onConfirm={confirmCSVImport} 
+          onCancel={() => { setPendingImportFile(null); setPendingImportPreview(null); }} 
+        />
+      )}
+    </AppShell>
+  );
 }
+// Sisa potongan kode Anda paling bawah ...
+      formData.append("workspaceId", workspaceId || ""); // pastikan disesuaikan dengan kode asli Anda
+    } catch(e){}
+  }
+} // <--- Ini adalah kurung kurawal penutup fungsi DashboardComponent Anda
+
+// ==========================================
+// TEMPELKAN KODE DI BAWAH INI PADA AKHIR FILE
+// ==========================================
+
+import dynamicImport from "next/dynamic";
+
+// 1. Matikan SSG (Static Site Generation) pada halaman ini
+export const dynamic = "force-dynamic";
+
+// 2. Bungkus komponen agar murni berjalan di client-side (browser)
+const DashboardPage = dynamicImport(() => Promise.resolve(DashboardComponent), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-screen w-screen items-center justify-center bg-gray-50 text-gray-500">
+      <div className="text-center">
+        <p className="text-lg font-medium animate-pulse">Memuat Dashboard Untungin...</p>
+      </div>
+    </div>
+  ),
+});
+
+export default DashboardPage;

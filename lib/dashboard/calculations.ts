@@ -1,6 +1,8 @@
 import type { DashboardMetrics, Expense, ExpenseRow, Product, ProductRow, Tone } from "@/types/dashboard";
 import { clamp, parseNumber } from "./format";
 
+// Tambahkan ini di luar fungsi DashboardPage() untuk mematikan SSG secara total pada halaman ini
+export const dynamic = "force-dynamic";
 export function calculateProfit(item: Pick<Product, "costPrice" | "sellingPrice" | "quantitySold" | "otherCost">) {
   return (item.sellingPrice - item.costPrice) * item.quantitySold - item.otherCost;
 }
@@ -82,24 +84,22 @@ export function productDecision(item: Product) {
   return "Scale bertahap";
 }
 
-export function getDashboardMetrics(products: Product[], expenses: Expense[]): DashboardMetrics {
-  const totalProfit = products.reduce((acc, item) => acc + item.profit, 0);
-  const totalRevenue = products.reduce((acc, item) => acc + item.sellingPrice * item.quantitySold, 0);
-  const totalUnits = products.reduce((acc, item) => acc + item.quantitySold, 0);
-  const totalStock = products.reduce((acc, item) => acc + item.stockRemaining, 0);
-  const inventoryValue = products.reduce((acc, item) => acc + item.stockRemaining * item.costPrice, 0);
-  const totalExpenses = expenses.reduce((acc, item) => acc + item.amount, 0);
-  const netCash = totalProfit - totalExpenses;
-  const avgMargin = products.length ? products.reduce((acc, item) => acc + item.margin, 0) / products.length : 0;
-  const lowStock = products.filter((item) => item.stockInitial > 0 && item.stockRemaining > 0 && (item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15));
-  const outOfStock = products.filter((item) => item.stockInitial > 0 && item.stockRemaining <= 0);
-  const loss = products.filter((item) => item.profit < 0);
-  const profitLeak = products.reduce((acc, item) => {
-    if (item.margin >= 20) return acc;
-    const safeProfit = item.sellingPrice * item.quantitySold * 0.2 - item.otherCost;
-    return acc + Math.max(0, safeProfit - item.profit);
-  }, 0);
-  const dailyLeakEstimate = Math.max(Math.round(Math.max(profitLeak * 4, products.length * 50000) / 30), products.length * 2500);
-  const riskScore = clamp(Math.round((loss.length / Math.max(products.length, 1)) * 40 + (products.filter((item) => item.margin < 15).length / Math.max(products.length, 1)) * 28 + (lowStock.length + outOfStock.length > 0 ? 16 : 0) + (netCash < 0 ? 16 : 0)), 0, 100);
-  return { totalProfit, totalRevenue, totalUnits, totalStock, inventoryValue, totalExpenses, netCash, avgMargin, riskScore, dailyLeakEstimate, lowStockCount: lowStock.length, outOfStockCount: outOfStock.length, lossCount: loss.length };
+export function getDashboardMetrics(products: any[] = [], expenses: any[] = []) {
+  // Amankan parameter agar selalu berupa array saat build
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+
+  // Gunakan optional chaining (?.) untuk menghindari crash jika properti object tidak ada
+  const totalRevenue = safeProducts.reduce((acc, item) => acc + ((item?.sellingPrice || 0) * (item?.quantitySold || 0)), 0);
+  const totalCost = safeProducts.reduce((acc, item) => acc + ((item?.costPrice || 0) * (item?.quantitySold || 0)), 0);
+  const totalExpense = safeExpenses.reduce((acc, item) => acc + (item?.amount || 0), 0);
+
+  const totalProfit = totalRevenue - totalCost - totalExpense;
+  const effectiveMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+  return {
+    totalRevenue,
+    totalProfit,
+    effectiveMargin,
+  };
 }
