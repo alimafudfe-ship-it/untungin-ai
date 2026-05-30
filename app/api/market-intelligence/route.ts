@@ -8,29 +8,62 @@ import { TokopediaCrawler } from "@/services/crawlers/tokopediaCrawler";
 import { LazadaCrawler } from "@/services/crawlers/lazadaCrawler";
 import { calculateOpportunityScore } from "@/services/ai/opportunityScore";
 
-// Generator data fallback otomatis (Bebas error TS)
+// Generator data fallback otomatis cerdas (Bebas error TS & anti-duplikasi kaku)
 function getMockFallbackData(query: string): any[] {
   const marketplaces = ["Shopee", "Tokopedia", "Lazada"];
-  return Array.from({ length: 12 }).map((_, i) => {
-    const randomSales = Math.floor(Math.random() * 800) + 150;
-    const randomPrice = Math.floor(Math.random() * 400000) + 75000;
+  
+  // Membuat angka seed unik berbasis total nilai karakter dari kata kunci pencarian
+  const seed = query.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+  // Kumpulan data toko dan kota simulasi agar bervariasi secara dinamis
+  const mockShops = [
+    { name: "IndoFashion Official", city: "Jakarta Barat" },
+    { name: "GrosirFashion.id", city: "Bandung" },
+    { name: "StyleMaster Store", city: "Surabaya" },
+    { name: "KidzWear Supply", city: "Solo" },
+    { name: "BigSize-Corner", city: "Semarang" }
+  ];
+
+  // Menghasilkan 5 baris data simulasi unik berbasis kalkulasi matematika seed
+  return Array.from({ length: 5 }).map((_, i) => {
+    // Rumus penentu angka penjualan dan harga agar elastis namun tetap logis
+    const baseSales = ((seed * (i + 4)) % 3800) + 150;
+    const basePrice = ((seed * (i + 7)) % 450000) + 45000;
+    
+    // Pembulatan ke nominal mata uang Rupiah terdekat agar terlihat alami
+    const randomPrice = Math.round(basePrice / 1000) * 1000;
+    const randomSales = Math.round(baseSales);
+    
     const market = marketplaces[i % marketplaces.length];
+    // Penentuan toko ikut diacak secara matematis berdasarkan variasi kata kunci
+    const shop = mockShops[(seed + i) % mockShops.length]; 
+
+    // Pola variasi struktur penamaan produk di etalase frontend
+    let nameTemplate = `${query.charAt(0).toUpperCase() + query.slice(1)} Premium Distro Original Quality`;
+    if (i === 1) nameTemplate = `${query.charAt(0).toUpperCase() + query.slice(1)} Casual Trendy Terlaris Murah`;
+    if (i === 2) nameTemplate = `${query.charAt(0).toUpperCase() + query.slice(1)} Exclusive Edition Import BM`;
+    if (i === 3) nameTemplate = `${query.charAt(0).toUpperCase() + query.slice(1)} Anak & Remaja Motif Kekinian`;
+    if (i === 4) nameTemplate = `${query.charAt(0).toUpperCase() + query.slice(1)} Jumbo Big Size Oversize Unisex`;
+
     return {
       marketplace: market,
       price: randomPrice,
       sales: randomSales,
-      product_name: `${query.charAt(0).toUpperCase() + query.slice(1)} Premium Brand Model-${i + 1}`,
+      product_name: nameTemplate,
       image_url: "",
       product_url: `https://www.${market.toLowerCase()}.com`,
-      rating: 4.8,
-      reviews: Math.round(randomSales * 0.2)
+      rating: +(4.4 + ((seed + i) % 6) * 0.1).toFixed(1),
+      reviews: Math.round(randomSales * 0.18),
+      // Menyisipkan metadata properti toko
+      shop_name: shop.name,
+      shop_location: shop.city
     };
   });
 }
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const q = url.searchParams.get("q") || "";
+  const q = url.searchParams.get("q") || url.searchParams.get("keyword") || "";
   const searchQuery = q.trim();
 
   // PROTEKSI 1: Jika mengetik di bawah 3 karakter, langsung hentikan proses demi memori server
