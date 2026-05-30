@@ -1,6 +1,8 @@
 import type { DashboardMetrics, Expense, ExpenseRow, Product, ProductRow, Tone } from "@/types/dashboard";
 import { clamp, parseNumber } from "./format";
 
+// Tambahkan ini di luar fungsi DashboardPage() untuk mematikan SSG secara total pada halaman ini
+export const dynamic = "force-dynamic";
 export function calculateProfit(item: Pick<Product, "costPrice" | "sellingPrice" | "quantitySold" | "otherCost">) {
   return (item.sellingPrice - item.costPrice) * item.quantitySold - item.otherCost;
 }
