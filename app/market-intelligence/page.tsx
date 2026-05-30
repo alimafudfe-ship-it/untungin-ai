@@ -17,24 +17,29 @@ export default function MarketIntelligencePage() {
   // State untuk menampung hasil produk yang berhasil difilter
   const [filteredProducts, setFilteredProducts] = useState<typeof mockProducts>([]);
   
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    // Mengambil teks langsung dari elemen input form (Anti-Lag / Anti-Delay State Next.js)
+    const formData = new FormData(e.currentTarget);
+    const searchInput = formData.get("searchQuery")?.toString() || "";
+    
     // Jika kotak pencarian kosong, reset tampilan
-    if (!keyword.trim()) {
+    if (!searchInput.trim()) {
       setFilteredProducts([]);
       setHasSearched(false);
       return;
     }
   
-    const lowerKeyword = keyword.toLowerCase();
+    const lowerKeyword = searchInput.toLowerCase();
 
-    // Lakukan pencarian langsung ke mock data tanpa sensitif huruf besar/kecil
+    // Lakukan penyaringan langsung ke data simulasi tanpa sensitif huruf besar/kecil
     const results = mockProducts.filter((product) =>
       product.name.toLowerCase().includes(lowerKeyword)
     );
 
-    // Update hasilnya ke layar
+    // Update hasilnya ke layar beserta kata kunci judulnya
+    setKeyword(searchInput);
     setFilteredProducts(results);
     setHasSearched(true);
   };
@@ -51,9 +56,9 @@ export default function MarketIntelligencePage() {
             <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
             <input
               type="text"
+              name="searchQuery"
               placeholder="Ketik produk yang ingin dimata-matai... (contoh: sepatu jinjing, kemeja pria)"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              defaultValue={keyword}
               className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 transition"
             />
           </div>
