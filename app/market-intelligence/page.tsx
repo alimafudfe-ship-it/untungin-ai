@@ -15,30 +15,30 @@ export default function MarketIntelligencePage() {
   ];
 
   // State untuk menampung hasil produk yang berhasil difilter
-  const [filteredProducts, setFilteredProducts] = useState(mockProducts);
+  const [filteredProducts, setFilteredProducts] = useState<typeof mockProducts>([]);
   
   const handleSearch = (e: React.FormEvent) => {
-      e.preventDefault();
+    e.preventDefault();
     
-      // Jika kotak pencarian kosong, jangan lakukan apa-apa
-      if (!keyword.trim()) {
-        setFilteredProducts([]);
-        setHasSearched(false);
-        return;
-      }
+    // Jika kotak pencarian kosong, reset tampilan
+    if (!keyword.trim()) {
+      setFilteredProducts([]);
+      setHasSearched(false);
+      return;
+    }
   
-      const lowerKeyword = keyword.toLowerCase();
+    const lowerKeyword = keyword.toLowerCase();
 
-      // Lakukan pencarian langsung ke mock data
-      const results = mockProducts.filter((product) =>
-        product.name.toLowerCase().includes(lowerKeyword)
-      );
+    // Lakukan pencarian langsung ke mock data tanpa sensitif huruf besar/kecil
+    const results = mockProducts.filter((product) =>
+      product.name.toLowerCase().includes(lowerKeyword)
+    );
 
-      // Update hasilnya ke layar
-      setFilteredProducts(results);
-      setHasSearched(true);
-    };
-
+    // Update hasilnya ke layar
+    setFilteredProducts(results);
+    setHasSearched(true);
+  };
+  
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 bg-gray-50 min-h-screen">
       {/* 1. Header & Search Bar */}
@@ -71,14 +71,18 @@ export default function MarketIntelligencePage() {
               <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><ShoppingBag className="h-6 w-6" /></div>
               <div>
                 <p className="text-sm text-gray-400 font-medium">Total Terjual (30 Hari)</p>
-                <h3 className="text-xl font-bold text-gray-800">8.800+ pcs</h3>
+                <h3 className="text-xl font-bold text-gray-800">
+                  {filteredProducts.reduce((sum, p) => sum + p.monthlySales, 0).toLocaleString("id-ID")}+ pcs
+                </h3>
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
               <div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign className="h-6 w-6" /></div>
               <div>
                 <p className="text-sm text-gray-400 font-medium">Estimasi Putaran Uang</p>
-                <h3 className="text-xl font-bold text-gray-800">Rp 917.800.000</h3>
+                <h3 className="text-xl font-bold text-gray-800">
+                  Rp {filteredProducts.reduce((sum, p) => sum + p.revenue, 0).toLocaleString("id-ID")}
+                </h3>
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
@@ -97,35 +101,41 @@ export default function MarketIntelligencePage() {
               <span className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-semibold">Live Data</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-gray-400 text-xs uppercase font-semibold border-b border-gray-100">
-                    <th className="p-4">Nama Produk / Toko</th>
-                    <th className="p-4">Harga</th>
-                    <th className="p-4">Penjualan (Bulanan)</th>
-                    <th className="p-4">Estimasi Omzet</th>
-                    <th className="p-4 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                  {filteredProducts.map((prod) => (
-                    <tr key={prod.id} className="hover:bg-gray-50/50 transition">
-                      <td className="p-4 max-w-md">
-                        <p className="font-medium text-gray-800 truncate">{prod.name}</p>
-                        <span className="text-xs text-gray-400 font-medium">{prod.shop} • {prod.location}</span>
-                      </td>
-                      <td className="p-4 font-medium text-gray-800">Rp {prod.price.toLocaleString("id-ID")}</td>
-                      <td className="p-4 text-gray-600 font-medium">{prod.monthlySales.toLocaleString("id-ID")} pcs</td>
-                      <td className="p-4 text-green-600 font-semibold">Rp {prod.revenue.toLocaleString("id-ID")}</td>
-                      <td className="p-4 text-center">
-                        <button className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">
-                          Lihat Tren Grafik
-                        </button>
-                      </td>
+              {filteredProducts.length > 0 ? (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-400 text-xs uppercase font-semibold border-b border-gray-100">
+                      <th className="p-4">Nama Produk / Toko</th>
+                      <th className="p-4">Harga</th>
+                      <th className="p-4">Penjualan (Bulanan)</th>
+                      <th className="p-4">Estimasi Omzet</th>
+                      <th className="p-4 text-center">Aksi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+                    {filteredProducts.map((prod) => (
+                      <tr key={prod.id} className="hover:bg-gray-50/50 transition">
+                        <td className="p-4 max-w-md">
+                          <p className="font-medium text-gray-800 truncate">{prod.name}</p>
+                          <span className="text-xs text-gray-400 font-medium">{prod.shop} • {prod.location}</span>
+                        </td>
+                        <td className="p-4 font-medium text-gray-800">Rp {prod.price.toLocaleString("id-ID")}</td>
+                        <td className="p-4 text-gray-600 font-medium">{prod.monthlySales.toLocaleString("id-ID")} pcs</td>
+                        <td className="p-4 text-green-600 font-semibold">Rp {prod.revenue.toLocaleString("id-ID")}</td>
+                        <td className="p-4 text-center">
+                          <button className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">
+                            Lihat Tren Grafik
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-12 text-center text-gray-400">
+                  Tidak ada produk dengan kata kunci "{keyword}" yang ditemukan.
+                </div>
+              )}
             </div>
           </div>
         </>
