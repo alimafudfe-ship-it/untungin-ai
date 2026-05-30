@@ -51,6 +51,24 @@ export default function DashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [products, setProducts] = useState<Product[]>([]);
+  
+  // FUNGSI SAKTI UNTUK MENGHUBUNGKAN PENCARIAN DASHBOARD KE API SCRAPER
+  const handleDashboardScrape = async (keywordInput: string) => {
+    if (!keywordInput.trim()) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/scrape?keyword=${encodeURIComponent(keywordInput)}`);
+      const data = await response.json();
+      if (data.products) {
+        // Langsung timpa data dashboard dengan hasil generator pasar otomatis!
+        setProducts(data.products);
+      }
+    } catch (error) {
+      console.error("Gagal sinkronisasi API Dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [goals] = useState<Goal[]>(DEMO_GOALS);
   const [profile, setProfile] = useState<Profile | null>(null);
