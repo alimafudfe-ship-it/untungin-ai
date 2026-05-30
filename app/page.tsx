@@ -4,6 +4,7 @@ import dynamicImport from "next/dynamic";
 
 export const dynamic = "force-dynamic";
 
+// Memanggil DashboardClient yang berisi 789 baris kode utama Anda
 const DashboardPage = dynamicImport(() => import("./DashboardClient"), {
   ssr: false,
   loading: () => (
@@ -15,8 +16,4 @@ const DashboardPage = dynamicImport(() => import("./DashboardClient"), {
   ),
 });
 
-<<<<<<< HEAD
 export default DashboardPage;
-=======
-export default DashboardPage;
->>>>>>> a8e71864d9e65f928c6ff93cae82f5f5773ddfb0
