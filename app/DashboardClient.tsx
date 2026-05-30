@@ -639,7 +639,18 @@ export default function DashboardPage() {
           }}
           onDelete={deleteProduct}
           // BARIS PENYELAMAT: Mengaitkan fungsi ketik enter pencarian ke scraper utama Anda!
-          onSearchScrape={handleDashboardScrape}
+          // GANTI BARIS INI:
+// onSearchScrape={handleDashboardScrape}
+
+// MENJADI SEPERTI INI:
+onSearchScrape={(keyword) => {
+  // 1. Jalankan fungsi penarikan data ke database (jika diperlukan)
+  handleDashboardScrape(keyword);
+
+  // 2. Otomatis alihkan halaman active ke menu Market Intel
+  setActiveTab("market-intel");
+
+}}
         />
       )}
 
