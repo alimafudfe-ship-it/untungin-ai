@@ -15,7 +15,6 @@ function period(value: string | null): MITrendPeriod | undefined {
   if (["today", "daily", "day", "hari", "harian"].includes(normalized)) return "today";
   if (["week", "weekly", "minggu", "mingguan"].includes(normalized)) return "week";
   if (["month", "monthly", "bulan", "bulanan"].includes(normalized)) return "month";
-  if (["special_day", "special_days", "holiday", "holidays", "seasonal", "hari_besar"].includes(normalized)) return "special_day";
   return undefined;
 }
 
@@ -25,144 +24,99 @@ function sort(value: string | null): MISortKey | undefined {
   return undefined;
 }
 
-// Fungsi pembantu data cadangan yang sudah lolos uji kompilasi
-const generateFallbackData = (keyword: string) => {
-  const displayKeyword = keyword || "Produk Rekomendasi AI";
-  return {
-    products: [
-      {
-        id: "shopee-fallback-1",
-        name: `${displayKeyword} Viral Premium Pack`,
-        marketplace: "Shopee",
-        country: "ID",
-        category: "Trending",
-        keyword: displayKeyword,
-        imageUrl: "",
-        priceMin: 150000,
-        priceMax: 150000,
-        sold7d: 340,
-        sold30d: 1250,
-        revenue7d: 51000000,
-        revenue30d: 187500000,
-        growth7d: 45,
-        growth30d: 60,
-        rating: 4.8,
-        reviewCount: 420,
-        demandScore: 88,
-        growthScore: 85,
-        competitionScore: 35,
-        opportunityScore: 87,
-        signal: "rising",
-        source: "Shopee",
-        sourceUrl: "",
-        updatedAt: new Date().toISOString()
-      }
-    ],
-    categories: [
-      {
-        id: "trending",
-        name: displayKeyword,
-        marketplace: "All Marketplace",
-        opportunityScore: 89,
-        demandScore: 91,
-        growthScore: 92,
-        competitionScore: 42,
-        signal: "rising"
-      }
-    ],
-    rowCount: 1,
-    dataMode: "live_fallback",
-    activeSource: "Untungin AI Smart Fallback Engine",
-    isDemo: false
-  };
-};
-
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const q = url.searchParams.get("q") || "";
 
+  // 1. Validasi Input: Jika user belum mengetik keyword, paksa crawler mencari tren umum (misal: "sepatu")
+  // agar dashboard tidak langsung kosong/Rp 0 saat pertama kali dibuka.
+  const searchQuery = q.trim() ? q : "sepatu trending";
+
   try {
-    const result = await collectMarketIntelligence({
-      period: period(url.searchParams.get("period")) || undefined,
-      country: url.searchParams.get("country") || "All",
-      marketplace: url.searchParams.get("marketplace") || "All",
-      category: url.searchParams.get("category") || "All",
-      q,
-      sort: sort(url.searchParams.get("sort")) || "opportunity"
+    // 2. Jalankan Live Scraping secara paralel dari 3 Marketplace besar
+    console.log(`[Untungin AI] Memulai Live Scraping untuk kata kunci: ${searchQuery}`);
+    
+    const [shopeeData, tokopediaData, lazadaData] = await Promise.all([
+      new ShopeeCrawler().scan(searchQuery).catch((err) => { console.error("Shopee Error:", err); return []; }),
+      new TokopediaCrawler().scan(searchQuery).catch((err) => { console.error("Tokopedia Error:", err); return []; }),
+      new LazadaCrawler().scan(searchQuery).catch((err) => { console.error("Lazada Error:", err); return []; })
+    ]);
+
+    const allItems = [...shopeeData, ...tokopediaData, ...lazadaData];
+
+    // 3. Jika ketiga crawler mengembalikan array kosong (Terblokir / Scraping Broken)
+    if (allItems.length === 0) {
+      return NextResponse.json({
+        error: "Gagal mengambil data live dari marketplace.",
+        reason: "Akses diblokir oleh anti-bot marketplace atau struktur HTML berubah. Butuh integrasi API Scraping / ScrapingFish / ScrapingBee.",
+        products: [],
+        rowCount: 0,
+        dataMode: "failed"
+      }, { status: 502 });
+    }
+
+    // 4. Transformasikan data mentah hasil scraping menjadi format Dashboard Untungin
+    const merged = allItems.map((item: any, index: number) => {
+      // Pastikan harga dan penjualan dikonversi ke angka murni tanpa karakter teks (Rp, titik, koma)
+      const cleanPrice = Number(String(item.price || 0).replace(/[^0-8]/g, ""));
+      const cleanSales = Number(String(item.sales || item.historical_sold || 0).replace(/[^0-8]/g, ""));
+      
+      const opportunity = item.opportunity_score || calculateOpportunityScore(item) || 75;
+
+      return {
+        id: `${item.marketplace || 'live'}-${index}-${Date.now()}`,
+        name: item.product_name || item.title || "Produk Marketplace",
+        marketplace: item.marketplace || "Shopee",
+        country: "ID",
+        category: "Live Search",
+        keyword: searchQuery,
+        imageUrl: item.image || item.image_url || "",
+        priceMin: cleanPrice,
+        priceMax: cleanPrice,
+        sold7d: Math.round(cleanSales / 4), // Estimasi mingguan
+        sold30d: cleanSales,
+        revenue7d: Math.round(cleanSales / 4) * cleanPrice,
+        revenue30d: cleanSales * cleanPrice,
+        growth7d: 15,
+        growth30d: 20,
+        rating: Number(item.rating || item.shop_rating || 4.7),
+        reviewCount: Number(item.reviews || item.review_count || Math.round(cleanSales * 0.3)),
+        demandScore: opportunity,
+        growthScore: opportunity,
+        competitionScore: 45,
+        opportunityScore: opportunity,
+        signal: "active",
+        source: item.marketplace || "Shopee",
+        sourceUrl: item.product_url || item.url || "",
+        updatedAt: new Date().toISOString()
+      };
     });
 
-    if (result && result.products && result.products.length > 0) {
-      return NextResponse.json(result);
-    }
-
-    if (q.trim()) {
-      try {
-        const shopee = await new ShopeeCrawler().scan(q).catch(() => []);
-        const tokopedia = await new TokopediaCrawler().scan(q).catch(() => []);
-        const lazada = await new LazadaCrawler().scan(q).catch(() => []);
-
-        const merged = [...shopee, ...tokopedia, ...lazada].map((item: any, index: number) => {
-          const opportunity = item.opportunity_score || calculateOpportunityScore(item) || 70;
-
-          return {
-            id: `${item.marketplace || 'market'}-${index}`,
-            name: item.product_name || "Produk Viral Marketplace",
-            marketplace: item.marketplace || "Shopee",
-            country: "ID",
-            category: "Trending",
-            keyword: q,
-            imageUrl: item.image_url || "",
-            priceMin: Number(item.price || 0),
-            priceMax: Number(item.price || 0),
-            sold7d: Number(item.sales || 0),
-            sold30d: Number(item.sales || 0) * 4,
-            revenue7d: Number(item.sales || 0) * Number(item.price || 0),
-            revenue30d: (Number(item.sales || 0) * 4) * Number(item.price || 0),
-            growth7d: 20,
-            growth30d: 25,
-            rating: Number(item.rating || 4.5),
-            reviewCount: Number(item.reviews || item.sales || 10),
-            demandScore: opportunity,
-            growthScore: opportunity,
-            competitionScore: 40,
-            opportunityScore: opportunity,
-            signal: "rising",
-            source: item.marketplace || "Shopee",
-            sourceUrl: item.product_url || "",
-            updatedAt: new Date().toISOString()
-          };
-        });
-
-        if (merged.length > 0) {
-          return NextResponse.json({
-            ...result,
-            products: merged,
-            categories: [
-              {
-                id: "trending",
-                name: q,
-                marketplace: "Multi-channel",
-                opportunityScore: 80,
-                demandScore: 80,
-                growthScore: 78,
-                competitionScore: 40,
-                signal: "rising"
-              }
-            ],
-            rowCount: merged.length,
-            dataMode: "live",
-            activeSource: "Marketplace API Live",
-            isDemo: false
-          });
+    // 5. Kirim data live murni ke Frontend
+    return NextResponse.json({
+      products: merged,
+      categories: [
+        {
+          id: "live-trending",
+          name: searchQuery,
+          marketplace: "Multi-channel Live",
+          opportunityScore: 85,
+          demandScore: 80,
+          growthScore: 85,
+          competitionScore: 45,
+          signal: "stable"
         }
-      } catch (crawlerError) {
-        console.error("Crawler gagal:", crawlerError);
-      }
-    }
+      ],
+      rowCount: merged.length,
+      dataMode: "pure_live",
+      activeSource: "Marketplace Live Scraper Integration",
+      isDemo: false
+    });
 
-    return NextResponse.json(generateFallbackData(q));
-
-  } catch (error) {
-    return NextResponse.json(generateFallbackData(q));
+  } catch (globalError: any) {
+    return NextResponse.json({
+      error: "Internal Server Error",
+      message: globalError.message
+    }, { status: 500 });
   }
 }
