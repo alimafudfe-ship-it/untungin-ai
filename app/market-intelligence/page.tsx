@@ -14,9 +14,21 @@ export default function MarketIntelligencePage() {
     { id: 3, name: "Sepatu Boots Kulit Sapi Asli Kerja Lapangan", price: 249000, monthlySales: 1500, revenue: 373500000, shop: "FootwearMaster", location: "Surabaya" },
   ];
 
+  // 1. Tambahkan state baru untuk menampung hasil filter produk di bagian atas komponen (di bawah state hasSearched)
+  const [filteredProducts, setFilteredProducts] = useState(mockProducts);
+  
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
+  
+  const lowerKeyword = keyword.toLowerCase();
+
+    // Filter produk yang namanya mengandung kata kunci tersebut
+    const results = mockProducts.filter((product) =>
+      product.name.toLowerCase().includes(lowerKeyword)
+    );
+
+    setFilteredProducts(results);
     setHasSearched(true);
   };
 
@@ -88,9 +100,14 @@ export default function MarketIntelligencePage() {
                     <th className="p-4 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                  {mockProducts.map((prod, idx) => (
-                    <tr key={prod.id} className="hover:bg-gray-50/50 transition">
+{/* GANTI BARIS INI */}
+<tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+  {filteredProducts.map((prod, idx) => (
+    <tr key={prod.id} className="hover:bg-gray-50/50 transition">
+      {/* ... isi tabel tetap sama seperti kemarin ... */}
+    </tr>
+  ))}
+</tbody>
                       <td className="p-4 max-w-md">
                         <p className="font-medium text-gray-800 truncate">{prod.name}</p>
                         <span className="text-xs text-gray-400 font-medium">{prod.shop} • {prod.location}</span>
