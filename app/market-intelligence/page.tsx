@@ -18,19 +18,26 @@ export default function MarketIntelligencePage() {
   const [filteredProducts, setFilteredProducts] = useState(mockProducts);
   
   const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!keyword.trim()) return;
+      e.preventDefault();
+    
+      // Jika kotak pencarian kosong, jangan lakukan apa-apa
+      if (!keyword.trim()) {
+        setFilteredProducts([]);
+        setHasSearched(false);
+        return;
+      }
   
-    const lowerKeyword = keyword.toLowerCase();
+      const lowerKeyword = keyword.toLowerCase();
 
-    // Filter pintar: tidak peduli user ketik huruf besar atau kecil (case-insensitive)
-    const results = mockProducts.filter((product) =>
-      product.name.toLowerCase().includes(lowerKeyword)
-    );
+      // Lakukan pencarian langsung ke mock data
+      const results = mockProducts.filter((product) =>
+        product.name.toLowerCase().includes(lowerKeyword)
+      );
 
-    setFilteredProducts(results);
-    setHasSearched(true);
-  };
+      // Update hasilnya ke layar
+      setFilteredProducts(results);
+      setHasSearched(true);
+    };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 bg-gray-50 min-h-screen">
