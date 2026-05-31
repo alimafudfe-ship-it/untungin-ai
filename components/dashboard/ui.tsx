@@ -385,3 +385,51 @@ export function MidtransSubscriptionPanel() {
     </section>
   );
 }
+
+// Tambahkan ini di bagian paling bawah file components/dashboard/ui.tsx
+export function EmptyState({ 
+  title, 
+  description, 
+  actionLabel, 
+  onAction 
+}: { 
+  title: string; 
+  description: string; 
+  actionLabel?: string; 
+  onAction?: () => void; 
+}) {
+  return (
+    <div style={{ 
+      ...cardStyle, 
+      display: "flex", 
+      flexDirection: "column", 
+      alignItems: "center", 
+      justifyContent: "center", 
+      padding: "40px 20px", 
+      textAlign: "center",
+      background: "rgba(255,255,255,0.5)",
+      border: "1px dashed rgba(16,24,40,0.15)"
+    }}>
+      <div style={{ 
+        width: 48, 
+        height: 48, 
+        borderRadius: 999, 
+        background: "#f1f5f9", 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center",
+        marginBottom: 16,
+        fontSize: 20
+      }}>
+        📦
+      </div>
+      <h3 style={{ margin: "0 0 6px 0", color: colors.ink, fontSize: 16, fontWeight: 700 }}>{title}</h3>
+      <p style={{ margin: "0 0 20px 0", color: colors.muted, fontSize: 13, maxWidth: 320, lineHeight: 1.5 }}>{description}</p>
+      {actionLabel && onAction && (
+        <button type="button" onClick={onAction} style={ctaButtonStyle}>
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
