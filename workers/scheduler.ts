@@ -2,15 +2,15 @@
 import { Queue } from "bullmq";
 import { redis } from "../config/redis";
 
-// Inisialisasi pembungkus Queue BullMQ yang mengarah ke jalur Worker masing-masing
-const shopeeQueue = new Queue("shopee-scouting", { connection: redis });
-const tokopediaQueue = new Queue("tokopedia-scouting", { connection: redis });
-const tiktokQueue = new Queue("tiktok-scouting", { connection: redis });
+// PERBAIKAN: Tambahkan 'as any' di akhir objek koneksi untuk meredam error Type 'Redis' mismatch
+const shopeeQueue = new Queue("shopee-scouting", { connection: redis as any });
+const tokopediaQueue = new Queue("tokopedia-scouting", { connection: redis as any });
+const tiktokQueue = new Queue("tiktok-scouting", { connection: redis as any });
 
 export async function startScheduler() {
   console.log("⏱️  [Scheduler] Mengonfigurasi jadwal otomatisasi crawling...");
 
-  // Daftar kata kunci acak untuk rotasi riset pasar otomatis (opsional biar data dinamis)
+  // Daftar kata kunci acak untuk rotasi riset pasar otomatis
   const seedKeywords = ["sepatu trending", "kamera", "kemeja pria", "tas fashion"];
   const getRandomKeyword = () => seedKeywords[Math.floor(Math.random() * seedKeywords.length)];
 
@@ -18,7 +18,7 @@ export async function startScheduler() {
     // 1. JADWAL RUTIN SHOPEE (Setiap 1 Menit)
     await shopeeQueue.add(
       "shopee-automated-trend",
-      { keyword: getRandomKeyword() }, // Sediakan data keyword untuk dinavigasi oleh Playwright
+      { keyword: getRandomKeyword() },
       {
         repeat: { every: 60000 }, // Interval eksekusi otomatis tiap 1 menit
         removeOnComplete: true,   // Bersihkan riwayat Redis jika sukses agar RAM Redis hemat

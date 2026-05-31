@@ -7,8 +7,8 @@ import { realtimeShopeeWorker } from "./shopee/realtimeShopeeWorker";
 import { realtimeTikTokWorker } from "./tiktok/realtimeTikTokWorker";
 import { realtimeTokopediaWorker } from "./tokopedia/realtimeTokopediaWorker";
 
-// Buat pemicu antrean skoring agar data bisa dialirkan setelah scraping selesai
-const scoringQueue = new Queue("scoring-pipeline", { connection: redis });
+// PERBAIKAN: Tambahkan 'as any' untuk menghindari error TS(2322) Type Mismatch
+const scoringQueue = new Queue("scoring-pipeline", { connection: redis as any });
 
 async function main() {
   console.log("================================================");
@@ -21,8 +21,8 @@ async function main() {
    * Playwright hanya boleh membuka 1 browser saja di satu waktu. CPU & Daya PSU dijamin aman.
    */
   const safeConfig = {
-    connection: redis,
-    concurrency: 1 // Jangan diubah menjadi lebih tinggi saat masa development lokal!
+    connection: redis as any, // PERBAIKAN: Gunakan 'as any' di sini juga
+    concurrency: 1 // Batasi 1 browser aktif agar PC tidak overheat / mati mendadak
   };
 
   // 1. Worker Antrean Shopee
