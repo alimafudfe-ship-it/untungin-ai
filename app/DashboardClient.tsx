@@ -145,7 +145,7 @@ export default function DashboardPage() {
       } catch {
         return null;
       }
-    }
+    }}
     function loadDemoDashboard(demoSession?: { id?: string; email?: string } | null) {
       if (!isMounted) return;
       setSetupError(null);
