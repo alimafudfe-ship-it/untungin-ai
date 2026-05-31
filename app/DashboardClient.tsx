@@ -186,7 +186,7 @@ export default function DashboardPage() {
       let sessionData: any = { session: null };
       let sessionError: any = null;
       try {
-        const sessionResult = await supabase.auth.getSession();
+        const sessionResult = await supabase?.auth.getSession();
         sessionData = sessionResult.data;
         sessionError = sessionResult.error;
       } catch (authError) {
@@ -262,19 +262,21 @@ export default function DashboardPage() {
     }
 
     loadUserAndData();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
+    const authListener = supabase?.auth.onAuthStateChange((event: any, session: any) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") { loadUserAndData(); return; }
       if (event === "SIGNED_OUT" || !session?.user) {
         if (getDemoSession()?.id) return;
         setCurrentUserId(null); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts([]); setExpenses([]); setProfile(null); setIsDemoMode(false); setPageLoading(false); router.replace(`/login?next=${encodeURIComponent("/")}`);
       }
     });
-    return () => { isMounted = false; subscription.unsubscribe(); };
+    return () => { 
+  isMounted = false; 
+  subscription?.unsubscribe();
   }, [router]);
 
   useEffect(() => {
     if (!currentUserId || isDemoMode) return;
-    const channel = supabase
+    const channel = supabase?.channel('... lanjutannya ...')
       .channel(`dashboard-realtime-${currentUserId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `user_id=eq.${currentUserId}` }, (payload: any) => {
         if (payload.eventType === "DELETE") {
@@ -298,7 +300,7 @@ export default function DashboardPage() {
       })
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      supabase?.removeChannel(channel);
     };
   }, [currentUserId, isDemoMode]);
 
