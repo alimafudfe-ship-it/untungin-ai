@@ -158,28 +158,28 @@ const mobileKeys: TabKey[] = ["overview", "marketplace", "trends", "ai", "report
 
 export function AppShell({
   activeTab,
-  onTabChange,
+  onTabChange = () => {}, // Ditambahkan default value aman untuk menghindari runtime crash
   isPro,
   proExpired,
   onExport,
   onUpgrade,
   onLogout,
-  onSearchTrigger, // Tambahan properti baru untuk mengirim kata kunci ke halaman konten
+  onSearchTrigger,
   children,
 }: {
   activeTab: TabKey;
-  onTabChange: (tab: TabKey) => void;
+  onTabChange?: (tab: TabKey) => void; // Dijadikan opsional (?) agar selaras dengan default value
   isPro: boolean;
   proExpired: boolean;
   onExport: () => void;
   onUpgrade: () => void;
   onLogout: () => void;
-  onSearchTrigger?: (query: string) => void; // Definisi tipe properti baru
+  onSearchTrigger?: (query: string) => void;
   children: React.ReactNode;
 }) {
   const [darkMode, setDarkMode] = useState(false);
   const [locale, setLocale] = useState<Locale>("id");
-  const [internalQuery, setInternalQuery] = useState(""); // State baru untuk menyimpan teks ketikan user
+  const [internalQuery, setInternalQuery] = useState("");
 
   useEffect(() => {
     const saved = normalizeLocale(window.localStorage.getItem("untungin_locale"));
@@ -258,7 +258,7 @@ export function AppShell({
             <div className="sidebar-section-title shell-text-muted">{group.label}</div>
             {group.items.map((item) => {
               const selected = activeTab === item.key;
-              return <button key={item.key} className={`sidebar-item ${selected ? "nav-selected" : ""}`} onClick={() => onTabChange(item.key)} style={{ color: selected ? "#0f766e" : darkMode ? "#cbd5e1" : "#475467" }}>
+              return <button key={item.key} className={`sidebar-item ${selected ? "nav-selected" : ""}`} onClick={() => onTabChange?.(item.key)} style={{ color: selected ? "#0f766e" : darkMode ? "#cbd5e1" : "#475467" }}>
                 <span className="sidebar-icon">{item.icon}</span>
                 <span>{item.label}<br /><small style={{ color: selected ? "#0f766e" : "#667085", fontWeight: 650 }}>{item.helper}</small></span>
               </button>;
@@ -283,7 +283,6 @@ export function AppShell({
             </div>
 
             <div className="topbar-actions">
-              {/* KOLOM PENCARIAN PERBAIKAN: Melepas readOnly dan mengikat Event Enter */}
               <div className="search-shell full-span">
                 <span aria-hidden="true" style={{ color: "#98a2b3", fontSize: 14 }}>⌕</span>
                 <input 
@@ -294,9 +293,7 @@ export function AppShell({
                   onChange={(e) => setInternalQuery(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && internalQuery.trim()) {
-                      // 1. Pindahkan tab aktif secara otomatis ke Market Intel ("trends")
-                      onTabChange("trends");
-                      // 2. Kirimkan teks pencarian ke halaman utama
+                      onTabChange?.("trends");
                       if (onSearchTrigger) {
                         onSearchTrigger(internalQuery.trim());
                       }
@@ -324,7 +321,7 @@ export function AppShell({
       {mobileKeys.map((key) => {
         const item = navItems.find((entry) => entry.key === key);
         if (!item) return null;
-        return <button key={item.key} className={`nav-mini-button ${activeTab === item.key ? "active" : ""}`} onClick={() => onTabChange(item.key)}>{item.label}</button>;
+        return <button key={item.key} className={`nav-mini-button ${activeTab === item.key ? "active" : ""}`} onClick={() => onTabChange?.(item.key)}>{item.label}</button>;
       })}
     </nav>
   </main>;
