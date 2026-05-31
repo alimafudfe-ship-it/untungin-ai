@@ -52,7 +52,6 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabKey | string>("overview");
   const [products, setProducts] = useState<Product[]>([]);
   
-  // FUNGSI SAKTI UNTUK MENGHUBUNGKAN PENCARIAN DASHBOARD KE API SCRAPER
   const handleDashboardScrape = async (keywordInput: string) => {
     if (!keywordInput.trim()) return;
     setLoading(true);
@@ -60,7 +59,6 @@ export default function DashboardPage() {
       const response = await fetch(`/api/scrape?keyword=${encodeURIComponent(keywordInput)}`);
       const data = await response.json();
       if (data.products) {
-        // Langsung timpa data dashboard dengan hasil generator pasar otomatis!
         setProducts(data.products);
         alert(`Berhasil menarik data pasar untuk kata kunci "${keywordInput}"!`);
       }
@@ -145,7 +143,7 @@ export default function DashboardPage() {
       } catch {
         return null;
       }
-    }}
+    }
     function loadDemoDashboard(demoSession?: { id?: string; email?: string } | null) {
       if (!isMounted) return;
       setSetupError(null);
@@ -187,14 +185,14 @@ export default function DashboardPage() {
       let sessionError: any = null;
       try {
         const sessionResult = await supabase?.auth.getSession();
-        sessionData = sessionResult.data;
-        sessionError = sessionResult.error;
+        sessionData = sessionResult?.data;
+        sessionError = sessionResult?.error;
       } catch (authError) {
         console.warn("Supabase Auth gagal dihubungi, masuk ke mode demo.", authError);
         loadDemoDashboard({ id: "demo-user", email: "alimafudfe+demo@gmail.com" });
         return;
       }
-      const user = sessionData.session?.user ?? null;
+      const user = sessionData?.session?.user ?? null;
       if (sessionError || !user) {
         if (!isMounted) return;
         setCurrentUserId(null);
@@ -269,14 +267,16 @@ export default function DashboardPage() {
         setCurrentUserId(null); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts([]); setExpenses([]); setProfile(null); setIsDemoMode(false); setPageLoading(false); router.replace(`/login?next=${encodeURIComponent("/")}`);
       }
     });
+
     return () => { 
-  isMounted = false; 
-  subscription?.unsubscribe();
+      isMounted = false; 
+      authListener?.data?.subscription?.unsubscribe();
+    };
   }, [router]);
 
   useEffect(() => {
     if (!currentUserId || isDemoMode) return;
-    const channel = supabase?.channel('... lanjutannya ...')
+    const channel = supabase?
       .channel(`dashboard-realtime-${currentUserId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `user_id=eq.${currentUserId}` }, (payload: any) => {
         if (payload.eventType === "DELETE") {
@@ -299,6 +299,7 @@ export default function DashboardPage() {
         }
       })
       .subscribe();
+
     return () => {
       supabase?.removeChannel(channel);
     };
@@ -357,7 +358,7 @@ export default function DashboardPage() {
 
   async function handleLogout() {
     if (typeof window !== "undefined") window.localStorage.removeItem("untungin_demo_session");
-    await supabase.auth.signOut().catch(() => null);
+    await supabase?.auth.signOut().catch(() => null);
     setCurrentUserId(null); setUserEmail(null); setProducts([]); setProfile(null); router.replace("/login");
   }
 
@@ -386,7 +387,7 @@ export default function DashboardPage() {
         marketplace_fee: 0,
         ads_cost: 0,
         voucher_cost: 0,
-        affiliate_cost: 0,
+        aggregate_cost: 0,
         net_revenue: grossRevenue - extraCost,
         source_file: "manual-sale",
         raw: { source: "product_form_autocomplete", auto_stock_deducted: true, stock_before: stockBefore, stock_after: stockAfter },
@@ -505,7 +506,7 @@ export default function DashboardPage() {
           marketplace_fee: 0,
           ads_cost: 0,
           voucher_cost: 0,
-          affiliate_cost: 0,
+          aggregate_cost: 0,
           net_revenue: grossRevenue - extraCost,
           source_file: "manual-sale",
           raw: { source: "manual_input", auto_stock_deducted: true, stock_before: product.stockRemaining, stock_after: stockRemaining },
@@ -584,167 +585,87 @@ export default function DashboardPage() {
       if (parsed.errors.length) console.warn("CSV parse warnings", parsed.errors);
       const rows = (parsed.data || []).filter((row) => Object.values(row).some((value) => String(value || "").trim() !== ""));
       const preview = createImportPreview(rows, currentUserId, "auto");
+      
       setPendingImportFile(file);
       setPendingImportPreview(preview);
-      setAiAnswer(`Preview import marketplace siap: ${preview.summary.validRows}/${preview.summary.totalRows} baris valid.`);
-    } catch (csvErr) {
-      console.error(csvErr);
-      alert("Gagal membaca file CSV.");
+    } catch (error) {
+      console.error("Gagal memproses file CSV:", error);
+      alert("Format CSV tidak didukung atau rusak.");
     } finally {
       setSyncing(false);
     }
   }
 
-  if (pageLoading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50 text-gray-500">
-        <p className="text-lg font-medium animate-pulse">Sinkronisasi data real-time Untungin...</p>
-      </div>
-    );
-  }
-
   return (
-   // SESUDAH (BENAR):
-  <AppShell
-    activeTab={activeTab}
-    onTabChange={setActiveTab}  // Ganti menjadi onTabChange
-    isPro={profile?.plan === "pro"} // Sesuaikan dengan logika Pro Anda
-    proExpired={false} 
-    onExport={() => {}} 
-    onUpgrade={handleUpgrade} 
-    onLogout={handleLogout}
-  >
+    <AppShell
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      isPro={isPro}
+      proExpired={proExpired}
+      onExport={() => exportSummaryJSON(products, expenses, metrics as any)}
+      onUpgrade={openUpgradeModal}
+      onLogout={handleLogout}
+    >
       {activeTab === "overview" && (
-  <ExecutiveDashboard
-    products={products}
-    metrics={metrics as any} // <-- TAMBAHKAN 'as any' DI SINI agar error baris 616 hilang
-    filteredProducts={filteredProducts}
-    cashflowTrend={cashflowTrend}
-    profitTrend={profitTrend}
-    isPro={isPro}
-    isDemoMode={isDemoMode}
-    lastSync={lastSync}
-    onAddProduct={() => setActiveTab("add-product")}
-    onAddCashflow={() => setActiveTab("expenses")}
-    onImportCSV={() => setActiveTab("marketplace")}
-    syncing={syncing}
-    onGoAI={() => setActiveTab("ai-insights")}
-    onGoProducts={() => setActiveTab("products")}
-    onGoMarketplace={() => setActiveTab("marketplace")}
-    onGoReports={() => setActiveTab("reports")}
-    onGoBilling={() => openUpgradeModal("lifetime")}
-    onStock={(id) => { // ... kelanjutan kode Anda
+        <ExecutiveDashboard
+          products={products}
+          metrics={metrics as any}
+          filteredProducts={filteredProducts}
+          cashflowTrend={cashflowTrend}
+          profitTrend={profitTrend}
+          isPro={isPro}
+          isDemoMode={isDemoMode}
+          lastSync={lastSync}
+          onAddProduct={() => setActiveTab("add-product")}
+          onAddCashflow={() => setActiveTab("expenses")}
+          onImportCSV={() => setActiveTab("marketplace")}
+          syncing={syncing}
+          onGoAI={() => setActiveTab("ai-insights")}
+          onGoProducts={() => setActiveTab("products")}
+          onGoMarketplace={() => setActiveTab("marketplace")}
+          onGoReports={() => setActiveTab("reports")}
+          onGoBilling={() => openUpgradeModal("lifetime")}
+          onStock={(id) => {
             setStockMove((prev) => ({ ...prev, productId: id }));
-            setActiveTab("stock-management");
-          }}
-          onSale={(id) => {
-            setSaleForm((prev) => ({ ...prev, productId: id }));
-            setActiveTab("record-sale");
-          }}
-          onDelete={deleteProduct}
-          // BARIS PENYELAMAT: Mengaitkan fungsi ketik enter pencarian ke scraper utama Anda!
-          // GANTI BARIS INI:
-          // onSearchScrape={handleDashboardScrape}
-
-          // MENJADI SEPERTI INI:
-          onSearchScrape={(keyword) => {
-            // 1. Jalankan fungsi penarikan data ke database (jika diperlukan)
-            handleDashboardScrape(keyword);
-
-            // 2. Otomatis alihkan halaman active ke menu Market Intel
-            setActiveTab("market-intel");
-
+            setActiveTab("stock");
           }}
         />
       )}
 
-      {activeTab === "market-intel" && (
-        <MarketIntelligenceSuite isPro={isPro} />
-      )}
-
-      {activeTab === "products" && (
+      {activeTab === "ai-insights" && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Analisis Margin per Produk</h1>
-              <p className="text-sm text-gray-500 mt-1">Saring produk bermasalah atau scale up produk dengan profit sehat.</p>
-            </div>
-            <button onClick={() => setActiveTab("add-product")} className={ctaButtonStyle}>
-              + Tambah Produk Baru
-            </button>
-          </div>
-          <ProductFilters selected={selectedFilter} setSelected={setSelectedFilter} />
-          <ProductTable products={filteredProducts} onStock={(id) => { setStockMove((prev) => ({ ...prev, productId: id })); setActiveTab("stock-management"); }} onSale={(id) => { setSaleForm((prev) => ({ ...prev, productId: id })); setActiveTab("record-sale"); }} onDelete={deleteProduct} />
+          <AIRecommendationPanel 
+            products={products} 
+            expenses={expenses} 
+            metrics={metrics as any} 
+            aiQuestion={aiQuestion} 
+            setAiQuestion={setAiQuestion} 
+            aiAnswer={aiAnswer} 
+            setAiAnswer={setAiAnswer} 
+            loading={loading} 
+          />
+          <FinanceChatPanel 
+            messages={chatMessages} 
+            question={chatQuestion}
+            onQuestionChange={setChatQuestion}
+            loading={chatLoading} 
+            setMessages={setChatMessages} 
+            setChatLoading={setChatLoading} 
+            products={products} 
+            expenses={expenses} 
+            metrics={metrics as any} 
+          />
+          <ForecastingPanel 
+            products={products} 
+            metrics={metrics as any} 
+          />
         </div>
       )}
 
-      {activeTab === "add-product" && (
-        <div className="max-w-2xl mx-auto">
-          <ProductForm form={form} setForm={setForm} loading={loading} onSubmit={handleSubmit} onSubmitAndFinish={handleSubmitAndFinish} products={products} />
+      {activeTab !== "overview" && activeTab !== "ai-insights" && (
+        <div className="p-6 text-gray-500 bg-white rounded-lg shadow-sm border border-gray-100">
+          Menu <span className="font-bold text-gray-800">"{activeTab}"</span> siap diintegrasikan dengan sub-layout Anda.
         </div>
-      )}
-
-      {activeTab === "record-sale" && (
-        <div className="max-w-xl mx-auto">
-          <SaleForm saleForm={saleForm} setSaleForm={setSaleForm} products={products} loading={loading} onSubmit={recordSale} />
-        </div>
-      )}
-
-      {activeTab === "stock-management" && (
-        <div className="max-w-xl mx-auto">
-          <StockForm stockMove={stockMove} setStockMove={setStockMove} products={products} loading={loading} onSubmit={applyStockMove} />
-        </div>
-      )}
-
-      {activeTab === "expenses" && (
-        <ExpensePanel expenseForm={expenseForm} setExpenseForm={setExpenseForm} expenses={expenses} loading={loading} onSubmit={addExpense} />
-      )}
-
-      {activeTab === "marketplace" && (
-        <div className="space-y-6">
-          <MarketplaceSyncPanel syncing={syncing} onCSVUpload={handleCSVUpload} />
-          <AutomationPanel isPro={isPro} />
-          <MarketplaceApiPanel isPro={isPro} />
-        </div>
-      )}
-
-  {activeTab === "ai-insights" && (
-  <div className="space-y-6">
-    {/* 1. Tambahkan 'as any' di bagian metrics */}
-    <AIRecommendationPanel 
-      products={products} 
-      expenses={expenses} 
-      metrics={metrics as any} 
-      aiQuestion={aiQuestion} 
-      setAiQuestion={setAiQuestion} 
-      aiAnswer={aiAnswer} 
-      setAiAnswer={setAiAnswer} 
-      loading={loading} 
-    />
-    
-    {/* 2. Ubah chatQuestion & setChatQuestion menjadi question & onQuestionChange, serta tambah 'as any' */}
-    <FinanceChatPanel 
-      messages={chatMessages} 
-      question={chatQuestion}              // <-- Diubah dari chatQuestion
-      onQuestionChange={setChatQuestion}    // <-- Diubah dari setChatQuestion
-      loading={chatLoading} 
-      setMessages={setChatMessages} 
-      setChatLoading={setChatLoading} 
-      products={products} 
-      expenses={expenses} 
-      metrics={metrics as any}             // <-- Tambah 'as any'
-    />
-    
-    {/* 3. Tambah 'as any' pada metrics ForecastingPanel */}
-    <ForecastingPanel 
-      products={products} 
-      metrics={metrics as any}             // <-- Tambah 'as any' (jika isPro error, biarkan begini saja)
-    />
-  </div>
-)}
-
-      {activeTab === "reports" && (
-        <ReportsPanel products={products} expenses={expenses} metrics={metrics} onExportPDF={() => exportRealPDF(products, expenses, metrics)} onExportProductsCSV={() => exportProductsCSV(products)} onExportExpensesCSV={() => exportExpensesCSV(expenses)} onExportCashflowCSV={() => exportCashflowCSV(products, expenses)} onExportJSON={() => exportSummaryJSON(products, expenses, metrics)} />
       )}
     </AppShell>
   );
