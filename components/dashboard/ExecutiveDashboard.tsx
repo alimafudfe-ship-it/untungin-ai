@@ -209,24 +209,6 @@ export function ExecutiveDashboard({
   const checklistSelesai = checklist.filter((item) => item.done).length;
   const checklistProgress = Math.round((checklistSelesai / checklist.length) * 100);
 
-  const activityItems = [
-    {
-      title: lowStockCount > 0 ? (locale === "en" ? `${lowStockCount} SKUs need stock attention` : `${lowStockCount} SKU perlu perhatian stok`) : (locale === "en" ? "Core stock is controlled" : t.stockSafe),
-      detail: lowStockCount > 0 ? (locale === "en" ? `Prioritize restock for ${criticalPreview[0]?.name || "the main product"}.` : `${t.priority}: ${criticalPreview[0]?.name || "produk utama"}.`) : (locale === "en" ? "No products are currently in critical status." : "Belum ada produk yang masuk status kritis."),
-      time: t.justNow,
-    },
-    {
-      title: lastSync ? (locale === "en" ? "Marketplace synced recently" : "Marketplace terakhir tersinkron") : (locale === "en" ? "No marketplace sync yet" : "Belum ada sinkronisasi marketplace"),
-      detail: lastSync ? (locale === "en" ? `Last update ${lastSyncText}.` : `Update terakhir ${lastSyncText}.`) : (locale === "en" ? "Import CSV or connect channels for more accurate data." : "Impor CSV atau hubungkan channel agar data lebih akurat."),
-      time: t.today,
-    },
-    {
-      title: lossProducts.length > 0 ? (locale === "en" ? `${lossProducts.length} products need margin review` : `${lossProducts.length} produk margin perlu ditinjau`) : (locale === "en" ? "Product margin is safe" : "Margin produk aman"),
-      detail: lossProducts.length > 0 ? (locale === "en" ? `Start from ${lossPreview[0]?.name || "priority SKU"} to review COGS and fees.` : `Mulai dari ${lossPreview[0]?.name || "SKU prioritas"} untuk evaluasi HPP dan fee.`) : (locale === "en" ? "Next focus: grow the highest-margin product." : "Fokus berikutnya: kembangkan produk dengan margin tertinggi."),
-      time: t.aiInsight,
-    },
-  ];
-
   const opsSignals = [
     {
       label: t.marginAnomaly,
@@ -360,7 +342,7 @@ export function ExecutiveDashboard({
                 </div>
                 <div className="hero-fill-card">
                   <small>{t.cashRunway}</small>
-                  <strong>{getCashRunway(metrics, t)}</strong>
+                  strong>{getCashRunway(metrics, t)}</strong>
                   <small>{t.cashRunwayHelper}</small>
                 </div>
                 <div className="hero-fill-card" onClick={onGoMarketplace} style={{ cursor: "pointer" }}>
@@ -375,7 +357,7 @@ export function ExecutiveDashboard({
           {/* MAIN CORE METRICS GRID */}
           <div className="status-mini-grid">
             <StatCard label={t.revenue} value={compactMoney(metrics?.totalRevenue || 0)} helper={`${metrics?.totalUnits || 0} ${t.unitsSold}`} tone="brand" delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
-            <StatCard label={t.grossProfit} value={compactMoney(metrics?.totalProfit || 0)} helper={`${percent(metrics?.avgMargin || 0)} ${t.avgMarginText}`} tone={metrics?.totalProfit >= 0 ? "success" : "danger"} delta={profitDelta.text} deltaTone={profitDelta.tone} />
+            <StatCard label={t.grossProfit} value={compactMoney(metrics?.totalProfit || 0)} helper={`${percent(metrics?.avgMargin || 0)} ${t.avgMarginText}`} tone={(metrics?.totalProfit || 0) >= 0 ? "success" : "danger"} delta={profitDelta.text} deltaTone={profitDelta.tone} />
             <StatCard label={t.inventoryValue} value={compactMoney(metrics?.inventoryValue || 0)} helper={`${metrics?.totalStock || 0} ${t.unitsAvailableShort}`} tone="warning" delta={inventoryDelta.text} deltaTone={inventoryDelta.tone} />
             <StatCard label={t.riskScore} value={`${safeRiskScore}/100`} helper={t.riskControl} tone={riskTone} delta={riskDelta.text} deltaTone={riskDelta.tone} />
           </div>
@@ -416,7 +398,7 @@ export function ExecutiveDashboard({
           <div style={{ ...cardStyle, background: "linear-gradient(180deg, #ffffff, #f8fafc)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <Badge label={t.onboardingStatus} tone="neutral" />
-              <strong style={{ fontSize: 13, color: colors.brand }}>{checklistProgress}%</strong>
+              <strong style={{ fontSize: 13, color: "#0f766e" }}>{checklistProgress}%</strong>
             </div>
             <h3 style={{ margin: "0 0 10px 0", fontSize: 14 }}>{t.operationalReadiness}</h3>
             <div style={{ marginBottom: 12 }}><Progress value={checklistProgress} /></div>
@@ -445,7 +427,6 @@ export function ExecutiveDashboard({
                 <span style={{ width: 18, height: 18, borderRadius: 999, background: w.active ? "#10b981" : "#94a3b8", color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900 }}>{w.step}</span>
                 <strong style={{ fontSize: 13, color: "#0f172a" }}>{w.title}</strong>
               </div>
-              // GANTI BARIS 448 MENJADI SEPERTI INI:
               <p style={{ margin: 0, fontSize: 12, color: "#475569", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {w.detail}
               </p>
