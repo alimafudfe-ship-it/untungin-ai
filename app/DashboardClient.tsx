@@ -662,7 +662,16 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {activeTab !== "overview" && activeTab !== "ai-insights" && (
+      {/* BERHASIL DIPERBAIKI: Tab Market Intel / Trends sekarang merender komponen aslinya */}
+      {(activeTab === "market-intel" || activeTab === "trends") && (
+        <MarketIntelligenceSuite 
+          onSearch={handleDashboardScrape} 
+          loading={loading}
+        />
+      )}
+
+      {/* Pengaman jika tab benar-benar tidak terdaftar di atas */}
+      {activeTab !== "overview" && activeTab !== "ai-insights" && activeTab !== "market-intel" && activeTab !== "trends" && (
         <div className="p-6 text-gray-500 bg-white rounded-lg shadow-sm border border-gray-100">
           Menu <span className="font-bold text-gray-800">"{activeTab}"</span> siap diintegrasikan dengan sub-layout Anda.
         </div>
