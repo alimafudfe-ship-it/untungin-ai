@@ -1,3 +1,5 @@
+"use client";
+
 import type React from "react";
 import { useMemo } from "react";
 import type { Product, DashboardMetrics, Tone } from "@/types/dashboard";
@@ -110,8 +112,8 @@ function getRiskTone(score: number): Tone {
 }
 
 function getCashRunway(metrics: DashboardMetrics, t: (typeof EXEC_COPY)[Locale]) {
-  if (metrics.dailyLeakEstimate <= 0) return t.safe;
-  const days = Math.max(1, Math.floor(Math.max(metrics.netCash, 0) / metrics.dailyLeakEstimate));
+  if ((metrics?.dailyLeakEstimate || 0) <= 0) return t.safe;
+  const days = Math.max(1, Math.floor(Math.max(metrics?.netCash || 0, 0) / metrics.dailyLeakEstimate));
   return `${days} ${t.days}`;
 }
 
@@ -133,11 +135,11 @@ function getDelta(current: number, previous: number, t: (typeof EXEC_COPY)[Local
 }
 
 export function ExecutiveDashboard({
-  products,
+  products = [],
   metrics,
-  filteredProducts,
-  cashflowTrend,
-  profitTrend,
+  filteredProducts = [],
+  cashflowTrend = [],
+  profitTrend = [],
   isPro,
   isDemoMode,
   lastSync,
@@ -157,15 +159,15 @@ export function ExecutiveDashboard({
   const locale = useDashboardLocale();
   const t = EXEC_COPY[locale];
 
-  // Optimasi Memoization agar tidak re-render berat pada mutasi data array
-  const topProducts = useMemo(() => [...products].sort((a, b) => b.profit - a.profit).slice(0, 4), [products]);
-  const criticalProducts = useMemo(() => products.filter((item) => item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15), [products]);
+  const topProducts = useMemo(() => [...products].sort((a, b) => (b.profit || 0) - (a.profit || 0)).slice(0, 4), [products]);
+  const criticalProducts = useMemo(() => products.filter((item) => (item.stockRemaining || 0) <= 5 || (item.stockRemaining || 0) <= (item.stockInitial || 0) * 0.15), [products]);
   const criticalPreview = useMemo(() => criticalProducts.slice(0, 4), [criticalProducts]);
-  const lossProducts = useMemo(() => products.filter((item) => item.profit < 0), [products]);
+  const lossProducts = useMemo(() => products.filter((item) => (item.profit || 0) < 0), [products]);
   const lossPreview = useMemo(() => lossProducts.slice(0, 4), [lossProducts]);
 
-  const riskTone = getRiskTone(metrics.riskScore);
-  const operatingScore = Math.max(0, Math.min(100, 100 - metrics.riskScore));
+  const safeRiskScore = metrics?.riskScore || 0;
+  const riskTone = getRiskTone(safeRiskScore);
+  const operatingScore = Math.max(0, Math.min(100, 100 - safeRiskScore));
   const lastSyncText = lastSync ? new Date(lastSync).toLocaleString(localeTag(locale), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : t.notSynced;
   const planLabel = isDemoMode ? t.demoWorkspace : isPro ? t.proWorkspace : t.freeWorkspace;
   
@@ -176,7 +178,7 @@ export function ExecutiveDashboard({
   
   const revenueDelta = getDelta(revenueNow, revenuePrev, t);
   const profitDelta = getDelta(profitNow, profitPrev, t);
-  const lowStockCount = metrics.lowStockCount + metrics.outOfStockCount;
+  const lowStockCount = (metrics?.lowStockCount || 0) + (metrics?.outOfStockCount || 0);
 
   const actionText = useMemo(() => {
     if (locale === "id") return getOneThingAction(products);
@@ -196,11 +198,11 @@ export function ExecutiveDashboard({
   }, [locale, products, lossProducts, lowStockCount, criticalPreview]);
 
   const inventoryDelta = lowStockCount > 0 ? { text: locale === "en" ? `${lowStockCount} urgent` : `${lowStockCount} mendesak`, tone: "warning" as Tone } : { text: t.controlled, tone: "success" as Tone };
-  const riskDelta = metrics.riskScore <= 15 ? { text: t.stable, tone: "success" as Tone } : metrics.riskScore <= 35 ? { text: t.monitor, tone: "warning" as Tone } : { text: locale === "en" ? "High" : "Tinggi", tone: "danger" as Tone };
+  const riskDelta = safeRiskScore <= 15 ? { text: t.stable, tone: "success" as Tone } : safeRiskScore <= 35 ? { text: t.monitor, tone: "warning" as Tone } : { text: locale === "en" ? "High" : "Tinggi", tone: "danger" as Tone };
 
   const checklist = [
     { label: t.addCoreProducts, done: products.length >= 3 },
-    { label: t.recordCashflow, done: metrics.totalExpenses > 0 || metrics.totalRevenue > 0 },
+    { label: t.recordCashflow, done: (metrics?.totalExpenses || 0) > 0 || (metrics?.totalRevenue || 0) > 0 },
     { label: t.syncMarketplace, done: Boolean(lastSync) || products.some((item) => Boolean(item.marketplace)) },
     { label: t.activateAiReport, done: isPro },
   ];
@@ -230,26 +232,26 @@ export function ExecutiveDashboard({
       label: t.marginAnomaly,
       value: lossProducts.length ? `${lossProducts.length} SKU` : t.safe,
       helper: lossProducts.length ? t.checkCostFees : t.noNegativeMargin,
-      tone: lossProducts.length ? "danger" as Tone : "success" as Tone,
+      tone: lossProducts.length ? ("danger" as Tone) : ("success" as Tone),
     },
     {
       label: t.restockRisk,
       value: lowStockCount ? `${lowStockCount} SKU` : t.controlled,
       helper: lowStockCount ? `${t.priority}: ${criticalPreview[0]?.name || (locale === "en" ? "fast-moving product" : "produk cepat habis")}.` : t.stockSafe,
-      tone: lowStockCount ? "warning" as Tone : "success" as Tone,
+      tone: lowStockCount ? ("warning" as Tone) : ("success" as Tone),
     },
     {
       label: t.operatingCash,
-      value: metrics.netCash >= 0 ? t.positive : t.deficit,
-      helper: metrics.dailyLeakEstimate > 0 ? `${t.leakEstimate} ${money(metrics.dailyLeakEstimate)}/${t.days}.` : t.noDailyCostPressure,
-      tone: metrics.netCash >= 0 ? "success" as Tone : "danger" as Tone,
+      value: (metrics?.netCash || 0) >= 0 ? t.positive : t.deficit,
+      helper: (metrics?.dailyLeakEstimate || 0) > 0 ? `${t.leakEstimate} ${money(metrics.dailyLeakEstimate)}/${t.days}.` : t.noDailyCostPressure,
+      tone: (metrics?.netCash || 0) >= 0 ? ("success" as Tone) : ("danger" as Tone),
     },
   ];
 
   const workflowSteps = [
-    { step: "1", title: t.validateOrder, detail: `${metrics.totalUnits} ${t.orderRecorded}`, active: metrics.totalUnits > 0 },
-    { step: "2", title: t.updateStock, detail: `${metrics.totalStock} ${t.unitsAvailable}`, active: products.length > 0 },
-    { step: "3", title: t.reviewProfit, detail: `${percent(metrics.avgMargin)} ${t.avgMargin}`, active: metrics.totalProfit !== 0 },
+    { step: "1", title: t.validateOrder, detail: `${metrics?.totalUnits || 0} ${t.orderRecorded}`, active: (metrics?.totalUnits || 0) > 0 },
+    { step: "2", title: t.updateStock, detail: `${metrics?.totalStock || 0} ${t.unitsAvailable}`, active: products.length > 0 },
+    { step: "3", title: t.reviewProfit, detail: `${percent(metrics?.avgMargin || 0)} ${t.avgMargin}`, active: (metrics?.totalProfit || 0) !== 0 },
     { step: "4", title: t.takeAction, detail: actionText, active: true },
   ];
 
@@ -317,81 +319,112 @@ export function ExecutiveDashboard({
           margin-top: 12px;
         }
         .command-side {
-          position: relative;
-          z-index: 1;
-          display: grid;
-          gap: 10px;
-          min-width: 0;
-        }
-        .kpi-status-grid {
-          display: grid;
-          gap: 10px;
-        }
-        .compact-panel {
-          padding: 14px;
-          border-radius: 20px;
-          background: rgba(255,255,255,0.10);
-          border: 1px solid rgba(255,255,255,0.16);
-          backdrop-filter: blur(16px);
-        }
-        .board-stack {
-          display: grid;
+          display: flex;
+          flex-direction: column;
           gap: 12px;
-          align-content: start;
+        }
+        @media(max-width: 1024px) {
+          .overview-grid { grid-template-columns: 1fr; }
+          .hero-layout { grid-template-columns: 1fr; }
         }
       `}</style>
 
-      {/* Top Premium Command Center Panel */}
       <div className="overview-grid">
-        <div style={cardStyle} className="hero-layout">
-          <div className="hero-copy">
-            <Badge tone="primary">{planLabel}</Badge>
-            <h1 className="hero-title">{t.heroTitle}</h1>
-            <p className="hero-subtitle">{t.heroSubtitle}</p>
-            <div className="command-actions">
-              <button style={ctaButtonStyle} onClick={onAddProduct}>{t.addProduct}</button>
-              <button style={ghostButtonStyle} onClick={onAddCashflow}>{t.addCashflow}</button>
-              <label style={{ ...ghostButtonStyle, cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
-                {syncing ? t.importing : t.importCSV}
-                <input type="file" accept=".csv" onChange={onImportCSV} hidden disabled={syncing} />
-              </label>
+        <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
+          {/* HERO BANNER SECTION */}
+          <div style={{ ...cardStyle, background: "linear-gradient(135deg, #022c22, #0f766e, #115e59)", border: "0", color: "#ffffff", overflow: "hidden" }} className="hero-layout">
+            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "40%", background: "radial-gradient(circle at right, rgba(20,184,166,0.15), transparent)", pointerEvents: "none" }} />
+            <div className="hero-copy">
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Badge label={planLabel} tone="success" />
+                {lastSync && <span style={{ fontSize: 11, color: "#94a3b8" }}>{t.marketplace}: {lastSyncText}</span>}
+              </div>
+              <h1 className="hero-title">{t.heroTitle}</h1>
+              <p className="hero-subtitle">{t.heroSubtitle}</p>
+              <div className="command-actions">
+                <button type="button" onClick={onAddProduct} style={ctaButtonStyle}>{t.addProduct}</button>
+                <button type="button" onClick={onAddCashflow} style={ghostButtonStyle}>{t.addCashflow}</button>
+                <label style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", cursor: syncing ? "not-allowed" : "pointer" }}>
+                  {syncing ? t.importing : t.importCSV}
+                  <input type="file" accept=".csv" onChange={onImportCSV} disabled={syncing} style={{ display: "none" }} />
+                </label>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+              <div className="hero-fill-grid">
+                <div className="hero-fill-card">
+                  <small>{t.opsScore}</small>
+                  <strong>{operatingScore}/100</strong>
+                  <small style={{ color: "#2dd4bf" }}>{healthLabel(operatingScore, t)}</small>
+                </div>
+                <div className="hero-fill-card">
+                  <small>{t.cashRunway}</small>
+                  <strong>{getCashRunway(metrics, t)}</strong>
+                  <small>{t.cashRunwayHelper}</small>
+                </div>
+                <div className="hero-fill-card" onClick={onGoMarketplace} style={{ cursor: "pointer" }}>
+                  <small>{t.marketSync}</small>
+                  <strong style={{ color: lastSync ? "#2dd4bf" : "#f59e0b" }}>{lastSync ? t.connected : t.notSynced}</strong>
+                  <small>{lastSync ? t.active : t.inactive}</small>
+                </div>
+              </div>
             </div>
           </div>
-          
-          <div className="hero-fill-grid">
-            <div className="hero-fill-card">
-              <small>{t.opsScore}</small>
-              <strong>{operatingScore}/100</strong>
-              <small>{healthLabel(operatingScore, t)}</small>
-            </div>
-            <div className="hero-fill-card">
-              <small>{t.cashRunway}</small>
-              <strong>{getCashRunway(metrics, t)}</strong>
-              <small>{t.cashRunwayHelper}</small>
-            </div>
-            <div className="hero-fill-card">
-              <small>{t.marketSync}</small>
-              <strong>{lastSync ? t.connected : t.notSynced}</strong>
-              <small>{lastSyncText}</small>
-            </div>
+
+          {/* MAIN CORE METRICS GRID */}
+          <div className="status-mini-grid">
+            <StatCard label={t.revenue} value={compactMoney(metrics?.totalRevenue || 0)} helper={`${metrics?.totalUnits || 0} ${t.unitsSold}`} tone="brand" delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
+            <StatCard label={t.grossProfit} value={compactMoney(metrics?.totalProfit || 0)} helper={`${percent(metrics?.avgMargin || 0)} ${t.avgMarginText}`} tone={metrics?.totalProfit >= 0 ? "success" : "danger"} delta={profitDelta.text} deltaTone={profitDelta.tone} />
+            <StatCard label={t.inventoryValue} value={compactMoney(metrics?.inventoryValue || 0)} helper={`${metrics?.totalStock || 0} ${t.unitsAvailableShort}`} tone="warning" delta={inventoryDelta.text} deltaTone={inventoryDelta.tone} />
+            <StatCard label={t.riskScore} value={`${safeRiskScore}/100`} helper={t.riskControl} tone={riskTone} delta={riskDelta.text} deltaTone={riskDelta.tone} />
+          </div>
+
+          {/* CHARTS CONTAINER SECTION */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, minWidth: 0 }} className="chart-grid">
+            <LineChartCard title={t.cashflowTrend} subtitle={t.inflowOutflow} data={cashflowTrend} valueLabel={t.cashIn} secondaryLabel={t.cashOut} maxTicks={4} />
+            <LineChartCard title={t.profitTrend} subtitle={t.profit7Days} data={profitTrend} valueLabel={t.grossProfit} maxTicks={4} />
           </div>
         </div>
 
-        {/* Operational Control Side Block */}
+        {/* RIGHT SIDEBAR: OPERATIONAL CONTROL ROOM */}
         <div className="command-side">
-          <div style={cardStyle} className="board-stack">
-            <div style={{ display: "flex", justifyContent: "between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, fontWeight: "600" }}>{t.opsControl}</span>
-              <Badge tone={riskTone}>{t.liveBoard}</Badge>
+          <div style={cardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <Badge label={t.opsControl} tone="brand" />
+              <Badge label={t.liveBoard} tone="blue" />
             </div>
-            <div className="kpi-status-grid">
-              {opsSignals.map((sig, idx) => (
-                <div key={idx} className="compact-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ margin: "0 0 4px 0", fontSize: 15, fontWeight: 800 }}>{t.dailySellerControl}</h3>
+            <p style={{ margin: "0 0 14px 0", color: "#64748b", fontSize: 12 }}>{t.workRhythmHelper}</p>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {opsSignals.map((item, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f8fafc", borderRadius: 14, border: "1px solid #e2e8f0" }}>
                   <div>
-                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{sig.label}</div>
-                    <div style={{ fontSize: 10, color: "#cbd5e1", marginTop: 2 }}>{sig.helper}</div>
+                    <small style={{ display: "block", color: "#64748b", fontSize: 11, fontWeight: 600 }}>{item.label}</small>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{item.value}</span>
                   </div>
-                  <Badge tone={sig.tone}>{sig.value}</Badge>
+                  <div style={{ textAlign: "right" }}>
+                    <Badge label={item.helper} tone={item.tone} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ONBOARDING PROGRESS SYSTEM */}
+          <div style={{ ...cardStyle, background: "linear-gradient(180deg, #ffffff, #f8fafc)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <Badge label={t.onboardingStatus} tone="neutral" />
+              <strong style={{ fontSize: 13, color: colors.brand }}>{checklistProgress}%</strong>
+            </div>
+            <h3 style={{ margin: "0 0 10px 0", fontSize: 14 }}>{t.operationalReadiness}</h3>
+            <div style={{ marginBottom: 12 }}><Progress value={checklistProgress} /></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {checklist.map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: item.done ? "#0f172a" : "#64748b" }}>
+                  <span style={{ color: item.done ? "#10b981" : "#cbd5e1", fontWeight: 900 }}>{item.done ? "✓" : "○"}</span>
+                  <span style={{ textDecoration: item.done ? "line-through" : "none", opacity: item.done ? 0.65 : 1 }}>{item.label}</span>
                 </div>
               ))}
             </div>
@@ -399,109 +432,63 @@ export function ExecutiveDashboard({
         </div>
       </div>
 
-      {/* Main Core Business Metrics Stats Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }} className="metrics-grid">
-        <StatCard title={t.revenue} value={compactMoney(metrics.totalRevenue)} delta={revenueDelta.text} deltaTone={revenueDelta.tone} helper={`${metrics.totalUnits} ${t.unitsSold}`} />
-        <StatCard title={t.grossProfit} value={compactMoney(metrics.totalProfit)} delta={profitDelta.text} deltaTone={profitDelta.tone} helper={`${percent(metrics.avgMargin)} ${t.avgMarginText}`} />
-        <StatCard title={t.inventoryValue} value={compactMoney(metrics.inventoryValue)} delta={inventoryDelta.text} deltaTone={inventoryDelta.tone} helper={`${metrics.totalStock} ${t.unitsAvailableShort}`} />
-        <StatCard title={t.riskScore} value={`${metrics.riskScore}%`} delta={riskDelta.text} deltaTone={riskDelta.tone} helper={`${t.dailyLeak}: ${money(metrics.dailyLeakEstimate)}`} />
-      </div>
-
-      {/* Dual Row Trend Chart Visualization & Workflows */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(450px, 1fr))", gap: 12 }} className="chart-grid">
-        <LineChartCard title={t.cashflowTrend} subtitle={t.inflowOutflow} data={cashflowTrend} primaryKey="value" secondaryKey="secondary" primaryLabel={t.cashIn} secondaryLabel={t.cashOut} />
-        <LineChartCard title={t.profitTrend} subtitle={t.profit7Days} data={profitTrend} primaryKey="value" primaryLabel={t.productProfit} />
-      </div>
-
-      {/* Actionable Decision Hub Grid Panels */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.2fr)", gap: 12 }} className="feed-grid">
-        {/* Daily Seller Checklist & Workflows */}
-        <div style={cardStyle} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 15 }}>{t.dailySellerControl}</h3>
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "#94a3b8" }}>{t.workRhythm} ({t.workRhythmValue})</p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {workflowSteps.map((ws) => (
-              <div key={ws.step} style={{ display: "flex", gap: 12, alignItems: "start", opacity: ws.active ? 1 : 0.5 }}>
-                <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: "bold" }}>{ws.step}</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: "500" }}>{ws.title}</div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>{ws.detail}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button style={{ ...ctaButtonStyle, marginTop: "auto" }} onClick={onGoAI}>{t.openAiCenter}</button>
-        </div>
-
-        {/* AI Insight Decision Cards Loop */}
-        <div style={cardStyle} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 15 }}>{t.bestNextAction}</h3>
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "#94a3b8" }}>{t.aiDecisionToday}</p>
-          </div>
-          <div style={{ display: "grid", gap: 10 }}>
-            {nextBestActions.map((act, i) => (
-              <div key={i} className="compact-panel" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: "600", color: "#f8fafc" }}>{act.title}</span>
-                <span style={{ fontSize: 11, color: "#cbd5e1" }}>{act.detail}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: "auto" }}>
-            <button style={{ ...ghostButtonStyle, flex: 1 }} onClick={onGoProducts}>{t.manageProducts}</button>
-            <button style={{ ...ghostButtonStyle, flex: 1 }} onClick={onGoReports}>{t.viewReports}</button>
-          </div>
-        </div>
-      </div>
-
-      {/* Core Dynamic Matrix Table Render Engine */}
+      {/* FLOW WORKFLOW STEPS INTERACTIVE LINE */}
       <div style={cardStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 15 }}>{t.skuPerformance}</h3>
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "#94a3b8" }}>{products.length > 0 ? t.priorityProducts : t.noRanking}</p>
-          </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <Badge label={t.workRhythm} tone="success" />
+          <Badge label={t.workRhythmValue} tone="neutral" />
         </div>
-        {filteredProducts.length > 0 ? (
-          <>
-            <div className="hidden-mobile"><ProductTable products={filteredProducts} onStock={onStock} onSale={onSale} onDelete={onDelete} /></div>
-            <div className="hidden-desktop"><ProductCards products={filteredProducts} onStock={onStock} onSale={onSale} onDelete={onDelete} /></div>
-          </>
-        ) : (
-          <div style={{ padding: "32px 0", textAlign: "center", color: "#64748b", fontSize: 13 }}>{t.noProduct}</div>
-        )}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }} className="kpi-status-grid">
+          {workflowSteps.map((w, i) => (
+            <div key={i} style={{ padding: 12, borderRadius: 16, background: w.active ? "#f0fdf4" : "#f8fafc", border: w.active ? "1px solid #bbf7d0" : "1px solid #e2e8f0", minWidth: 0 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                <span style={{ width: 18, height: 18, borderRadius: 999, background: w.active ? "#10b981" : "#94a3b8", color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900 }}>{w.step}</span>
+                <strong style={{ fontSize: 13, color: "#0f172a" }}>{w.title}</strong>
+              </div>
+              <p style={{ margin: 0, fontSize: 12, color: "#475569", whiteSpace: "nowrap", overflow: "hidden", text-overflow: "ellipsis" }}>{w.detail}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* SaaS Product Growth & Onboarding Guide Footprint */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }} className="dashboard-grid">
-        <div style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: "600" }}>{t.onboardingStatus}</span>
-            <Badge tone={checklistProgress === 100 ? "success" : "warning"}>{checklistProgress}% {t.done}</Badge>
-          </div>
-          <Progress value={checklistProgress} style={{ marginBottom: 12 }} />
-          <div style={{ display: "grid", gap: 8 }}>
-            {checklist.map((item, idx) => (
-              <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, opacity: item.done ? 1 : 0.6 }}>
-                <span style={{ color: item.done ? "#e2e8f0" : "#94a3b8" }}>{item.label}</span>
-                <span style={{ fontWeight: "600", color: item.done ? "#22c55e" : "#eab308" }}>{item.done ? t.done : t.notYet}</span>
+      {/* LOWER GRID: PRODUCT PERFORMANCE & ACTIONS LIST */}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.42fr) minmax(300px, 0.58fr)", gap: 12 }} className="feed-grid">
+        <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
+          <div style={cardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
+              <div>
+                <Badge label={t.skuPerformance} tone="brand" />
+                <h3 style={{ margin: "4px 0 0 0", fontSize: 16 }}>{t.priorityProducts}</h3>
               </div>
-            ))}
+              <button type="button" onClick={onGoProducts} style={ghostButtonStyle}>{t.manageProducts}</button>
+            </div>
+            <ProductTable products={filteredProducts} onStock={onStock} onSale={onSale} onDelete={onDelete} />
           </div>
         </div>
 
-        <div style={cardStyle} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Badge tone="primary">{t.globalBadge}</Badge>
-            <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: "500" }}>{t.buildPhase}</span>
+        {/* RIGHT ACTION PLANS INSIGHT AT A GLANCE */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }} className="command-side">
+          <div style={cardStyle}>
+            <Badge label={t.bestNextAction} tone="success" />
+            <h3 style={{ margin: "10px 0 12px 0", fontSize: 15 }}>{t.aiDecisionToday}</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+              {nextBestActions.map((act, i) => (
+                <div key={i} style={{ padding: 12, borderRadius: 16, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                  <strong style={{ display: "block", fontSize: 13, color: "#0f172a", marginBottom: 2 }}>{act.title}</strong>
+                  <small style={{ color: "#64748b", lineHeight: 1.4 }}>{act.detail}</small>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={onGoAI} style={{ ...ctaButtonStyle, width: "100%" }}>{t.openActionPlan}</button>
           </div>
-          <h4 style={{ margin: 0, fontSize: 14, color: "white" }}>{t.globalTitle}</h4>
-          <p style={{ margin: 0, fontSize: 11, color: "#94a3b8", lineHeight: 1.5 }}>{t.globalDescription}</p>
-          <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
-            <button style={{ ...ghostButtonStyle, flex: 1 }} onClick={onGoMarketplace}>{t.integrations}</button>
-            <button style={{ ...ghostButtonStyle, flex: 1 }} onClick={onGoBilling}>{t.managePlan}</button>
+
+          <div style={cardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <Badge label={t.globalBadge} tone="blue" />
+              <Badge label={t.scaleReady} tone="success" />
+            </div>
+            <h3 style={{ margin: "0 0 4px 0", fontSize: 14 }}>{t.globalTitle}</h3>
+            <p style={{ margin: 0, color: "#64748b", fontSize: 12, lineHeight: 1.6 }}>{t.globalDescription}</p>
           </div>
         </div>
       </div>
