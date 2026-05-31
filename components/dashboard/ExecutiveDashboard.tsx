@@ -445,7 +445,10 @@ export function ExecutiveDashboard({
                 <span style={{ width: 18, height: 18, borderRadius: 999, background: w.active ? "#10b981" : "#94a3b8", color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900 }}>{w.step}</span>
                 <strong style={{ fontSize: 13, color: "#0f172a" }}>{w.title}</strong>
               </div>
-              <p style={{ margin: 0, fontSize: 12, color: "#475569", whiteSpace: "nowrap", overflow: "hidden", text-overflow: "ellipsis" }}>{w.detail}</p>
+              // GANTI BARIS 448 MENJADI SEPERTI INI:
+              <p style={{ margin: 0, fontSize: 12, color: "#475569", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {w.detail}
+              </p>
             </div>
           ))}
         </div>
