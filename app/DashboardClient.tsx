@@ -113,7 +113,7 @@ export default function DashboardPage() {
     return sortedProducts;
   }, [selectedFilter, sortedProducts]);
   const sparklineData = [0, metrics.totalProfit * 0.3, metrics.totalProfit * 0.58, metrics.totalProfit * 0.76, metrics.totalProfit];
-  consconst insightCards = useMemo(() => buildInsightCards(products, metrics as any), [products, metrics]);
+  const insightCards = useMemo(() => buildInsightCards(products, metrics as any), [products, metrics]);
   const cashflowTrend = useMemo(() => getCashflowTrend(products, expenses), [products, expenses]);
   const profitTrend = useMemo(() => getProfitTrend(products), [products]);
   const expenseBreakdown = useMemo(() => getExpenseBreakdown(expenses), [expenses]);
