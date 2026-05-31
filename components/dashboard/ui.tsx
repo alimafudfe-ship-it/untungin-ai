@@ -55,59 +55,49 @@ export const ghostButtonStyle: React.CSSProperties = {
   boxShadow: "0 8px 24px rgba(16,24,40,0.04)",
 };
 
+// Perbaikan fungsi dengan menambahkan Fallback Default Object di akhir kurung kotak
 function tonePalette(tone: Tone) {
-  return {
+  const mapping: Record<string, { color: string; bg: string; border: string }> = {
     success: { color: "#047857", bg: "#ecfdf3", border: "#a7f3d0" },
     warning: { color: "#b45309", bg: "#fffbeb", border: "#fde68a" },
     danger: { color: "#b42318", bg: "#fff1f1", border: "#fecaca" },
     blue: { color: "#175cd3", bg: "#eff6ff", border: "#bfdbfe" },
     neutral: { color: colors.ink, bg: "#f8fafc", border: "#e2e8f0" },
     muted: { color: colors.muted, bg: "#f8fafc", border: "#e2e8f0" },
-  }[tone];
+    
+    // Tambahan Opsional: Berikan penanganan langsung jika nama marketplace tidak sengaja terlempar ke sini
+    shopee: { color: "#ea580c", bg: "#fff7ed", border: "#ffedd5" },
+    tokopedia: { color: "#16a34a", bg: "#f0fdf4", border: "#dcfce7" },
+    tiktok: { color: "#000000", bg: "#f3f4f6", border: "#e5e7eb" }
+  };
+
+  // Gunakan '||' untuk mengembalikan skema 'neutral' jika tone yang dimasukkan tidak terdaftar
+  return mapping[tone] || mapping["neutral"];
 }
 
 export function Badge({ label, tone = "muted" }: { label: string; tone?: Tone }) {
+  // Ambil palet yang sudah diproteksi oleh fallback di dalam fungsi tonePalette
   const palette = tonePalette(tone);
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "5px 9px", color: palette.color, background: palette.bg, border: `1px solid ${palette.border}`, fontSize: 12, fontWeight: 850, letterSpacing: 0.1 }}>{label}</span>;
-}
-
-export function Progress({ value }: { value: number }) {
-  const width = clamp(value, 0, 100);
-  return <div style={{ height: 8, borderRadius: 999, background: "#edf2f7", overflow: "hidden" }}><div style={{ width: `${width}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg,#0f766e,#14b8a6,#f59e0b)" }} /></div>;
-}
-
-export function EmptyState({ title, description }: { title: string; description: string }) {
-  return <div style={{ padding: 48, textAlign: "center", color: colors.muted }}><h3 style={{ color: colors.ink, margin: "0 0 8px" }}>{title}</h3><p style={{ margin: 0, lineHeight: 1.7 }}>{description}</p></div>;
-}
-
-export function StatCard({
-  label,
-  value,
-  helper,
-  tone = "success",
-  delta,
-  deltaTone = "muted",
-}: {
-  label: string;
-  value: React.ReactNode;
-  helper: string;
-  tone?: Tone;
-  delta?: string;
-  deltaTone?: Tone;
-}) {
-  const color = tone === "danger" ? "#b42318" : tone === "warning" ? "#b45309" : tone === "blue" ? "#175cd3" : tone === "neutral" ? colors.ink : colors.brand;
-  const deltaPalette = tonePalette(deltaTone);
-  return <div style={{ ...cardStyle, position: "relative", overflow: "hidden", minWidth: 0 }}>
-    <div style={{ position: "absolute", right: -28, top: -32, width: 105, height: 105, borderRadius: 999, background: `${color}12` }} />
-    <div style={{ position: "relative", zIndex: 1 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-        <p style={{ margin: 0, color: colors.muted, fontSize: 13, fontWeight: 750 }}>{label}</p>
-        {delta ? <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "6px 9px", color: deltaPalette.color, background: deltaPalette.bg, border: `1px solid ${deltaPalette.border}`, fontSize: 11, fontWeight: 850 }}>{delta}</span> : null}
-      </div>
-      <h2 style={{ margin: "8px 0", color, fontSize: 27, letterSpacing: -0.9 }}>{value}</h2>
-      <small style={{ color: colors.muted, lineHeight: 1.5 }}>{helper}</small>
-    </div>
-  </div>;
+  
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        borderRadius: 999,
+        padding: "5px 9px",
+        color: palette.color,          // Dijamin tidak akan 'undefined' lagi
+        background: palette.bg,        // Dijamin aman
+        border: `1px solid ${palette.border}`, // Dijamin aman
+        fontSize: 12,
+        fontWeight: 850,
+        letterSpacing: 0.1,
+      }}
+    >
+      {label}
+    </span>
+  );
 }
 
 export function Sparkline({ data }: { data: number[] }) {
