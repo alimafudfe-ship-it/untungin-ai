@@ -8,7 +8,7 @@ import { localeTag, useDashboardLocale, type Locale } from "@/lib/dashboard/i18n
 import { compactMoney, money, percent } from "@/lib/dashboard/format";
 import { Badge, cardStyle, ctaButtonStyle, ghostButtonStyle, Progress, StatCard } from "./ui";
 import { LineChartCard } from "./Charts";
-import { ProductCards, ProductTable } from "./ProductTable";
+import { ProductTable } from "./ProductTable";
 
 type TrendPoint = { label: string; value: number; secondary?: number };
 
@@ -159,7 +159,6 @@ export function ExecutiveDashboard({
   const locale = useDashboardLocale();
   const t = EXEC_COPY[locale];
 
-  const topProducts = useMemo(() => [...products].sort((a, b) => (b.profit || 0) - (a.profit || 0)).slice(0, 4), [products]);
   const criticalProducts = useMemo(() => products.filter((item) => (item.stockRemaining || 0) <= 5 || (item.stockRemaining || 0) <= (item.stockInitial || 0) * 0.15), [products]);
   const criticalPreview = useMemo(() => criticalProducts.slice(0, 4), [criticalProducts]);
   const lossProducts = useMemo(() => products.filter((item) => (item.profit || 0) < 0), [products]);
@@ -342,7 +341,7 @@ export function ExecutiveDashboard({
                 </div>
                 <div className="hero-fill-card">
                   <small>{t.cashRunway}</small>
-                  strong>{getCashRunway(metrics, t)}</strong>
+                  <strong>{getCashRunway(metrics, t)}</strong>
                   <small>{t.cashRunwayHelper}</small>
                 </div>
                 <div className="hero-fill-card" onClick={onGoMarketplace} style={{ cursor: "pointer" }}>
