@@ -2,7 +2,7 @@
 import { Queue } from "bullmq";
 import { redis } from "../config/redis";
 
-// PERBAIKAN: Tambahkan 'as any' di akhir objek koneksi untuk meredam error Type 'Redis' mismatch
+// Cari bagian baris 6-8 di file scheduler.ts Anda, ubah menjadi seperti ini:
 const shopeeQueue = new Queue("shopee-scouting", { connection: redis as any });
 const tokopediaQueue = new Queue("tokopedia-scouting", { connection: redis as any });
 const tiktokQueue = new Queue("tiktok-scouting", { connection: redis as any });

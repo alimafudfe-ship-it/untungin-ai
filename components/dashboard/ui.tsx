@@ -68,7 +68,7 @@ export const ghostButtonStyle: React.CSSProperties = {
 // 2. CORE UI COMPONENTS (With Safety Fallback)
 // ==========================================
 
-function tonePalette(tone: Tone) {
+function tonePalette(tone: any) {
   const mapping: Record<string, { color: string; bg: string; border: string }> = {
     success: { color: "#047857", bg: "#ecfdf3", border: "#a7f3d0" },
     warning: { color: "#b45309", bg: "#fffbeb", border: "#fde68a" },
@@ -76,18 +76,22 @@ function tonePalette(tone: Tone) {
     blue: { color: "#175cd3", bg: "#eff6ff", border: "#bfdbfe" },
     neutral: { color: colors.ink, bg: "#f8fafc", border: "#e2e8f0" },
     muted: { color: colors.muted, bg: "#f8fafc", border: "#e2e8f0" },
-    
-    // Fallback handler jika parameter bernilai string platform marketplace
     shopee: { color: "#ea580c", bg: "#fff7ed", border: "#ffedd5" },
     tokopedia: { color: "#16a34a", bg: "#f0fdf4", border: "#dcfce7" },
     tiktok: { color: "#000000", bg: "#f3f4f6", border: "#e5e7eb" }
   };
 
-  // Mengembalikan palet 'neutral' jika token yang dicari undefined atau tidak terdaftar
-  return mapping[tone] || mapping["neutral"];
+  // Jika parameter tone null, undefined, atau tidak bertipe string, paksa ke 'neutral'
+  if (!tone || typeof tone !== "string") {
+    return mapping["neutral"];
+  }
+
+  // Cari di mapping, jika tidak ada (misal ada string 'aktif' atau 'proses'), lempar ke 'neutral'
+  return mapping[tone.toLowerCase()] || mapping["neutral"];
 }
 
-export function Badge({ label, tone = "muted" }: { label: string; tone?: Tone }) {
+export function Badge({ label, tone = "muted" }: { label: string; tone?: any }) {
+  // Ambil palet dengan jaminan tidak akan menghasilkan undefined
   const palette = tonePalette(tone);
   
   return (
@@ -98,9 +102,9 @@ export function Badge({ label, tone = "muted" }: { label: string; tone?: Tone })
         gap: 6,
         borderRadius: 999,
         padding: "5px 9px",
-        color: palette.color,
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
+        color: palette?.color || "#101828",
+        background: palette?.bg || "#f8fafc",
+        border: `1px solid ${palette?.border || "#e2e8f0"}`,
         fontSize: 12,
         fontWeight: 850,
         letterSpacing: 0.1,
