@@ -24,7 +24,7 @@ export default function MarketIntelligencePage() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
+const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     const formData = new FormData(e.currentTarget);
@@ -43,15 +43,14 @@ export default function MarketIntelligencePage() {
     setFilteredProducts([]); 
 
     try {
-      // 💡 REKOMENDASI: ID Toko aktif Anda dari Supabase. 
-      // Ganti "id_toko_anda" dengan state/context Store ID Anda yang riil agar disetujui TikTok API.
+      // Masukkan ID Toko aktif Anda dari Supabase di sini
       const currentStoreId = "id_toko_anda"; 
 
-      // 🔥 DISINKRONKAN: Mengarah ke API TikTok Resmi dengan query param storeId sesuai route.ts
+      // Panggilan fetch yang sudah diperbaiki strukturnya
       const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${currentStoreId}&keyword=${encodeURIComponent(searchInput)}`, {
-        method: "GET", // <-- Sesuai export async function GET di backend TikTok Anda
+        method: "GET",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         }
       });
       
@@ -69,7 +68,6 @@ export default function MarketIntelligencePage() {
       setIsLoading(false);
     }
   };
-  
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 bg-gray-50 min-h-screen">
       {/* 1. Header & Search Bar */}
