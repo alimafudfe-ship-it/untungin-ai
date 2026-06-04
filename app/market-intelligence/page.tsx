@@ -1,54 +1,27 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Search, ShoppingBag, TrendingUp, DollarSign, AlertCircle, Loader2 } from "lucide-react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function MarketIntelligencePage() {
   const [keyword, setKeyword] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // Interface diselaraskan 100% dengan kembalian mappedDashboardProducts dari backend Anda
   interface Product {
     id: string | number;
-    name: string;          // prod.title
-    sellingPrice: number;  // sellingPrice
-    costPrice: number;     // costPrice
-    stockRemaining: number;// stockRemaining
-    quantitySold: number;  // quantitySold
-    profit: number;        // profit
-    margin: number;        // margin
-    marketplace: string;   // "TikTok"
+    name: string;          
+    sellingPrice: number;  
+    costPrice: number;     
+    stockRemaining: number;
+    quantitySold: number;  
+    profit: number;        
+    margin: number;        
+    marketplace: string;   
   }
 
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const supabase = createClientComponentClient();
-
-  // ✨ Ambil ID Toko Riil secara otomatis dari Supabase saat halaman dimuat
-  useEffect(() => {
-    async function fetchUserStore() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: store } = await supabase
-          .from("store_connections")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("provider", "tiktok")
-          . some() // atau .single() tergantung struktur data Anda
-          .limit(1)
-          .single();
-        
-        if (store) {
-          setActiveStoreId(store.id);
-        }
-      }
-    }
-    fetchUserStore();
-  }, [supabase]);
 
   const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,22 +29,24 @@ export default function MarketIntelligencePage() {
     const formData = new FormData(e.currentTarget);
     const searchInput = formData.get("searchQuery")?.toString() || "";
     
-    setKeyword(searchInput);
-    setHasSearched(true);
-    setErrorMsg(null);
-
-    // Validasi Store ID
-    if (!activeStoreId) {
-      setErrorMsg("Koneksi toko TikTok Anda tidak aktif atau belum terhubung di Supabase.");
+    if (!searchInput.trim()) {
+      setFilteredProducts([]);
+      setHasSearched(false);
       return;
     }
 
+    setKeyword(searchInput);
+    setHasSearched(true);
     setIsLoading(true);
+    setErrorMsg(null);
     setFilteredProducts([]); 
 
     try {
-      // 🔥 Langkah 1: Panggil backend sync Anda yang menggunakan method GET
-      const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${activeStoreId}`, {
+      // 💡 AMAN: Menggunakan endpoint proxy lokal atau default store ID aktif Anda.
+      // Sesuaikan string di bawah ini dengan ID baris koneksi toko TikTok Anda di Supabase.
+      const currentStoreId = "0cde71b6-bd46-4b82-89b0-137685a06536"; 
+
+      const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${currentStoreId}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json"
@@ -80,25 +55,19 @@ export default function MarketIntelligencePage() {
       
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Server mengembalikan respon non-JSON (Kemungkinan Server Crash atau Route Salah).");
+        throw new Error("Server mengembalikan respon non-JSON (Gagal rute API atau server crash).");
       }
 
       const data = await response.json();
 
       if (data.ok && data.products) {
-        setAllProducts(data.products);
-        
-        // 🔥 Langkah 2: Sisi Frontend menyaring data berdasarkan kata kunci input user ("sepatu")
-        if (searchInput.trim()) {
-          const filtered = data.products.filter((prod: Product) =>
-            prod.name.toLowerCase().includes(searchInput.toLowerCase())
-          );
-          setFilteredProducts(filtered);
-        } else {
-          setFilteredProducts(data.products);
-        }
+        // Melakukan penyaringan kata kunci di sisi klien (Client-side filtering)
+        const filtered = data.products.filter((prod: Product) =>
+          prod.name.toLowerCase().includes(searchInput.toLowerCase())
+        );
+        setFilteredProducts(filtered);
       } else {
-        setErrorMsg(data.error || "Gagal menyelaraskan data produk dari TikTok Shop.");
+        setErrorMsg(data.error || "Gagal menyelaraskan katalog data dari gerbang TikTok Shop.");
       }
     } catch (error: any) {
       console.error("Gagal sinkronisasi data real-time:", error);
@@ -113,7 +82,7 @@ export default function MarketIntelligencePage() {
       {/* 1. Header & Search Bar */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Market Intelligence Search</h1>
-        <p className="text-gray-500 text-sm mb-4">Pantau produk terlaris di toko Anda dan analisis performa omzet secara real-time.</p>
+        <p className="text-gray-500 text-sm mb-4">Pantau produk terlaris di katalog toko Anda dan analisis performa omzet secara real-time.</p>
         
         <form onSubmit={handleSearch} className="flex gap-3">
           <div className="relative flex-1">
@@ -148,7 +117,7 @@ export default function MarketIntelligencePage() {
         isLoading ? (
           <div className="bg-white p-12 rounded-2xl border border-gray-100 text-center text-gray-500 flex flex-col items-center justify-center space-y-3">
             <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
-            <p className="text-sm font-medium text-gray-600">Menghubungkan ke API resmi TikTok Shop Partner Center dan memperbarui Supabase...</p>
+            <p className="text-sm font-medium text-gray-600">Menghubungkan ke API resmi TikTok Shop Partner Center dan memperbarui database internal...</p>
           </div>
         ) : errorMsg ? (
           <div className="bg-white p-12 rounded-2xl border border-gray-100 text-center text-orange-500 flex flex-col items-center justify-center space-y-2">
@@ -162,9 +131,9 @@ export default function MarketIntelligencePage() {
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                 <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><ShoppingBag className="h-6 w-6" /></div>
                 <div>
-                  <p className="text-sm text-gray-400 font-medium">Total Terjual (Sync Awal)</p>
+                  <p className="text-sm text-gray-400 font-medium">Total Volume Terjual</p>
                   <h3 className="text-xl font-bold text-gray-800">
-                    {filteredProducts.reduce((sum, p) => sum + p.quantitySold, 0).toLocaleString("id-ID")} pcs
+                    {filteredProducts.reduce((sum, p) => sum + (p.quantitySold || 0), 0).toLocaleString("id-ID")} pcs
                   </h3>
                 </div>
               </div>
@@ -173,7 +142,7 @@ export default function MarketIntelligencePage() {
                 <div>
                   <p className="text-sm text-gray-400 font-medium">Estimasi Profit Kotor</p>
                   <h3 className="text-xl font-bold text-gray-800">
-                    Rp {filteredProducts.reduce((sum, p) => sum + p.profit, 0).toLocaleString("id-ID")}
+                    Rp {filteredProducts.reduce((sum, p) => sum + (p.profit || 0), 0).toLocaleString("id-ID")}
                   </h3>
                 </div>
               </div>
@@ -183,7 +152,7 @@ export default function MarketIntelligencePage() {
                   <p className="text-sm text-gray-400 font-medium">Rata-rata Harga Jual</p>
                   <h3 className="text-xl font-bold text-gray-800">
                     Rp {filteredProducts.length > 0 
-                      ? Math.floor(filteredProducts.reduce((sum, p) => sum + p.sellingPrice, 0) / filteredProducts.length).toLocaleString("id-ID")
+                      ? Math.floor(filteredProducts.reduce((sum, p) => sum + (p.sellingPrice || 0), 0) / filteredProducts.length).toLocaleString("id-ID")
                       : "0"
                     }
                   </h3>
@@ -194,7 +163,7 @@ export default function MarketIntelligencePage() {
             {/* 3. Top Products Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-                <h2 className="font-bold text-gray-800 text-lg">Hasil Pencarian Produk untuk "{keyword}"</h2>
+                <h2 className="font-bold text-gray-800 text-lg">Hasil Katalog Produk untuk "{keyword}"</h2>
                 <span className="text-xs bg-black text-white px-3 py-1 rounded-full font-semibold">Official TikTok Partner API</span>
               </div>
               <div className="overflow-x-auto">
@@ -202,7 +171,7 @@ export default function MarketIntelligencePage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-gray-50 text-gray-400 text-xs uppercase font-semibold border-b border-gray-100">
-                        <th className="p-4">Nama Produk Toko</th>
+                        <th className="p-4">Nama Produk Katalog Toko</th>
                         <th className="p-4">Harga Jual</th>
                         <th className="p-4">Estimasi HPP (60%)</th>
                         <th className="p-4">Stok Live Gudang</th>
@@ -226,7 +195,7 @@ export default function MarketIntelligencePage() {
                           </td>
                           <td className="p-4 text-center">
                             <span className="text-xs bg-teal-100 text-teal-800 px-2.5 py-1 rounded-md font-medium">
-                              {prod.marketplace}
+                              {prod.marketplace || "TikTok"}
                             </span>
                           </td>
                         </tr>
@@ -235,7 +204,7 @@ export default function MarketIntelligencePage() {
                   </table>
                 ) : (
                   <div className="p-12 text-center text-gray-400">
-                    Tidak ada produk dengan kata kunci "{keyword}" di katalog toko TikTok Anda.
+                    Tidak ada produk dengan kata kunci "{keyword}" yang ditemukan di dalam inventori toko TikTok Anda.
                   </div>
                 )}
               </div>
@@ -246,7 +215,7 @@ export default function MarketIntelligencePage() {
         <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center text-gray-400 flex flex-col items-center justify-center space-y-3">
           <AlertCircle className="h-12 w-12 text-gray-300" />
           <h3 className="text-lg font-medium text-gray-700">Belum Ada Data yang Ditampilkan</h3>
-          <p className="text-sm max-w-md text-gray-400">Silakan masukkan kata kunci untuk memicu sinkronisasi produk terdaftar langsung dari TikTok Shop Partner API.</p>
+          <p className="text-sm max-w-md text-gray-400">Silakan masukkan kata kunci untuk memicu penyelarasan produk terdaftar langsung dari TikTok Shop Partner API.</p>
         </div>
       )}
     </div>
