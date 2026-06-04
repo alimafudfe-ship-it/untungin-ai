@@ -41,6 +41,7 @@ export default function MarketIntelligencePage() {
     setFilteredProducts([]); 
 
     try {
+      // 💡 GANTI INI: Masukkan ID toko riil dari Supabase Anda jika backend mewajibkannya
       const currentStoreId = "id_toko_anda"; 
 
       const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${currentStoreId}&keyword=${encodeURIComponent(searchInput)}`, {
@@ -50,16 +51,22 @@ export default function MarketIntelligencePage() {
         }
       });
       
+      // Proteksi mendasar penangkap eror HTML agar tidak memicu popup break crash
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("API Route crash atau mengembalikan halaman HTML (Cek log Vercel Anda).");
+      }
+
       const data = await response.json();
 
-      if (data.ok && data.products) {
+      if (response.ok && data.products) {
         setFilteredProducts(data.products);
       } else {
         setErrorMsg(data.error || "Gagal mendapatkan data produk dari TikTok Shop.");
       }
-    } catch (error) {
-      console.error("Gagal mengambil data real-time:", error);
-      setErrorMsg("Terjadi gangguan koneksi ke server intelijen TikTok.");
+    } catch (error: any) {
+      console.error("Gagal mengambil data:", error);
+      setErrorMsg(error.message || "Terjadi gangguan koneksi ke server intelijen TikTok.");
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +74,6 @@ export default function MarketIntelligencePage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 bg-gray-50 min-h-screen">
-      {/* 1. Header & Search Bar */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Market Intelligence Search</h1>
         <p className="text-gray-500 text-sm mb-4">Pantau produk kompetitor terlaris dan analisis tren omzet pasar secara real-time.</p>
@@ -114,7 +120,6 @@ export default function MarketIntelligencePage() {
           </div>
         ) : (
           <>
-            {/* 2. Market Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                 <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><ShoppingBag className="h-6 w-6" /></div>
@@ -148,7 +153,6 @@ export default function MarketIntelligencePage() {
               </div>
             </div>
 
-            {/* 3. Top Products Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100 flex justify-between items-center">
                 <h2 className="font-bold text-gray-800 text-lg">Produk Kompetitor Terlaris untuk "{keyword}"</h2>
