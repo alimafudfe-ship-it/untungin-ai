@@ -1,4 +1,3 @@
-```typescript
 "use client";
 
 import React, { useState } from "react";
@@ -9,22 +8,21 @@ export default function MarketIntelligencePage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Interface diselaraskan 100% dengan objek kembalian backend API TikTok Anda
   interface Product {
     id: string | number;
-    name: string;          // Sesuai backend TikTok route.ts
-    sellingPrice: number;  // Sesuai backend TikTok route.ts
-    costPrice: number;     // Sesuai backend TikTok route.ts
-    stockRemaining: number;// Sesuai backend TikTok route.ts
-    quantitySold: number;  // Sesuai backend TikTok route.ts
-    profit: number;        // Sesuai backend TikTok route.ts
+    name: string;          
+    sellingPrice: number;  
+    costPrice: number;     
+    stockRemaining: number;
+    quantitySold: number;  
+    profit: number;        
     marketplace: string;
   }
 
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     const formData = new FormData(e.currentTarget);
@@ -43,10 +41,8 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     setFilteredProducts([]); 
 
     try {
-      // Masukkan ID Toko aktif Anda dari Supabase di sini
       const currentStoreId = "id_toko_anda"; 
 
-      // Panggilan fetch yang sudah diperbaiki strukturnya
       const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${currentStoreId}&keyword=${encodeURIComponent(searchInput)}`, {
         method: "GET",
         headers: {
@@ -68,6 +64,7 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 bg-gray-50 min-h-screen">
       {/* 1. Header & Search Bar */}
@@ -124,7 +121,6 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
                 <div>
                   <p className="text-sm text-gray-400 font-medium">Total Volume Terjual</p>
                   <h3 className="text-xl font-bold text-gray-800">
-                    {/* DISINKRONKAN dengan qyuatitySold */}
                     {filteredProducts.reduce((sum, p) => sum + (p.quantitySold || 0), 0).toLocaleString("id-ID")} pcs
                   </h3>
                 </div>
@@ -134,7 +130,6 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
                 <div>
                   <p className="text-sm text-gray-400 font-medium">Estimasi Profit Kotor</p>
                   <h3 className="text-xl font-bold text-gray-800">
-                    {/* DISINKRONKAN dengan profit */}
                     Rp {filteredProducts.reduce((sum, p) => sum + (p.profit || 0), 0).toLocaleString("id-ID")}
                   </h3>
                 </div>
@@ -144,7 +139,6 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
                 <div>
                   <p className="text-sm text-gray-400 font-medium">Rata-rata Harga Jual</p>
                   <h3 className="text-xl font-bold text-gray-800">
-                    {/* DISINKRONKAN dengan sellingPrice */}
                     Rp {filteredProducts.length > 0 
                       ? Math.floor(filteredProducts.reduce((sum, p) => sum + (p.sellingPrice || 0), 0) / filteredProducts.length).toLocaleString("id-ID")
                       : "0"
@@ -176,19 +170,15 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
                       {filteredProducts.map((prod) => (
                         <tr key={prod.id} className="hover:bg-gray-50/50 transition">
                           <td className="p-4 max-w-md">
-                            {/* DISINKRONKAN dengan prod.name */}
                             <p className="font-medium text-gray-800 truncate" title={prod.name}>{prod.name}</p>
                           </td>
                           <td className="p-4 font-medium text-gray-800">
-                            {/* DISINKRONKAN dengan prod.sellingPrice */}
                             Rp {prod.sellingPrice.toLocaleString("id-ID")}
                           </td>
                           <td className="p-4 text-gray-500">
-                            {/* DISINKRONKAN dengan prod.costPrice */}
                             Rp {prod.costPrice.toLocaleString("id-ID")}
                           </td>
                           <td className="p-4 text-gray-600 font-medium">
-                            {/* DISINKRONKAN dengan prod.stockRemaining */}
                             {prod.stockRemaining.toLocaleString("id-ID")} pcs
                           </td>
                           <td className="p-4 text-center">
