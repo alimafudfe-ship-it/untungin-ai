@@ -366,18 +366,58 @@ export default function DashboardPage() {
                   return;
                 }
                 setSyncing(true);
-                try {
-                  const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${selectedStoreId || stores[0].id}`);
-                  const data = await response.json(); 
-                  if (!response.ok) throw new Error(data.message || "Gagal sync");
-                  if (data.products) setProducts(data.products);
-                  alert("Sukses! Data produk dan transaksi TikTok Shop berhasil diselaraskan.");
-                } catch (error: any) {
-                  console.error(error);
-                  alert(`Gagal menyelaraskan data otomatis.\nAlasan: ${error.message}`);
-                } finally {
-                  setSyncing(false);
-                }
+          try {
+  // 💡 Menggunakan ID Toko dinamis bawaan kode asli Anda
+  const storeIdParam = selectedStoreId || (stores && stores[0]?.id) || "0cde71b6-bd46-4b82-89b0-137685a06536";
+
+  const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${storeIdParam}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
+
+  const data = await response.json(); 
+  
+  if (!response.ok) {
+    throw new Error(data.message || data.error || "Gagal sync dari server backend");
+  }
+
+  // 1. Ambil array produk secara fleksibel agar kebal dari eror format data
+  const rawProducts = data.products || data.data || (Array.isArray(data) ? data : null);
+
+  if (!rawProducts || !Array.isArray(rawProducts)) {
+    throw new Error("Format properti data dari API backend tidak valid.");
+  }
+
+  // 2. Normalisasi nama properti (antisipasi snake_case vs camelCase)
+  const normalizedProducts = rawProducts.map((prod: any) => ({
+    id: prod.id || prod.product_id || Math.random().toString(),
+    name: prod.name || prod.product_name || "Produk Tanpa Nama",
+    sellingPrice: Number(prod.sellingPrice || prod.selling_price || prod.price || 0),
+    costPrice: Number(prod.costPrice || prod.cost_price || prod.hpp || 0),
+    stockRemaining: Number(prod.stockRemaining || prod.stock_remaining || prod.stock || prod.quantity || 0),
+    quantitySold: Number(prod.quantitySold || prod.quantity_sold || prod.sales || 0),
+    marketplace: prod.marketplace || "TikTok Shop"
+  }));
+
+  // 3. Filter produk berdasarkan kata kunci pencarian aktif di dashboard (jika ada variabel cleanKeyword/keyword)
+  const query = typeof cleanKeyword !== "undefined" ? cleanKeyword : (typeof keyword !== "undefined" ? keyword : "");
+  const filtered = query 
+    ? normalizedProducts.filter((prod: any) => prod.name.toLowerCase().includes(query.toLowerCase()))
+    : normalizedProducts;
+
+  // 4. Masukkan ke state utama milik DashboardClient Anda
+  setProducts(filtered);
+  
+  alert("Sukses! Data produk dan transaksi TikTok Shop berhasil diselaraskan.");
+
+} catch (error: any) {
+  console.error("Error memuat data real-time TikTok dari Backend:", error);
+  alert(`Gagal menyelaraskan data otomatis.\nAlasan: ${error.message}`);
+} finally {
+  setSyncing(false);
+}
               }}
               onAddCashflow={() => setActiveTab("cashflow")}
               onGoAI={() => setActiveTab("insight-ai")}
