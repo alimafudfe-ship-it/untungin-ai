@@ -203,9 +203,7 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
   const [keyword, setKeyword] = useState("");
   const [apiState, setApiState] = useState<ApiState>(EMPTY_BUNDLE);
 
-  // Penyetabil instansi data agar mencegah re-trigger infinite loop render pada useEffect
-  const marketDataHash = marketData ? JSON.stringify(marketData.products || marketData.items || marketData.results || []) : "";
-
+  // Sinkronisasi data real-time dengan parser pengaman schema data camelCase & snake_case
   useEffect(() => {
     if (marketData) {
       const rawProducts = marketData.products || marketData.items || marketData.results || [];
@@ -213,6 +211,7 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
       const normalizedProducts = rawProducts.map((item: any, index: number): MIProduct => {
         return {
           id: item.id || `scraped-prod-${index}-${Date.now()}`,
+          // Menyesuaikan mapping data agar terbaca oleh ProductCard & kalkulator skor Untungin
           productName: item.productName || item.product_name || item.title || item.name || "Produk Tanpa Nama",
           marketplace: item.marketplace || "Shopee",
           country: item.country || "ID",
@@ -220,11 +219,11 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
           keyword: item.keyword || item.product_name || item.name || "-",
           period: item.period || "month",
           
-          priceMin: Number(item.priceMin || item.price_min || item.price || 0),
-          priceMax: Number(item.priceMax || item.price_max || item.price || 0),
+          priceMin: Number(item.priceMin || item.price_min || item.sellingPrice || item.selling_price || item.price || 0),
+          priceMax: Number(item.priceMax || item.price_max || item.sellingPrice || item.selling_price || item.price || 0),
           
           sold7d: Number(item.sold7d || item.sold_7d || 0),
-          sold30d: Number(item.sold30d || item.sold_30d || item.sales || item.sold || 0),
+          sold30d: Number(item.sold30d || item.sold_30d || item.sales || item.sold || item.quantitySold || item.quantity_sold || 0),
           
           revenue7d: Number(item.revenue7d || item.revenue_7d || 0),
           revenue30d: Number(item.revenue30d || item.revenue_30d || item.revenue || 0),
@@ -288,13 +287,17 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
           console.warn("[Dashboard Info] Menggunakan repositori lokal:", err.message);
         });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketDataHash]);
+  }, [marketData]); // Menggunakan dependensi langsung objek marketData agar sinkron saat scrap selesai
 
+  // Sistem pencocokan filter marketplace yang kebal terhadap perbedaan spasi dan underscore casing 
   const filteredProducts = useMemo(() => {
     let list = apiState.products || [];
     if (selectedMarketplace !== "All") {
-      list = list.filter((p) => p.marketplace?.toLowerCase() === selectedMarketplace.toLowerCase());
+      list = list.filter((p) => {
+        const normalizedMarketProduct = (p.marketplace || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        const normalizedSelectedMarket = selectedMarketplace.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        return normalizedMarketProduct === normalizedSelectedMarket;
+      });
     }
     return list;
   }, [apiState.products, selectedMarketplace]);
