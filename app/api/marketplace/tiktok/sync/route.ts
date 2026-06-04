@@ -103,71 +103,77 @@ export async function GET(request: NextRequest) {
       }, { status: 200 });
     }
 
-// =================================================================
-// 💾 PROSES MENYIMPAN DATA DATA KE DATABASE SUPABASE VIA UPSERT
-// =================================================================
-const tiktokProducts = responseData.data?.products || [];
-let mappedDashboardProducts: any[] = [];
+    // =================================================================
+    // 💾 PROSES MENYIMPAN DATA DATA KE DATABASE SUPABASE VIA UPSERT
+    // =================================================================
+    const tiktokProducts = responseData.data?.products || [];
+    let mappedDashboardProducts: any[] = [];
 
-if (tiktokProducts.length > 0) {
-  // 1. Petakan data untuk kebutuhan penyimpanan live sync marketplace
-  const productsToUpsert = tiktokProducts.map((prod: any) => {
-    const firstPriceInfo = prod.skus?.[0]?.price || {};
-    return {
-      user_id: activeStore.user_id,
-      shop_id: activeStore.tiktok_shop_id,
-      product_id: prod.id,
-      provider: "tiktok",
-      title: prod.title || "Produk TikTok Tanpa Nama",
-      price: Number(firstPriceInfo.sale_price || firstPriceInfo.original_price || 0),
-      stock: Number(prod.skus?.[0]?.stock_infos?.[0]?.available_stock || 0)
-    };
-  });
+    if (tiktokProducts.length > 0) {
+      // 1. Petakan data untuk kebutuhan penyimpanan live sync marketplace
+      const productsToUpsert = tiktokProducts.map((prod: any) => {
+        const firstPriceInfo = prod.skus?.[0]?.price || {};
+        return {
+          user_id: activeStore.user_id,
+          shop_id: activeStore.tiktok_shop_id,
+          product_id: prod.id,
+          provider: "tiktok",
+          title: prod.title || "Produk TikTok Tanpa Nama",
+          price: Number(firstPriceInfo.sale_price || firstPriceInfo.original_price || 0),
+          stock: Number(prod.skus?.[0]?.stock_infos?.[0]?.available_stock || 0)
+        };
+      });
 
-  const { error: insertError } = await supabase
-    .from("marketplace_products_live")
-    .upsert(productsToUpsert, { onConflict: "product_id" });
+      const { error: insertError } = await supabase
+        .from("marketplace_products_live")
+        .upsert(productsToUpsert, { onConflict: "product_id" });
 
-  if (insertError) {
-    console.error("❌ Gagal menyimpan data sinkronisasi ke Supabase:", insertError);
-    return NextResponse.json({ ok: false, error: `Gagal menyimpan data ke database lokal: ${insertError.message}` }, { status: 200 });
+      if (insertError) {
+        console.error("❌ Gagal menyimpan data sinkronisasi ke Supabase:", insertError);
+        return NextResponse.json({ ok: false, error: `Gagal menyimpan data ke database lokal: ${insertError.message}` }, { status: 200 });
+      }
+
+      // 2. 🌟 KUNCI UTAMA: Petakan data TikTok langsung ke struktur tipe data "Product" internal Untungin.ai 
+      // Agar ketika diset di frontend melalui setProducts(), dashboard tidak hancur/blank!
+      mappedDashboardProducts = tiktokProducts.map((prod: any, index: number) => {
+        const firstSku = prod.skus?.[0] || {};
+        const sellingPrice = Number(firstSku.price?.sale_price || firstSku.price?.original_price || 0);
+        // Estimasi HPP default 60% dari harga jual sebagai fallback awal data yang baru masuk
+        const costPrice = sellingPrice * 0.6; 
+        const stockRemaining = Number(firstSku.stock_infos?.[0]?.available_stock || 0);
+        const quantitySold = 0; // Data produk baru tersinkronisasi dianggap awal
+        const otherCost = 0;
+        
+        // Perhitungan bisnis standar aplikasi Untungin.ai
+        const profit = (sellingPrice - costPrice) * quantitySold - otherCost;
+        const margin = sellingPrice > 0 ? ((sellingPrice - costPrice) / sellingPrice) * 100 : 0;
+
+        return {
+          id: prod.id || `tt-synced-${index}`,
+          name: prod.title || "Produk TikTok Tanpa Nama",
+          costPrice: costPrice,
+          sellingPrice: sellingPrice,
+          stockInitial: stockRemaining + quantitySold,
+          stockRemaining: stockRemaining,
+          quantitySold: quantitySold,
+          otherCost: otherCost,
+          profit: profit,
+          margin: margin,
+          marketplace: "TikTok"
+        };
+      });
+    }
+
+    // 🌟 Mengembalikan respons sukses terstruktur ke frontend dashboard Anda
+    return NextResponse.json({
+      ok: true,
+      message: "Sukses! Data produk dan transaksi TikTok Shop berhasil diselaraskan.",
+      products: mappedDashboardProducts, // <-- Sekarang mengirimkan data yang sudah kompatibel dengan Frontend!
+      syncedCount: mappedDashboardProducts.length
+    });
+
+  } catch (error: any) {
+    console.error("[TikTok Sync Error]:", error);
+    return NextResponse.json({ ok: false, error: `Mesin sync gagal: ${error.message}` }, { status: 500 });
   }
-
-  // 2. 🌟 KUNCI UTAMA: Petakan data TikTok langsung ke struktur tipe data "Product" internal Untungin.ai 
-  // Agar ketika diset di frontend melalui setProducts(), dashboard tidak hancur/blank!
-  mappedDashboardProducts = tiktokProducts.map((prod: any, index: number) => {
-    const firstSku = prod.skus?.[0] || {};
-    const sellingPrice = Number(firstSku.price?.sale_price || firstSku.price?.original_price || 0);
-    // Estimasi HPP default 60% dari harga jual sebagai fallback awal data yang baru masuk
-    const costPrice = sellingPrice * 0.6; 
-    const stockRemaining = Number(firstSku.stock_infos?.[0]?.available_stock || 0);
-    const quantitySold = 0; // Data produk baru tersinkronisasi dianggap awal
-    const otherCost = 0;
-    
-    // Perhitungan bisnis standar aplikasi Untungin.ai
-    const profit = (sellingPrice - costPrice) * quantitySold - otherCost;
-    const margin = sellingPrice > 0 ? ((sellingPrice - costPrice) / sellingPrice) * 100 : 0;
-
-    return {
-      id: prod.id || `tt-synced-${index}`,
-      name: prod.title || "Produk TikTok Tanpa Nama",
-      costPrice: costPrice,
-      sellingPrice: sellingPrice,
-      stockInitial: stockRemaining + quantitySold,
-      stockRemaining: stockRemaining,
-      quantitySold: quantitySold,
-      otherCost: otherCost,
-      profit: profit,
-      margin: margin,
-      marketplace: "TikTok"
-    };
-  });
 }
-
-// 🌟 Mengembalikan respons sukses terstruktur ke frontend dashboard Anda
-return NextResponse.json({
-  ok: true,
-  message: "Sukses! Data produk dan transaksi TikTok Shop berhasil diselaraskan.",
-  products: mappedDashboardProducts, // <-- Sekarang mengirimkan data yang sudah kompatibel dengan Frontend!
-  syncedCount: mappedDashboardProducts.length
-});
