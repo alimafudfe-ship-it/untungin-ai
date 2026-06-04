@@ -1,3 +1,4 @@
+```typescript
 "use client";
 
 import React, { useState } from "react";
@@ -8,15 +9,15 @@ export default function MarketIntelligencePage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Interface disesuaikan 100% dengan objek kembalian backend Anda
+  // Interface diselaraskan 100% dengan objek kembalian backend API TikTok Anda
   interface Product {
     id: string | number;
-    productName: string; // Sesuai backend
-    priceMin: number;    // Sesuai backend
-    sold30d: number;     // Sesuai backend
-    revenue30d: number;  // Sesuai backend
-    shopName: string;    // Sesuai backend
-    location: string;    // Sesuai backend
+    name: string;          // Sesuai backend TikTok route.ts
+    sellingPrice: number;  // Sesuai backend TikTok route.ts
+    costPrice: number;     // Sesuai backend TikTok route.ts
+    stockRemaining: number;// Sesuai backend TikTok route.ts
+    quantitySold: number;  // Sesuai backend TikTok route.ts
+    profit: number;        // Sesuai backend TikTok route.ts
     marketplace: string;
   }
 
@@ -42,13 +43,16 @@ export default function MarketIntelligencePage() {
     setFilteredProducts([]); 
 
     try {
-      // 1. DISINKRONKAN: Gunakan POST sesuai dengan metode backend Anda
-      const response = await fetch(`/api/scrape`, {
-        method: "POST",
+      // 💡 REKOMENDASI: ID Toko aktif Anda dari Supabase. 
+      // Ganti "id_toko_anda" dengan state/context Store ID Anda yang riil agar disetujui TikTok API.
+      const currentStoreId = "id_toko_anda"; 
+
+      // 🔥 DISINKRONKAN: Mengarah ke API TikTok Resmi dengan query param storeId sesuai route.ts
+      const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${currentStoreId}&keyword=${encodeURIComponent(searchInput)}`, {
+        method: "GET", // <-- Sesuai export async function GET di backend TikTok Anda
         headers: {
           "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ keyword: searchInput }),
+        }
       });
       
       const data = await response.json();
@@ -56,11 +60,11 @@ export default function MarketIntelligencePage() {
       if (data.ok && data.products) {
         setFilteredProducts(data.products);
       } else {
-        setErrorMsg(data.error || "Gagal mendapatkan data produk.");
+        setErrorMsg(data.error || "Gagal mendapatkan data produk dari TikTok Shop.");
       }
     } catch (error) {
       console.error("Gagal mengambil data real-time:", error);
-      setErrorMsg("Terjadi gangguan koneksi ke server intelijen.");
+      setErrorMsg("Terjadi gangguan koneksi ke server intelijen TikTok.");
     } finally {
       setIsLoading(false);
     }
@@ -120,31 +124,31 @@ export default function MarketIntelligencePage() {
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                 <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><ShoppingBag className="h-6 w-6" /></div>
                 <div>
-                  <p className="text-sm text-gray-400 font-medium">Total Terjual (30 Hari)</p>
+                  <p className="text-sm text-gray-400 font-medium">Total Volume Terjual</p>
                   <h3 className="text-xl font-bold text-gray-800">
-                    {/* DISINKRONKAN: p.sold30d */}
-                    {filteredProducts.reduce((sum, p) => sum + (p.sold30d || 0), 0).toLocaleString("id-ID")}+ pcs
+                    {/* DISINKRONKAN dengan qyuatitySold */}
+                    {filteredProducts.reduce((sum, p) => sum + (p.quantitySold || 0), 0).toLocaleString("id-ID")} pcs
                   </h3>
                 </div>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                 <div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign className="h-6 w-6" /></div>
                 <div>
-                  <p className="text-sm text-gray-400 font-medium">Estimasi Putaran Uang</p>
+                  <p className="text-sm text-gray-400 font-medium">Estimasi Profit Kotor</p>
                   <h3 className="text-xl font-bold text-gray-800">
-                    {/* DISINKRONKAN: p.revenue30d */}
-                    Rp {filteredProducts.reduce((sum, p) => sum + (p.revenue30d || 0), 0).toLocaleString("id-ID")}
+                    {/* DISINKRONKAN dengan profit */}
+                    Rp {filteredProducts.reduce((sum, p) => sum + (p.profit || 0), 0).toLocaleString("id-ID")}
                   </h3>
                 </div>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                 <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><TrendingUp className="h-6 w-6" /></div>
                 <div>
-                  <p className="text-sm text-gray-400 font-medium">Rata-rata Harga Pasar</p>
+                  <p className="text-sm text-gray-400 font-medium">Rata-rata Harga Jual</p>
                   <h3 className="text-xl font-bold text-gray-800">
-                    {/* DISINKRONKAN: p.priceMin */}
+                    {/* DISINKRONKAN dengan sellingPrice */}
                     Rp {filteredProducts.length > 0 
-                      ? Math.floor(filteredProducts.reduce((sum, p) => sum + (p.priceMin || 0), 0) / filteredProducts.length).toLocaleString("id-ID")
+                      ? Math.floor(filteredProducts.reduce((sum, p) => sum + (p.sellingPrice || 0), 0) / filteredProducts.length).toLocaleString("id-ID")
                       : "0"
                     }
                   </h3>
@@ -156,17 +160,17 @@ export default function MarketIntelligencePage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100 flex justify-between items-center">
                 <h2 className="font-bold text-gray-800 text-lg">Produk Kompetitor Terlaris untuk "{keyword}"</h2>
-                <span className="text-xs bg-orange-50 text-orange-600 px-3 py-1 rounded-full font-semibold">Live Shopee Scraper</span>
+                <span className="text-xs bg-black text-white px-3 py-1 rounded-full font-semibold">Official TikTok Partner API</span>
               </div>
               <div className="overflow-x-auto">
                 {filteredProducts.length > 0 ? (
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-gray-50 text-gray-400 text-xs uppercase font-semibold border-b border-gray-100">
-                        <th className="p-4">Nama Produk / Toko</th>
-                        <th className="p-4">Harga</th>
-                        <th className="p-4">Penjualan (Bulanan)</th>
-                        <th className="p-4">Estimasi Omzet</th>
+                        <th className="p-4">Nama Produk</th>
+                        <th className="p-4">Harga Jual</th>
+                        <th className="p-4">HPP (Estimasi)</th>
+                        <th className="p-4">Stok Tersisa</th>
                         <th className="p-4 text-center">Platform</th>
                       </tr>
                     </thead>
@@ -174,26 +178,24 @@ export default function MarketIntelligencePage() {
                       {filteredProducts.map((prod) => (
                         <tr key={prod.id} className="hover:bg-gray-50/50 transition">
                           <td className="p-4 max-w-md">
-                            {/* DISINKRONKAN: prod.productName */}
-                            <p className="font-medium text-gray-800 truncate" title={prod.productName}>{prod.productName}</p>
-                            {/* DISINKRONKAN: prod.shopName */}
-                            <span className="text-xs text-gray-400 font-medium">{prod.shopName} • {prod.location}</span>
+                            {/* DISINKRONKAN dengan prod.name */}
+                            <p className="font-medium text-gray-800 truncate" title={prod.name}>{prod.name}</p>
                           </td>
                           <td className="p-4 font-medium text-gray-800">
-                            {/* DISINKRONKAN: prod.priceMin */}
-                            Rp {prod.priceMin.toLocaleString("id-ID")}
+                            {/* DISINKRONKAN dengan prod.sellingPrice */}
+                            Rp {prod.sellingPrice.toLocaleString("id-ID")}
+                          </td>
+                          <td className="p-4 text-gray-500">
+                            {/* DISINKRONKAN dengan prod.costPrice */}
+                            Rp {prod.costPrice.toLocaleString("id-ID")}
                           </td>
                           <td className="p-4 text-gray-600 font-medium">
-                            {/* DISINKRONKAN: prod.sold30d */}
-                            {prod.sold30d.toLocaleString("id-ID")} pcs
-                          </td>
-                          <td className="p-4 text-green-600 font-semibold">
-                            {/* DISINKRONKAN: prod.revenue30d */}
-                            Rp {prod.revenue30d.toLocaleString("id-ID")}
+                            {/* DISINKRONKAN dengan prod.stockRemaining */}
+                            {prod.stockRemaining.toLocaleString("id-ID")} pcs
                           </td>
                           <td className="p-4 text-center">
-                            <span className="text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-md font-medium">
-                              {prod.marketplace}
+                            <span className="text-xs bg-teal-100 text-teal-800 px-2.5 py-1 rounded-md font-medium">
+                              {prod.marketplace || "TikTok Shop"}
                             </span>
                           </td>
                         </tr>
@@ -202,7 +204,7 @@ export default function MarketIntelligencePage() {
                   </table>
                 ) : (
                   <div className="p-12 text-center text-gray-400">
-                    Tidak ada produk dengan kata kunci "{keyword}" yang ditemukan.
+                    Tidak ada produk dengan kata kunci "{keyword}" yang ditemukan di toko TikTok ini.
                   </div>
                 )}
               </div>
