@@ -88,10 +88,10 @@ export default function DashboardPage() {
     setMarketData(null);
 
     try {
-      console.log(`[Frontend] Menembak API Backend untuk live market intel keyword: "${cleanKeyword}"`);
+      const currentStoreId = "0cde71b6-bd46-4b82-89b0-137685a06536";
       
       // Melakukan request ke API Route internal Next.js membawa query parameter keyword
-      const response = await fetch(`/api/market-intel/tiktok?keyword=${encodeURIComponent(cleanKeyword)}`, {
+      const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${currentStoreId}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
