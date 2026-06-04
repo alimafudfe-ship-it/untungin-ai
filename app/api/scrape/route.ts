@@ -1,86 +1,101 @@
-import { NextResponse } from "next/server";
-import { ShopeeCrawler } from "@/services/crawlers/shopeeCrawler";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const keyword = searchParams.get("keyword")?.trim();
-
-  if (!keyword) {
-    return NextResponse.json({ error: "Kata kunci harus diisi" }, { status: 400 });
-  }
-
+export async function POST(request: NextRequest) {
   try {
-    console.log(`[API Scrape] Menjalankan crawler live untuk keyword: ${keyword}`);
-    
-    // 1. Panggil ShopeeCrawler asli yang terhubung ke Playwright Worker
-    const shopeeInstance = new ShopeeCrawler();
-    const liveData = await shopeeInstance.scan(keyword);
+    const body = await request.json();
+    const { keyword } = body;
 
-    // 2. PROTEKSI FALLBACK: Jika liveData kosong (karena diblokir anti-bot/timeout)
-    if (!liveData || liveData.length === 0) {
-      console.warn(`[API Scrape] Live scraping kosong/diblokir. Mengaktifkan data simulasi dinamis untuk: ${keyword}`);
-      
-      // Membuat angka pengacak (seed) unik berdasarkan karakter kata kunci
-      const seed = keyword.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const capitalizedKeyword = keyword.charAt(0).toUpperCase() + keyword.slice(1);
-      
-      const mockShops = [
-        { name: "IndoFashion Official", city: "Jakarta Barat" },
-        { name: "GrosirFashion.id", city: "Bandung" },
-        { name: "StyleMaster Store", city: "Surabaya" },
-        { name: "KidzWear Supply", city: "Solo" },
-        { name: "BigSize-Corner", city: "Semarang" }
-      ];
-
-      const fallbackProducts = Array.from({ length: 5 }).map((_, i) => {
-        // Rumus matematika berbasis seed agar angka baju, kemeja, dan sepatu PASTI berbeda jauh
-        const baseSales = ((seed * (i + 4)) % 3500) + 150;
-        const basePrice = ((seed * (i + 7)) % 400000) + 45000;
-        
-        const price = Math.round(basePrice / 1000) * 1000; // Bulatkan ke ribuan Rupiah
-        const monthlySales = Math.round(baseSales);
-        const shop = mockShops[(seed + i) % mockShops.length]; // Toko diacak urutannya
-
-        let nameTemplate = `${capitalizedKeyword} Premium Distro Original Quality`;
-        if (i === 1) nameTemplate = `${capitalizedKeyword} Casual Trendy Terlaris Murah`;
-        if (i === 2) nameTemplate = `${capitalizedKeyword} Exclusive Edition Import BM`;
-        if (i === 3) nameTemplate = `${capitalizedKeyword} Anak & Remaja Motif Kekinian`;
-        if (i === 4) nameTemplate = `${capitalizedKeyword} Jumbo Big Size Oversize Unisex`;
-
-        return {
-          id: i + 1,
-          name: nameTemplate,
-          price: price,
-          monthlySales: monthlySales,
-          revenue: price * monthlySales,
-          shop: shop.name,
-          location: shop.city
-        };
-      });
-
-      return NextResponse.json({ products: fallbackProducts, source: "simulation_mode" });
+    if (!keyword) {
+      return NextResponse.json({ ok: false, error: "Keyword wajib diisi" }, { status: 200 });
     }
 
-    // 3. JIKA REAL LIVE DATA TEMBUS: Format data dari Playwright agar cocok dengan tabel frontend Anda
-    const formattedProducts = liveData.map((item: any, i: number) => {
-      const price = item.price || 0;
-      const sales = item.sales || 0;
-      
-      return {
-        id: i + 1,
-        name: item.product_name,
-        price: price,
-        monthlySales: sales,
-        revenue: price * sales,
-        shop: item.shop_name || "Shopee Seller Store",
-        location: item.shop_location || "Indonesia"
-      };
+    console.log(`[Scraper] Memproses pencarian intel untuk keyword: ${keyword}`);
+
+    // URL Pencarian Produk Shopee V4
+    const shopeeUrl = `https://shopee.co.id/api/v4/search/search_items?by=relevancy&keyword=${encodeURIComponent(keyword)}&limit=10&newest=0&order=desc&page_type=search&scenario=PAGE_GLOBAL_SEARCH&version=5`;
+
+    // 🌟 TRIK UTAMA: Menyamar sebagai Browser Populer (User-Agent Spofing)
+    const response = await fetch(shopeeUrl, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://shopee.co.id/",
+        "X-Requested-With": "XMLHttpRequest"
+      }
     });
 
-    return NextResponse.json({ products: formattedProducts, source: "pure_live_playwright" });
+    // 🛡️ ANTISIPASI EROR 403: Jika sistem keamanan Shopee masih memblokir IP lokal Anda
+    if (response.status === 403) {
+      console.warn("⚠️ IP Terblokir Shopee (403). Mengembalikan data simulasi cerdas.");
+      
+      // Mengembalikan data mockup yang dinamis berdasarkan keyword agar UI frontend Anda tetap tampil cantik
+      const mockProducts = generateMockIntelData(keyword);
+      return NextResponse.json({
+        ok: true,
+        isMocked: true,
+        message: "Menampilkan analisis tren pasar (Simulasi karena batasan IP pembatasan akses).",
+        products: mockProducts
+      });
+    }
+
+    const data = await response.json();
+    const items = data.items || [];
+
+    // Format data asli dari Shopee ke struktur data Untungin.ai Anda
+    const formattedProducts = items.map((wrapper: any) => {
+      const item = wrapper.item_basic;
+      if (!item) return null;
+      return {
+        id: item.itemid?.toString(),
+        name: item.name,
+        price: item.price / 100000, // Konversi format nominal internal Shopee ke Rupiah asli
+        historical_sold: item.historical_sold || 0,
+        rating: item.item_rating?.rating_star || 0,
+        image: item.image ? `https://down-id.img.sspace.lookaside.fbsbx.com/file/${item.image}` : null
+      };
+    }).filter(Boolean);
+
+    return NextResponse.json({
+      ok: true,
+      products: formattedProducts
+    });
 
   } catch (error: any) {
-    console.error("Scrape Error:", error);
-    return NextResponse.json({ error: "Gagal memata-matai pasar", details: error.message }, { status: 500 });
+    console.error("❌ Scraper Error:", error);
+    return NextResponse.json({ 
+      ok: false, 
+      error: "Gagal memproses data marketplace", 
+      details: error.message,
+      products: [] 
+    }, { status: 200 });
   }
+}
+
+// 💡 Fungsi Generator Data Cadangan (Mencegah Dashboard Macet/Kosong saat Offline/Terblokir)
+function generateMockIntelData(keyword: string) {
+  return [
+    {
+      id: "mock-1",
+      name: `${keyword.toUpperCase()} Casual Sneakers Pria Distro Original`,
+      price: 189000,
+      historical_sold: 4520,
+      rating: 4.8
+    },
+    {
+      id: "mock-2",
+      name: `${keyword.toUpperCase()} Wanita Running Sport Aero`,
+      price: 245000,
+      historical_sold: 2110,
+      rating: 4.7
+    },
+    {
+      id: "mock-3",
+      name: `${keyword.toUpperCase()} Boot Kulit Sapi Asli Pekerja Pro`,
+      price: 399000,
+      historical_sold: 840,
+      rating: 4.9
+    }
+  ];
 }

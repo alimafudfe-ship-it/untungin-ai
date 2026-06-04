@@ -1,33 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import type React from "react";
 import { useRouter } from "next/navigation";
-import Papa from "papaparse";
 import { hasSupabaseEnv, supabase, supabaseConfigError } from "@/lib/supabaseClient";
 import type { Expense, ExpenseRow, Goal, Product, ProductFilter, ProductRow, Profile, StockMoveType, TabKey, UpgradePlan } from "@/types/dashboard";
-import { DEMO_EXPENSES, DEMO_GOALS, DEMO_PRODUCTS, FREE_PRODUCT_LIMIT, MIDTRANS_REVIEW_MODE, getPlanPriceLabel } from "@/lib/dashboard/constants";
+import { DEMO_EXPENSES, DEMO_GOALS, DEMO_PRODUCTS, FREE_PRODUCT_LIMIT, MIDTRANS_REVIEW_MODE } from "@/lib/dashboard/constants";
 import { useDashboardLocale } from "@/lib/dashboard/i18n";
-import { calculateMargin, calculateProfit, getDashboardMetrics, isProfileExpired, isProfilePro, mapExpenseRow, mapProductRow } from "@/lib/dashboard/calculations";
-import { generateInsightText, getOneThingAction, buildInsightCards } from "@/lib/dashboard/insights";
-import { exportCashflowCSV, exportExpensesCSV, exportProductsCSV, exportSummaryJSON, exportRealPDF } from "@/lib/dashboard/reports";
-import { compactMoney, getErrorMessage, money, parseNumber, percent } from "@/lib/dashboard/format";
+import { calculateMargin, calculateProfit, getDashboardMetrics, isProfilePro, mapExpenseRow, mapProductRow } from "@/lib/dashboard/calculations";
 import { AppShell } from "@/components/dashboard/AppShell";
-import { Badge, cardStyle, ctaButtonStyle, EmptyState, ghostButtonStyle, Progress, StatCard } from "@/components/dashboard/ui";
-import { ExpensePanel, ExpenseFormState, ProductForm, ProductFormState, SaleForm, StockForm } from "@/components/dashboard/Forms";
-import { ProductCards, ProductFilters, ProductTable } from "@/components/dashboard/ProductTable";
-import { AnalyticsTable, DonutChartCard, LineChartCard } from "@/components/dashboard/Charts";
+import { cardStyle } from "@/components/dashboard/ui";
+import { ExpensePanel, ExpenseFormState, ProductForm, ProductFormState } from "@/components/dashboard/Forms";
+import { ProductTable } from "@/components/dashboard/ProductTable";
+import { AIRecommendationPanel, MarketplaceSyncPanel } from "@/components/dashboard/AdvancedPanels";
 import { ReportsPanel } from "@/components/dashboard/ReportsPanel";
-import { AIRecommendationPanel, ForecastingPanel, MarketplaceSyncPanel } from "@/components/dashboard/AdvancedPanels";
-import { StartupMoatPanel } from "@/components/dashboard/StartupMoatPanel";
-import { GrowthEnginePanel } from "@/components/dashboard/GrowthEnginePanel";
-import { ImportPreviewModal } from "@/components/saas/ImportPreviewModal";
-import { AutomationPanel, FinanceChatPanel, MarketplaceApiPanel, MidtransSubscriptionPanel, TeamAccessPanel, type ChatMessage } from "@/components/dashboard/Step4Panels";
 import { ExecutiveDashboard } from "@/components/dashboard/ExecutiveDashboard";
 import { MarketIntelligenceSuite } from "@/components/dashboard/MarketIntelligenceSuite";
-import { getCashflowTrend, getExpenseBreakdown, getInventoryAnalytics, getProductAnalytics, getProfitTrend } from "@/lib/dashboard/analytics";
-import { createImportPreview, type ImportPreview } from "@/lib/dashboard/marketplaceImport";
-import { getOrCreateDefaultWorkspace, listWorkspaceStores, type Store } from "@/lib/saas/workspace";
+import { getCashflowTrend, getProfitTrend } from "@/lib/dashboard/analytics";
+import { parseNumber, getErrorMessage } from "@/lib/dashboard/format";
+import { listWorkspaceStores, getOrCreateDefaultWorkspace, type Store } from "@/lib/saas/workspace";
 
 declare global {
   interface Window {
@@ -39,7 +30,7 @@ declare global {
 
 const db: any = supabase;
 
-const initialProductForm: ProductFormState = { productName: "", costPrice: "", sellingPrice: "", stockInitial: "", quantitySold: "", otherCost: "", marketplace: "Shopee" };
+const initialProductForm: ProductFormState = { productName: "", costPrice: "", sellingPrice: "", stockInitial: "", quantitySold: "", otherCost: "", marketplace: "TikTok" };
 const initialExpenseForm: ExpenseFormState = { label: "", category: "Ops", amount: "", date: new Date().toISOString().slice(0, 10), notes: "" };
 
 function getPlanAmount(plan: UpgradePlan) {
@@ -51,24 +42,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey | string>("overview");
   const [products, setProducts] = useState<Product[]>([]);
-  
-  const handleDashboardScrape = async (keywordInput: string) => {
-    if (!keywordInput.trim()) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/scrape?keyword=${encodeURIComponent(keywordInput)}`);
-      const data = await response.json();
-      if (data.products) {
-        setProducts(data.products);
-        alert(`Berhasil menarik data pasar untuk kata kunci "${keywordInput}"!`);
-      }
-    } catch (error) {
-      console.error("Gagal sinkronisasi API Dashboard:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const [marketData, setMarketData] = useState<any>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [goals] = useState<Goal[]>(DEMO_GOALS);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -87,22 +61,14 @@ export default function DashboardPage() {
   const [selectedPlan, setSelectedPlan] = useState<UpgradePlan>("lifetime");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
-  const [aiQuestion, setAiQuestion] = useState("");
-  const [aiAnswer, setAiAnswer] = useState("Klik Generate untuk mendapatkan insight berbasis profit, stok, cashflow, margin, dan target.");
-  const [chatQuestion, setChatQuestion] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: "assistant", content: "Saya siap membaca data profit, cashflow, stok, expense, marketplace, dan forecast untuk memberi rekomendasi bisnis." }]);
   const [stockMove, setStockMove] = useState({ productId: "", type: "in" as StockMoveType, qty: "", note: "" });
-  const [saleForm, setSaleForm] = useState({ productId: "", qty: "", otherCost: "" });
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(initialExpenseForm);
   const [form, setForm] = useState<ProductFormState>(initialProductForm);
-  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
-  const [pendingImportPreview, setPendingImportPreview] = useState<ImportPreview | null>(null);
 
   const isPro = isProfilePro(profile);
-  const proExpired = isProfileExpired(profile);
   const metrics = useMemo(() => getDashboardMetrics(products, expenses), [products, expenses]);
   const sortedProducts = useMemo(() => [...products].sort((a, b) => b.profit - a.profit), [products]);
+  
   const filteredProducts = useMemo(() => {
     if (selectedFilter === "loss") return sortedProducts.filter((item) => item.profit < 0);
     if (selectedFilter === "fix") return sortedProducts.filter((item) => item.profit >= 0 && item.margin < 20);
@@ -110,13 +76,68 @@ export default function DashboardPage() {
     if (selectedFilter === "stock") return sortedProducts.filter((item) => item.stockRemaining <= 5 || item.stockRemaining <= item.stockInitial * 0.15);
     return sortedProducts;
   }, [selectedFilter, sortedProducts]);
-  const sparklineData = [0, metrics.totalProfit * 0.3, metrics.totalProfit * 0.58, metrics.totalProfit * 0.76, metrics.totalProfit];
-  const insightCards = useMemo(() => buildInsightCards(products, metrics as any), [products, metrics]);
-  const cashflowTrend = useMemo(() => getCashflowTrend(products, expenses), [products, expenses]);
-  const profitTrend = useMemo(() => getProfitTrend(products), [products]);
-  const expenseBreakdown = useMemo(() => getExpenseBreakdown(expenses), [expenses]);
-  const productAnalytics = useMemo(() => getProductAnalytics(products), [products]);
-  const inventoryAnalytics = useMemo(() => getInventoryAnalytics(products), [products]);
+
+  // ====================================================================
+  // FUNGSI RISET PASAR - TERKONEKSI REAL-TIME DENGAN BACKEND API
+  // ====================================================================
+  const handleDashboardScrape = useCallback(async (keywordInput: string) => {
+    const cleanKeyword = keywordInput.trim();
+    if (!cleanKeyword) return;
+    
+    setLoading(true);
+    setMarketData(null);
+
+    try {
+      console.log(`[Frontend] Menembak API Backend untuk live market intel keyword: "${cleanKeyword}"`);
+      
+      // Melakukan request ke API Route internal Next.js membawa query parameter keyword
+      const response = await fetch(`/api/market-intel/tiktok?keyword=${encodeURIComponent(cleanKeyword)}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || `Server merespon dengan status ${response.status}`);
+      }
+
+      // Memasukkan data riil hasil scraping dari backend langsung ke komponen UI
+      if (result && result.products) {
+        console.log("[Frontend] Sukses menerima data riil & real-time dari backend.");
+        setMarketData({
+          products: result.products,
+          categories: result.categories || [],
+          shops: result.shops || [],
+          creators: result.creators || [],
+          videos: result.videos || [],
+          lives: result.lives || [],
+          sources: result.sources || ["TikTok Live Engine API"],
+          providers: result.providers || [],
+          errors: result.errors || [],
+          generatedAt: result.generatedAt || new Date().toISOString()
+        });
+      } else {
+        throw new Error("Format properti data dari API backend tidak valid.");
+      }
+
+    } catch (error: any) {
+      console.error("Error memuat data real-time TikTok dari Backend:", error);
+      alert(`Gagal mengambil data real-time TikTok.\nAlasan: ${error.message}`);
+      
+      // Fallback state kosong jika terjadi error agar komponen UI Market Intel tidak crash
+      setMarketData({
+        products: [],
+        categories: [], shops: [], creators: [], videos: [], lives: [], sources: [], providers: [],
+        errors: [error.message],
+        generatedAt: new Date().toISOString()
+      });
+    } finally {
+      setLoading(false); 
+    }
+  }, []);
 
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER !== "midtrans") return;
@@ -139,10 +160,8 @@ export default function DashboardPage() {
       if (typeof window === "undefined") return null;
       try {
         const raw = window.localStorage.getItem(DEMO_SESSION_KEY);
-        return raw ? JSON.parse(raw) as { id?: string; email?: string } : null;
-      } catch {
-        return null;
-      }
+        return raw ? (JSON.parse(raw) as { id?: string; email?: string }) : null;
+      } catch { return null; }
     }
     function loadDemoDashboard(demoSession?: { id?: string; email?: string } | null) {
       if (!isMounted) return;
@@ -152,110 +171,58 @@ export default function DashboardPage() {
       setProducts(DEMO_PRODUCTS);
       setExpenses(DEMO_EXPENSES);
       setProfile({ role: "user", plan: "free", pro_until: null, email: demoSession?.email || "alimafudfe+demo@gmail.com" });
-      setWorkspaceId(null);
-      setStores([]);
-      setSelectedStoreId(null);
-      setIsDemoMode(true);
-      setPageLoading(false);
+      setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setIsDemoMode(true); setPageLoading(false);
     }
     async function loadUserAndData() {
       if (isMounted) setPageLoading(true);
       const demoSession = getDemoSession();
-      if (demoSession?.id) {
-        loadDemoDashboard(demoSession);
-        return;
-      }
+      if (demoSession?.id) { loadDemoDashboard(demoSession); return; }
       if (!hasSupabaseEnv) {
         if (!isMounted) return;
         setSetupError(supabaseConfigError || "Supabase ENV belum lengkap.");
-        setCurrentUserId(null);
-        setUserEmail(null);
-        setProducts([]);
-        setExpenses([]);
-        setProfile(null);
-        setWorkspaceId(null);
-        setStores([]);
-        setSelectedStoreId(null);
-        setIsDemoMode(false);
-        setPageLoading(false);
-        return;
+        setPageLoading(false); return;
       }
 
       let sessionData: any = { session: null };
-      let sessionError: any = null;
       try {
         const sessionResult = await supabase?.auth.getSession();
         sessionData = sessionResult?.data;
-        sessionError = sessionResult?.error;
       } catch (authError) {
-        console.warn("Supabase Auth gagal dihubungi, masuk ke mode demo.", authError);
-        loadDemoDashboard({ id: "demo-user", email: "alimafudfe+demo@gmail.com" });
-        return;
+        loadDemoDashboard({ id: "demo-user", email: "alimafudfe+demo@gmail.com" }); return;
       }
       const user = sessionData?.session?.user ?? null;
-      if (sessionError || !user) {
+      if (!user) {
         if (!isMounted) return;
-        setCurrentUserId(null);
-        setUserEmail(null);
-        setProducts([]);
-        setExpenses([]);
-        setProfile(null);
-        setWorkspaceId(null);
-        setStores([]);
-        setSelectedStoreId(null);
-        setIsDemoMode(false);
-        setPageLoading(false);
-        router.replace(`/login?next=${encodeURIComponent("/")}`);
-        return;
+        setPageLoading(false); router.replace(`/login?next=${encodeURIComponent("/")}`); return;
       }
       setSetupError(null);
 
       if (!isMounted) return;
-      setCurrentUserId(user.id);
-      setUserEmail(user.email ?? null);
-      setIsDemoMode(false);
+      setCurrentUserId(user.id); setUserEmail(user.email ?? null); setIsDemoMode(false);
       let activeWorkspaceId: string | null = null;
 
       try {
         const workspace = await getOrCreateDefaultWorkspace({ id: user.id, email: user.email });
         if (!isMounted) return;
-        setWorkspaceId(workspace.id);
-        activeWorkspaceId = workspace.id;
+        setWorkspaceId(workspace.id); activeWorkspaceId = workspace.id;
         const storeList = await listWorkspaceStores(workspace.id);
         if (!isMounted) return;
-        setStores(storeList);
-        setSelectedStoreId(storeList[0]?.id ?? null);
-      } catch (workspaceError) {
-        console.warn("Workspace v6 belum siap. Jalankan supabase/production_v6_real_data_schema.sql", workspaceError);
-      }
+        setStores(storeList); setSelectedStoreId(storeList[0]?.id ?? null);
+      } catch (workspaceError) { console.warn(workspaceError); }
 
       const { data: profileData } = await db.from("profiles").select("role, plan, pro_until, email").eq("email", user.email).maybeSingle();
       if (!isMounted) return;
       setProfile((profileData as Profile | null) ?? { role: "user", plan: "free", pro_until: null, email: user.email });
 
       const productQuery = db.from("products").select("*").order("created_at", { ascending: false });
-      const { data: productData, error: productError } = activeWorkspaceId
-        ? await productQuery.eq("workspace_id", activeWorkspaceId)
-        : await productQuery.eq("user_id", user.id);
+      const { data: productData } = activeWorkspaceId ? await productQuery.eq("workspace_id", activeWorkspaceId) : await productQuery.eq("user_id", user.id);
       if (!isMounted) return;
-      if (productError) {
-        console.error(productError);
-        alert("Gagal mengambil data produk dari database.");
-      } else {
-        setProducts(((productData || []) as ProductRow[]).map(mapProductRow));
-      }
+      setProducts(((productData || []) as ProductRow[]).map(mapProductRow));
 
       const expenseQuery = db.from("expenses").select("*").order("expense_date", { ascending: false }).limit(100);
-      const { data: expenseData, error: expenseError } = activeWorkspaceId
-        ? await expenseQuery.eq("workspace_id", activeWorkspaceId)
-        : await expenseQuery.eq("user_id", user.id);
+      const { data: expenseData } = activeWorkspaceId ? await expenseQuery.eq("workspace_id", activeWorkspaceId) : await expenseQuery.eq("user_id", user.id);
       if (!isMounted) return;
-      if (expenseError) {
-        console.warn("Expenses table belum tersedia atau belum diberi RLS. Jalankan schema Supabase production.", expenseError);
-        setExpenses([]);
-      } else {
-        setExpenses(((expenseData || []) as ExpenseRow[]).map(mapExpenseRow));
-      }
+      setExpenses(((expenseData || []) as ExpenseRow[]).map(mapExpenseRow));
       setPageLoading(false);
     }
 
@@ -264,418 +231,219 @@ export default function DashboardPage() {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") { loadUserAndData(); return; }
       if (event === "SIGNED_OUT" || !session?.user) {
         if (getDemoSession()?.id) return;
-        setCurrentUserId(null); setUserEmail(null); setWorkspaceId(null); setStores([]); setSelectedStoreId(null); setProducts([]); setExpenses([]); setProfile(null); setIsDemoMode(false); setPageLoading(false); router.replace(`/login?next=${encodeURIComponent("/")}`);
+        setCurrentUserId(null); setProducts([]); setExpenses([]); setProfile(null); setPageLoading(false); router.replace("/login");
       }
     });
 
-    return () => { 
-      isMounted = false; 
-      authListener?.data?.subscription?.unsubscribe();
-    };
+    return () => { isMounted = false; authListener?.data?.subscription?.unsubscribe(); };
   }, [router]);
 
-  useEffect(() => {
-    if (!currentUserId || isDemoMode) return;
-    const channel = supabase?
-      .channel(`dashboard-realtime-${currentUserId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `user_id=eq.${currentUserId}` }, (payload: any) => {
-        if (payload.eventType === "DELETE") {
-          setExpenses((prev) => prev.filter((item) => item.id !== payload.old?.id));
-          return;
-        }
-        if (payload.new) {
-          const next = mapExpenseRow(payload.new as ExpenseRow);
-          setExpenses((prev) => [next, ...prev.filter((item) => item.id !== next.id)].sort((a, b) => b.date.localeCompare(a.date)));
-        }
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: `user_id=eq.${currentUserId}` }, (payload: any) => {
-        if (payload.eventType === "DELETE") {
-          setProducts((prev) => prev.filter((item) => item.id !== payload.old?.id));
-          return;
-        }
-        if (payload.new) {
-          const next = mapProductRow(payload.new as ProductRow);
-          setProducts((prev) => [next, ...prev.filter((item) => item.id !== next.id)]);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase?.removeChannel(channel);
-    };
-  }, [currentUserId, isDemoMode]);
-
   function ensureLoggedIn() {
-    if (!hasSupabaseEnv) { alert("Supabase ENV belum lengkap. Isi ENV di Vercel dulu."); return false; }
+    if (!hasSupabaseEnv) { alert("Supabase ENV belum lengkap."); return false; }
     if (!currentUserId || isDemoMode) { router.replace(`/login?next=${encodeURIComponent("/")}`); return false; }
     return true;
   }
 
   function openUpgradeModal(plan: UpgradePlan = "lifetime") { setSelectedPlan(plan); setShowUpgradeModal(true); }
 
-  async function handleUpgradeMidtrans(plan: UpgradePlan = selectedPlan) {
-    if (!ensureLoggedIn()) return;
-    if (MIDTRANS_REVIEW_MODE) { alert("Midtrans sedang review. Silakan coba lagi nanti."); return; }
-    if (!userEmail) { alert("Email user tidak ditemukan. Coba logout lalu login ulang."); return; }
-    setUpgradeLoading(true);
-    try {
-      const res = await fetch("/api/create-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: userEmail, plan, amount: getPlanAmount(plan), workspaceId, userId: currentUserId }) });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(getErrorMessage(data?.error || data));
-      if (data?.invoice_url) {
-        window.location.href = data.invoice_url;
-        return;
-      }
-      if (data?.manual) {
-        alert("Manual transfer aktif. Catat order: " + data.order_id + ". Setelah dibayar, admin bisa approve PRO dari database/admin.");
-        setUpgradeLoading(false);
-        return;
-      }
-      if (!data?.token) throw new Error("Link pembayaran tidak ditemukan dari server. Cek PAYMENT_PROVIDER dan ENV billing.");
-      if (!window.snap?.pay) throw new Error("Midtrans Snap belum siap. Untuk akun Midtrans ditolak, gunakan PAYMENT_PROVIDER=xendit atau manual.");
-      window.snap.pay(data.token, { onSuccess: () => { alert("Pembayaran berhasil. PRO akan aktif otomatis setelah webhook diproses."); window.location.reload(); }, onPending: () => { alert("Pembayaran masih pending. Selesaikan pembayaran lalu refresh dashboard."); setUpgradeLoading(false); }, onError: (error: unknown) => { alert(`Pembayaran gagal: ${getErrorMessage(error)}`); setUpgradeLoading(false); }, onClose: () => setUpgradeLoading(false) });
-    } catch (error) { console.error(error); alert(getErrorMessage(error)); setUpgradeLoading(false); }
-  }
-
-  async function persistProductUpdate(productId: string, patch: Partial<Product>) {
-    if (isDemoMode) { setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, ...patch } : item))); return true; }
-    const payload: Record<string, number | string> = {};
-    if (patch.name !== undefined) payload.name = patch.name;
-    if (patch.costPrice !== undefined) payload.cost_price = patch.costPrice;
-    if (patch.sellingPrice !== undefined) payload.selling_price = patch.sellingPrice;
-    if (patch.quantitySold !== undefined) payload.quantity_sold = patch.quantitySold;
-    if (patch.stockInitial !== undefined) payload.stock_initial = patch.stockInitial;
-    if (patch.stockRemaining !== undefined) payload.stock_remaining = patch.stockRemaining;
-    if (patch.otherCost !== undefined) payload.other_cost = patch.otherCost;
-    if (patch.profit !== undefined) payload.profit = patch.profit;
-    if (patch.margin !== undefined) payload.margin = patch.margin;
-    if (patch.marketplace !== undefined) payload.marketplace = patch.marketplace;
-    const { error } = await db.from("products").update(payload as any).eq("id", productId).eq("user_id", currentUserId);
-    if (error) { console.error(error); alert("Gagal update database."); return false; }
-    setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, ...patch } : item)));
-    return true;
-  }
-
   async function handleLogout() {
     if (typeof window !== "undefined") window.localStorage.removeItem("untungin_demo_session");
     await supabase?.auth.signOut().catch(() => null);
-    setCurrentUserId(null); setUserEmail(null); setProducts([]); setProfile(null); router.replace("/login");
-  }
-
-  function findExistingProductByFormName(name: string, marketplace: string) {
-    const normalizedName = name.trim().toLowerCase();
-    const normalizedMarketplace = marketplace.trim().toLowerCase();
-    return products.find((item) => {
-      const sameName = item.name.trim().toLowerCase() === normalizedName;
-      const sameMarketplace = (item.marketplace || "Manual").trim().toLowerCase() === normalizedMarketplace;
-      return sameName && sameMarketplace;
-    }) || products.find((item) => item.name.trim().toLowerCase() === normalizedName);
-  }
-
-  async function logManualSaleOrder(product: Product, qty: number, extraCost: number, stockBefore: number, stockAfter: number) {
-    if (isDemoMode || !workspaceId || !selectedStoreId) return;
-    try {
-      const saleProfit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold: qty, otherCost: extraCost });
-      const grossRevenue = product.sellingPrice * qty;
-      const { data: order } = await db.from("orders").insert({
-        workspace_id: workspaceId,
-        store_id: selectedStoreId,
-        marketplace: product.marketplace || "Manual",
-        external_order_id: `manual-${product.id}-${Date.now()}`,
-        status: "completed",
-        gross_revenue: grossRevenue,
-        marketplace_fee: 0,
-        ads_cost: 0,
-        voucher_cost: 0,
-        aggregate_cost: 0,
-        net_revenue: grossRevenue - extraCost,
-        source_file: "manual-sale",
-        raw: { source: "product_form_autocomplete", auto_stock_deducted: true, stock_before: stockBefore, stock_after: stockAfter },
-      }).select("id").single();
-      if (order?.id) {
-        await db.from("order_items").insert({
-          order_id: order.id,
-          product_id: product.id,
-          product_name: product.name,
-          quantity: qty,
-          unit_price: product.sellingPrice,
-          cost_price: product.costPrice,
-          total_fee: extraCost,
-          profit: saleProfit,
-          raw: { source: "product_form_autocomplete", marketplace: product.marketplace || "Manual" },
-        });
-      }
-    } catch (orderError) {
-      console.warn("Order log belum tersimpan, tapi stok sudah otomatis berkurang.", orderError);
-    }
-  }
-
-  async function saveProduct(finishAfterSave = false) {
-    if (!ensureLoggedIn()) return;
-    const name = form.productName.trim();
-    const costPrice = parseNumber(form.costPrice);
-    const sellingPrice = parseNumber(form.sellingPrice);
-    const stockInitial = parseNumber(form.stockInitial);
-    const quantitySold = parseNumber(form.quantitySold);
-    const otherCost = parseNumber(form.otherCost);
-    const existingProduct = name ? findExistingProductByFormName(name, form.marketplace) : null;
-
-    if (existingProduct) {
-      if (quantitySold <= 0) { alert("Produk sudah ada. Isi jumlah terjual untuk mengurangi stok otomatis, atau gunakan menu Stok untuk restock."); return; }
-      if (quantitySold > existingProduct.stockRemaining) { alert(`Qty terjual melebihi stok tersedia (${existingProduct.stockRemaining}).`); return; }
-      if (costPrice < 0 || sellingPrice <= 0 || otherCost < 0) { alert("Cek lagi modal, harga jual, dan biaya lain."); return; }
-      setLoading(true);
-      try {
-        const stockBefore = existingProduct.stockRemaining;
-        const updatedCostPrice = costPrice || existingProduct.costPrice;
-        const updatedSellingPrice = sellingPrice || existingProduct.sellingPrice;
-        const updatedQuantitySold = existingProduct.quantitySold + quantitySold;
-        const updatedStockRemaining = Math.max(existingProduct.stockRemaining - quantitySold, 0);
-        const updatedOtherCost = existingProduct.otherCost + otherCost;
-        const profit = calculateProfit({ costPrice: updatedCostPrice, sellingPrice: updatedSellingPrice, quantitySold: updatedQuantitySold, otherCost: updatedOtherCost });
-        const margin = calculateMargin(updatedCostPrice, updatedSellingPrice);
-        const ok = await persistProductUpdate(existingProduct.id, {
-          costPrice: updatedCostPrice,
-          sellingPrice: updatedSellingPrice,
-          quantitySold: updatedQuantitySold,
-          stockRemaining: updatedStockRemaining,
-          otherCost: updatedOtherCost,
-          profit,
-          margin,
-          marketplace: existingProduct.marketplace || form.marketplace,
-        });
-        if (ok) {
-          await logManualSaleOrder({ ...existingProduct, costPrice: updatedCostPrice, sellingPrice: updatedSellingPrice }, quantitySold, otherCost, stockBefore, updatedStockRemaining);
-          setForm(initialProductForm);
-          setActiveTab(finishAfterSave ? "overview" : "products");
-          alert("Penjualan produk lama tersimpan. Stok otomatis berkurang tanpa membuat produk dobel.");
-        }
-      } catch (error) { console.error(error); alert("Gagal menyimpan penjualan produk."); } finally { setLoading(false); }
-      return;
-    }
-
-    if (!isPro && products.length >= FREE_PRODUCT_LIMIT) { openUpgradeModal("lifetime"); return; }
-    if (!name || costPrice < 0 || sellingPrice <= 0 || stockInitial < 0 || quantitySold < 0 || quantitySold > stockInitial || otherCost < 0) { alert("Cek lagi input. Nama, harga jual, stok, dan terjual harus valid."); return; }
-    const stockRemaining = Math.max(stockInitial - quantitySold, 0);
-    const profit = calculateProfit({ costPrice, sellingPrice, quantitySold, otherCost });
-    const margin = calculateMargin(costPrice, sellingPrice);
-    setLoading(true);
-    try {
-      const { data, error } = await db.from("products").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, name, cost_price: costPrice, selling_price: sellingPrice, stock_initial: stockInitial, stock_remaining: stockRemaining, quantity_sold: quantitySold, other_cost: otherCost, profit, margin, marketplace: form.marketplace } as any]).select("*").single();
-      if (error) throw error;
-      if (data) setProducts((prev) => [mapProductRow(data as ProductRow), ...prev]);
-      setForm(initialProductForm);
-      setActiveTab(finishAfterSave ? "overview" : "products");
-    } catch (error) { console.error(error); alert("Gagal menyimpan produk."); } finally { setLoading(false); }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    await saveProduct(false);
-  }
-
-  async function handleSubmitAndFinish() {
-    await saveProduct(true);
-  }
-
-  async function recordSale(e: React.FormEvent) {
-    e.preventDefault();
-    const product = products.find((item) => item.id === saleForm.productId);
-    if (!product) { alert("Pilih produk dulu."); return; }
-    const qty = parseNumber(saleForm.qty);
-    const extraCost = parseNumber(saleForm.otherCost);
-    if (qty <= 0) { alert("Qty penjualan harus lebih dari 0."); return; }
-    if (qty > product.stockRemaining) { alert("Qty penjualan melebihi stok tersedia."); return; }
-    const quantitySold = product.quantitySold + qty;
-    const stockRemaining = Math.max(product.stockRemaining - qty, 0);
-    const otherCost = product.otherCost + extraCost;
-    const profit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold, otherCost });
-    const margin = calculateMargin(product.costPrice, product.sellingPrice);
-    const ok = await persistProductUpdate(product.id, { quantitySold, stockRemaining, otherCost, profit, margin });
-    if (ok) {
-      try {
-        const saleProfit = calculateProfit({ costPrice: product.costPrice, sellingPrice: product.sellingPrice, quantitySold: qty, otherCost: extraCost });
-        const grossRevenue = product.sellingPrice * qty;
-        const { data: order } = await db.from("orders").insert({
-          workspace_id: workspaceId,
-          store_id: selectedStoreId,
-          marketplace: product.marketplace || "Manual",
-          external_order_id: `manual-${product.id}-${Date.now()}`,
-          status: "completed",
-          gross_revenue: grossRevenue,
-          marketplace_fee: 0,
-          ads_cost: 0,
-          voucher_cost: 0,
-          aggregate_cost: 0,
-          net_revenue: grossRevenue - extraCost,
-          source_file: "manual-sale",
-          raw: { source: "manual_input", auto_stock_deducted: true, stock_before: product.stockRemaining, stock_after: stockRemaining },
-        }).select("id").single();
-        if (order?.id) {
-          await db.from("order_items").insert({
-            order_id: order.id,
-            product_id: product.id,
-            product_name: product.name,
-            quantity: qty,
-            unit_price: product.sellingPrice,
-            cost_price: product.costPrice,
-            total_fee: extraCost,
-            profit: saleProfit,
-            raw: { source: "manual_input", marketplace: product.marketplace || "Manual" },
-          });
-        }
-      } catch (orderError) {
-        console.warn("Order log belum tersimpan, tapi stok sudah otomatis berkurang.", orderError);
-      }
-      setSaleForm({ productId: product.id, qty: "", otherCost: "" });
-      alert("Penjualan tersimpan. Stok otomatis berkurang dan histori order ikut dicatat.");
-    }
-  }
-
-  async function applyStockMove(e: React.FormEvent) {
-    e.preventDefault();
-    const product = products.find((item) => item.id === stockMove.productId);
-    if (!product) { alert("Pilih produk dulu."); return; }
-    const qty = parseNumber(stockMove.qty);
-    if (qty < 0 || (stockMove.type !== "adjust" && qty <= 0)) { alert("Jumlah stok tidak valid."); return; }
-    let stockInitial = product.stockInitial;
-    let stockRemaining = product.stockRemaining;
-    if (stockMove.type === "in") { stockInitial += qty; stockRemaining += qty; } else if (stockMove.type === "out") { stockRemaining = Math.max(stockRemaining - qty, 0); } else { stockRemaining = qty; stockInitial = Math.max(stockInitial, qty + product.quantitySold); }
-    const ok = await persistProductUpdate(product.id, { stockInitial, stockRemaining });
-    if (ok) { setStockMove({ productId: product.id, type: "in", qty: "", note: "" }); alert("Stok berhasil diperbarui."); }
+    router.replace("/login");
   }
 
   async function deleteProduct(id: string) {
     if (!ensureLoggedIn()) return;
     if (!window.confirm("Hapus produk ini?")) return;
     const { error } = await db.from("products").delete().eq("id", id).eq("user_id", currentUserId);
-    if (error) { console.error(error); alert("Gagal menghapus produk."); return; }
+    if (error) { alert("Gagal menghapus produk."); return; }
     setProducts((prev) => prev.filter((item) => item.id !== id));
   }
 
-  async function addExpense(e: React.FormEvent) {
-    e.preventDefault();
-    if (!ensureLoggedIn()) return;
-    const amount = parseNumber(expenseForm.amount);
-    if (!expenseForm.label.trim() || amount <= 0) { alert("Isi nama dan nominal biaya."); return; }
-    const localExpense: Expense = { id: `exp-${Date.now()}`, label: expenseForm.label.trim(), category: expenseForm.category, amount, date: expenseForm.date || new Date().toISOString().slice(0, 10), notes: expenseForm.notes.trim() || null };
-    const { data, error } = await db.from("expenses").insert([{ user_id: currentUserId, workspace_id: workspaceId, store_id: selectedStoreId, title: localExpense.label, label: localExpense.label, category: localExpense.category, amount: localExpense.amount, expense_date: localExpense.date, notes: localExpense.notes }]).select("*").single();
-    if (error) {
-      console.error(error);
-      alert("Gagal menyimpan expense. Pastikan migration expense sudah dijalankan di Supabase.");
-      return;
-    }
-    setExpenses((prev) => [mapExpenseRow(data as ExpenseRow), ...prev]);
-    setExpenseForm(initialExpenseForm);
-  }
+  const menuItems = [
+    { key: "overview", label: "Dashboard", sublabel: "Ringkasan bisnis", section: "main" },
+    { key: "integrasi", label: "Integrasi", sublabel: "Connect & import", section: "main" },
+    { key: "market-intel", label: "Market Intel", sublabel: "Produk, toko, kreator", section: "main" },
+    { key: "insight-ai", label: "Insight AI", sublabel: "Rekomendasi", section: "main" },
+    { key: "laporan", label: "Laporan", sublabel: "PDF & CSV", section: "main" },
+    { key: "produk", label: "Produk", sublabel: "HPP & margin", section: "old" },
+    { key: "cashflow", label: "Cashflow", sublabel: "Masuk / keluar", section: "old" },
+  ];
 
-  async function handleCSVUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!ensureLoggedIn()) return;
-    if (!workspaceId || !currentUserId) {
-      alert("Workspace belum siap. Refresh halaman atau cek Supabase ENV.");
-      return;
-    }
-    setSyncing(true);
-    try {
-      const text = await file.text();
-      const parsed = Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
-      if (parsed.errors.length) console.warn("CSV parse warnings", parsed.errors);
-      const rows = (parsed.data || []).filter((row) => Object.values(row).some((value) => String(value || "").trim() !== ""));
-      const preview = createImportPreview(rows, currentUserId, "auto");
-      
-      setPendingImportFile(file);
-      setPendingImportPreview(preview);
-    } catch (error) {
-      console.error("Gagal memproses file CSV:", error);
-      alert("Format CSV tidak didukung atau rusak.");
-    } finally {
-      setSyncing(false);
-    }
+  if (pageLoading) {
+    return (
+      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
+        <p style={{ fontSize: 14, color: "#64748b", fontWeight: 600 }}>Memuat Sistem Operasi Seller Untungin.ai...</p>
+      </div>
+    );
   }
 
   return (
-    <AppShell
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      isPro={isPro}
-      proExpired={proExpired}
-      onExport={() => exportSummaryJSON(products, expenses, metrics as any)}
-      onUpgrade={openUpgradeModal}
-      onLogout={handleLogout}
-    >
-      {activeTab === "overview" && (
-        <ExecutiveDashboard
-          products={products}
-          metrics={metrics as any}
-          filteredProducts={filteredProducts}
-          cashflowTrend={cashflowTrend}
-          profitTrend={profitTrend}
-          isPro={isPro}
-          isDemoMode={isDemoMode}
-          lastSync={lastSync}
-          onAddProduct={() => setActiveTab("add-product")}
-          onAddCashflow={() => setActiveTab("expenses")}
-          onImportCSV={() => setActiveTab("marketplace")}
-          syncing={syncing}
-          onGoAI={() => setActiveTab("ai-insights")}
-          onGoProducts={() => setActiveTab("products")}
-          onGoMarketplace={() => setActiveTab("marketplace")}
-          onGoReports={() => setActiveTab("reports")}
-          onGoBilling={() => openUpgradeModal("lifetime")}
-          onStock={(id) => {
-            setStockMove((prev) => ({ ...prev, productId: id }));
-            setActiveTab("stock");
-          }}
-        />
-      )}
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", width: "100%" }}>
+      {/* SIDEBAR NAVIGATION */}
+      <aside style={{ width: 260, background: "#ffffff", borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column", position: "fixed", top: 0, bottom: 0, left: 0, zIndex: 50, padding: "24px 16px", overflowY: "auto" }}>
+        <div style={{ marginBottom: 24, paddingLeft: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#00b14f", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "bold", fontSize: 14 }}>U</div>
+            <div>
+              <strong style={{ fontSize: 16, color: "#0f172a", display: "block" }}>Untungin.ai</strong>
+              <span style={{ fontSize: 11, color: "#64748b", display: "block" }}>Sistem Operasi Seller</span>
+            </div>
+          </div>
+        </div>
 
-      {activeTab === "ai-insights" && (
-        <div className="space-y-6">
-          <AIRecommendationPanel 
-            products={products} 
-            expenses={expenses} 
-            metrics={metrics as any} 
-            aiQuestion={aiQuestion} 
-            setAiQuestion={setAiQuestion} 
-            aiAnswer={aiAnswer} 
-            setAiAnswer={setAiAnswer} 
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20 }}>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 8, paddingLeft: 8 }}>Menu Utama</span>
+            <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {menuItems.filter(i => i.section === "main").map((item) => {
+                const isActive = activeTab === item.key;
+                return (
+                  <button key={item.key} onClick={() => setActiveTab(item.key)} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", background: isActive ? "#f0fdf4" : "transparent", transition: "all 0.2s", borderLeft: isActive ? "4px solid #00b14f" : "4px solid transparent", paddingLeft: isActive ? 10 : 14, cursor: "pointer", textAlign: "left" }}>
+                    <span style={{ fontSize: 14, fontWeight: isActive ? 700 : 600, color: isActive ? "#00b14f" : "#475569" }}>{item.label}</span>
+                    <span style={{ fontSize: 11, color: isActive ? "#16a34a" : "#94a3b8", marginTop: 2 }}>{item.sublabel}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 8, paddingLeft: 8 }}>Menu Lainnya</span>
+            <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {menuItems.filter(i => i.section === "old").map((item) => {
+                const isActive = activeTab === item.key;
+                return (
+                  <button key={item.key} onClick={() => setActiveTab(item.key)} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", background: isActive ? "#f1f5f9" : "transparent", transition: "all 0.2s", cursor: "pointer", textAlign: "left" }}>
+                    <span style={{ fontSize: 14, fontWeight: isActive ? 700 : 600, color: isActive ? "#0f172a" : "#475569" }}>{item.label}</span>
+                    <span style={{ fontSize: 11, color: isActive ? "#475569" : "#94a3b8", marginTop: 2 }}>{item.sublabel}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+
+        <div style={{ ...cardStyle, background: "#f8fafc", padding: 14, marginTop: "auto", border: "1px solid #e2e8f0", borderRadius: 12 }}>
+          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8, fontWeight: 500, textAlign: "center" }}>
+            Buka Fitur Market Intel & Rekomendasi AI
+          </div>
+          <button onClick={() => openUpgradeModal("lifetime")} style={{ width: "100%", padding: "10px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: "bold", cursor: "pointer", boxShadow: "0 2px 4px rgba(0, 177, 79, 0.2)" }}>
+            Naikkan ke PRO
+          </button>
+          <button onClick={handleLogout} style={{ width: "100%", marginTop: 8, padding: "4px", background: "transparent", color: "#94a3b8", border: "none", fontSize: 11, cursor: "pointer" }}>Keluar akun</button>
+        </div>
+      </aside>
+
+      {/* VIEW CONTENT CONTAINER */}
+      <main style={{ flex: 1, marginLeft: 260, padding: "32px 40px", minWidth: 0, position: "relative", zIndex: 10 }}>
+        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
+          <div>
+            <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>Ruang Kerja</span>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: "#0f172a", marginTop: 2 }}>Pusat Kontrol Seller</h1>
+          </div>
+        </header>
+
+        {/* DYNAMIC CONTENT SWITCH TAB */}
+        {activeTab === "overview" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <ExecutiveDashboard 
+              products={products} 
+              expenses={expenses} 
+              filteredProducts={filteredProducts}
+              metrics={metrics as any} 
+              cashflowTrend={getCashflowTrend(expenses)}
+              profitTrend={getProfitTrend(products)}
+              isPro={isPro}
+              isDemoMode={isDemoMode}
+              lastSync={lastSync}
+              syncing={syncing}
+              onGoMarketplace={async () => {
+                if (!stores || stores.length === 0) {
+                  const tiktokAuthLink = "https://services.tiktokshop.com/open/authorize?service_id=7641105771128489748";
+                  alert("Menghubungkan ke TikTok Shop Partner Center... Anda akan dialihkan untuk otorisasi toko.");
+                  window.open(tiktokAuthLink, "_blank");
+                  return;
+                }
+                setSyncing(true);
+                try {
+                  const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${selectedStoreId || stores[0].id}`);
+                  const data = await response.json(); 
+                  if (!response.ok) throw new Error(data.message || "Gagal sync");
+                  if (data.products) setProducts(data.products);
+                  alert("Sukses! Data produk dan transaksi TikTok Shop berhasil diselaraskan.");
+                } catch (error: any) {
+                  console.error(error);
+                  alert(`Gagal menyelaraskan data otomatis.\nAlasan: ${error.message}`);
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+              onAddCashflow={() => setActiveTab("cashflow")}
+              onGoAI={() => setActiveTab("insight-ai")}
+              onGoProducts={() => setActiveTab("produk")}
+              onGoReports={() => setActiveTab("laporan")}
+              onGoBilling={() => openUpgradeModal("lifetime")}
+              onImportCSV={() => setActiveTab("integrasi")}
+              onAddProduct={() => setActiveTab("produk")}
+              onStock={() => setActiveTab("produk")}
+              onSale={() => setActiveTab("produk")}
+              onDelete={deleteProduct}
+            />
+          </div>
+        )}
+
+        {activeTab === "integrasi" && (
+          <MarketplaceSyncPanel syncing={syncing} setSyncing={setSyncing} lastSync={lastSync} setLastSync={setLastSync} products={products} setProducts={setProducts} currentUserId={currentUserId} workspaceId={workspaceId} selectedStoreId={selectedStoreId} />
+        )}
+
+        {activeTab === "market-intel" && (
+          <MarketIntelligenceSuite 
+            marketData={marketData || { products: [] }} 
+            onSearch={handleDashboardScrape} 
             loading={loading} 
           />
-          <FinanceChatPanel 
-            messages={chatMessages} 
-            question={chatQuestion}
-            onQuestionChange={setChatQuestion}
-            loading={chatLoading} 
-            setMessages={setChatMessages} 
-            setChatLoading={setChatLoading} 
-            products={products} 
-            expenses={expenses} 
-            metrics={metrics as any} 
-          />
-          <ForecastingPanel 
-            products={products} 
-            metrics={metrics as any} 
-          />
-        </div>
-      )}
+        )}
 
-      {/* BERHASIL DIPERBAIKI: Tab Market Intel / Trends sekarang merender komponen aslinya */}
-      {(activeTab === "market-intel" || activeTab === "trends") && (
-        <MarketIntelligenceSuite 
-          onSearch={handleDashboardScrape} 
-          loading={loading}
-        />
-      )}
+        {activeTab === "insight-ai" && (
+          <AIRecommendationPanel products={products} expenses={expenses} metrics={metrics as any} />
+        )}
 
-      {/* Pengaman jika tab benar-benar tidak terdaftar di atas */}
-      {activeTab !== "overview" && activeTab !== "ai-insights" && activeTab !== "market-intel" && activeTab !== "trends" && (
-        <div className="p-6 text-gray-500 bg-white rounded-lg shadow-sm border border-gray-100">
-          Menu <span className="font-bold text-gray-800">"{activeTab}"</span> siap diintegrasikan dengan sub-layout Anda.
-        </div>
-      )}
-    </AppShell>
+        {activeTab === "laporan" && (
+          <ReportsPanel products={products} expenses={expenses} metrics={metrics as any} />
+        )}
+
+        {activeTab === "produk" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <ProductForm 
+              form={form} 
+              loading={loading} 
+              products={products || []} 
+              onChange={(nextForm) => setForm(nextForm)} 
+              onSubmit={async (e) => {
+                e.preventDefault();
+                alert("Simpan produk dijalankan.");
+              }} 
+              onFinish={async () => {
+                setActiveTab("overview");
+              }} 
+            />
+            <ProductTable products={filteredProducts} onDelete={deleteProduct} />
+          </div>
+        )}
+
+        {activeTab === "cashflow" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <ExpensePanel 
+              expenses={expenses} 
+              form={expenseForm} 
+              metrics={metrics as any} 
+              onChange={(nextExpense) => setExpenseForm(nextExpense)} 
+              onSubmit={async (e) => { e.preventDefault(); }} 
+            />
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

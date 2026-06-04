@@ -32,7 +32,7 @@ const EXEC_COPY: Record<Locale, {
   id: {
     safe: "Aman", days: "hari", new: "Baru", stable: "Stabil", veryGood: "Sangat baik", healthy: "Sehat", monitor: "Pantau", risky: "Berisiko",
     demoWorkspace: "Ruang kerja demo", proWorkspace: "Ruang kerja PRO", freeWorkspace: "Ruang kerja gratis", notSynced: "Belum sinkron", connected: "Terhubung", waiting: "Menunggu", active: "Aktif", inactive: "Belum", today: "Hari ini", justNow: "Baru saja", aiInsight: "Insight AI", marketplace: "Marketplace",
-    heroTitle: "Kelola profit, stok, dan arus kas dalam satu pusat kontrol premium.", heroSubtitle: "Pantau KPI, risiko stok, performa SKU, dan aksi AI harian tanpa berpindah halaman.", addProduct: "Tambah produk", addCashflow: "Catat arus kas", importing: "Mengimpor...", importCSV: "Impor CSV",
+    heroTitle: "Kelola profit, stok, dan arus kas dalam satu pusat kontrol premium.", heroSubtitle: "Pantau KPI, risiko stok, performa SKU, dan aksi AI harian tanpa berpindah halaman.", addProduct: "Sinkron Toko", addCashflow: "Catat arus kas", importing: "Mengimpor...", importCSV: "Impor CSV",
     opsScore: "Skor operasi", cashRunway: "Runway kas", cashRunwayHelper: "Estimasi daya tahan kas", marketSync: "Sinkron marketplace", aiPriority: "Prioritas AI", dailyFocus: "Fokus harian",
     focusToday: "Fokus hari ini", stockNeedCheck: "stok perlu dicek", opsSafe: "Operasi aman", startFromBestSeller: "Mulai dari produk paling laris.", readyToSell: "Siap dorong penjualan.", topProduct: "Produk unggulan", noProduct: "Belum ada produk", profitRecorded: "profit tercatat", addProductForRank: "Tambah produk untuk ranking.", workRhythm: "Ritme kerja", workRhythmValue: "Cek profit → stok → aksi", workRhythmHelper: "Alur harian untuk seller.",
     netCash: "Posisi kas bersih", cashHealthy: "Sehat", actionNeeded: "Perlu aksi", profitToStock: "Profit ke stok", expensePressure: "Tekanan biaya", riskControl: "Kontrol risiko", aiDecisionToday: "Keputusan AI hari ini", openActionPlan: "Buka rencana aksi",
@@ -49,7 +49,7 @@ const EXEC_COPY: Record<Locale, {
   en: {
     safe: "Safe", days: "days", new: "New", stable: "Stable", veryGood: "Excellent", healthy: "Healthy", monitor: "Watch", risky: "Risky",
     demoWorkspace: "Demo workspace", proWorkspace: "PRO workspace", freeWorkspace: "Free workspace", notSynced: "Not synced", connected: "Connected", waiting: "Pending", active: "Active", inactive: "Pending", today: "Today", justNow: "Just now", aiInsight: "AI insight", marketplace: "Marketplace",
-    heroTitle: "Manage profit, inventory, and cash flow from one premium command center.", heroSubtitle: "Monitor KPIs, stock risk, SKU performance, and daily AI actions without switching pages.", addProduct: "Add product", addCashflow: "Log cash flow", importing: "Importing...", importCSV: "Import CSV",
+    heroTitle: "Manage profit, inventory, and cash flow from one premium command center.", heroSubtitle: "Monitor KPIs, stock risk, SKU performance, and daily AI actions without switching pages.", addProduct: "Sync Marketplace", addCashflow: "Log cash flow", importing: "Importing...", importCSV: "Import CSV",
     opsScore: "Operating score", cashRunway: "Cash runway", cashRunwayHelper: "Estimated cash endurance", marketSync: "Marketplace sync", aiPriority: "AI priority", dailyFocus: "Daily focus",
     focusToday: "Today’s focus", stockNeedCheck: "stock items need review", opsSafe: "Operations safe", startFromBestSeller: "Start from your best-selling product.", readyToSell: "Ready to push sales.", topProduct: "Top product", noProduct: "No product yet", profitRecorded: "profit recorded", addProductForRank: "Add products to build ranking.", workRhythm: "Work rhythm", workRhythmValue: "Check profit → stock → action", workRhythmHelper: "Daily operating flow for sellers.",
     netCash: "Net cash position", cashHealthy: "Healthy", actionNeeded: "Action needed", profitToStock: "Profit to inventory", expensePressure: "Expense pressure", riskControl: "Risk control", aiDecisionToday: "Today’s AI decision", openActionPlan: "Open action plan",
@@ -66,7 +66,7 @@ const EXEC_COPY: Record<Locale, {
   ms: {
     safe: "Selamat", days: "hari", new: "Baharu", stable: "Stabil", veryGood: "Sangat baik", healthy: "Sihat", monitor: "Pantau", risky: "Berisiko",
     demoWorkspace: "Ruang kerja demo", proWorkspace: "Ruang kerja PRO", freeWorkspace: "Ruang kerja percuma", notSynced: "Belum diselaraskan", connected: "Terhubung", waiting: "Menunggu", active: "Aktif", inactive: "Belum", today: "Hari ini", justNow: "Baru sahaja", aiInsight: "Insight AI", marketplace: "Marketplace",
-    heroTitle: "Urus profit, inventori, dan aliran tunai dalam satu pusat kawalan premium.", heroSubtitle: "Pantau KPI, risiko stok, prestasi SKU, dan tindakan AI harian tanpa berpindah halaman.", addProduct: "Tambah produk", addCashflow: "Catat aliran tunai", importing: "Mengimport...", importCSV: "Import CSV",
+    heroTitle: "Urus profit, inventori, dan aliran tunai dalam satu pusat kawalan premium.", heroSubtitle: "Pantau KPI, risiko stok, prestasi SKU, dan tindakan AI harian tanpa berpindah halaman.", addProduct: "Selaras Marketplace", addCashflow: "Catat aliran tunai", importing: "Mengimport...", importCSV: "Import CSV",
     opsScore: "Skor operasi", cashRunway: "Runway tunai", cashRunwayHelper: "Anggaran ketahanan tunai", marketSync: "Selaras marketplace", aiPriority: "Prioriti AI", dailyFocus: "Fokus harian",
     focusToday: "Fokus hari ini", stockNeedCheck: "stok perlu disemak", opsSafe: "Operasi selamat", startFromBestSeller: "Mula daripada produk paling laris.", readyToSell: "Sedia dorong jualan.", topProduct: "Produk unggulan", noProduct: "Belum ada produk", profitRecorded: "profit direkod", addProductForRank: "Tambah produk untuk ranking.", workRhythm: "Ritme kerja", workRhythmValue: "Semak profit → stok → tindakan", workRhythmHelper: "Alur harian untuk seller.",
     netCash: "Posisi tunai bersih", cashHealthy: "Sihat", actionNeeded: "Perlu tindakan", profitToStock: "Profit ke stok", expensePressure: "Tekanan belanja", riskControl: "Kawalan risiko", aiDecisionToday: "Keputusan AI hari ini", openActionPlan: "Buka pelan tindakan",
@@ -236,11 +236,6 @@ export function ExecutiveDashboard({
     { step: "4", title: t.takeAction, detail: actionText, active: true },
   ];
 
-  const nextBestActions = [
-    { title: lowStockCount ? t.quickRestockPlan : t.pushBestMargin, detail: lowStockCount ? t.secureSku : t.useTopProfit },
-    { title: lossProducts.length ? t.fixLossPrice : t.keepDataRhythm, detail: lossProducts.length ? t.adjustPrice : t.recordDaily },
-  ];
-
   return (
     <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
       <style>{`
@@ -323,7 +318,8 @@ export function ExecutiveDashboard({
               <h1 className="hero-title">{t.heroTitle}</h1>
               <p className="hero-subtitle">{t.heroSubtitle}</p>
               <div className="command-actions">
-                <button type="button" onClick={onAddProduct} style={ctaButtonStyle}>{t.addProduct}</button>
+                {/* BUTTON DIGANTI: DARI TAMBAH PRODUK MENJADI SINKRON TOKO */}
+                <button type="button" onClick={onGoMarketplace} style={ctaButtonStyle}>{t.addProduct}</button>
                 <button type="button" onClick={onAddCashflow} style={ghostButtonStyle}>{t.addCashflow}</button>
                 <label style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", cursor: syncing ? "not-allowed" : "pointer" }}>
                   {syncing ? t.importing : t.importCSV}
@@ -332,148 +328,128 @@ export function ExecutiveDashboard({
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-              <div className="hero-fill-grid">
-                <div className="hero-fill-card">
-                  <small>{t.opsScore}</small>
-                  <strong>{operatingScore}/100</strong>
-                  <small style={{ color: "#2dd4bf" }}>{healthLabel(operatingScore, t)}</small>
-                </div>
-                <div className="hero-fill-card">
-                  <small>{t.cashRunway}</small>
-                  <strong>{getCashRunway(metrics, t)}</strong>
-                  <small>{t.cashRunwayHelper}</small>
-                </div>
-                <div className="hero-fill-card" onClick={onGoMarketplace} style={{ cursor: "pointer" }}>
-                  <small>{t.marketSync}</small>
-                  <strong style={{ color: lastSync ? "#2dd4bf" : "#f59e0b" }}>{lastSync ? t.connected : t.notSynced}</strong>
-                  <small>{lastSync ? t.active : t.inactive}</small>
-                </div>
+            {/* QUICK HUB KPI CARDS */}
+            <div className="hero-fill-grid" style={{ contentVisibility: "auto" }}>
+              <div className="hero-fill-card">
+                <small>{t.opsScore}</small>
+                <strong>{operatingScore}% ({healthLabel(operatingScore, t)})</strong>
+              </div>
+              <div className="hero-fill-card">
+                <small>{t.cashRunway}</small>
+                <strong title={t.cashRunwayHelper}>{getCashRunway(metrics, t)}</strong>
+              </div>
+              <div className="hero-fill-card">
+                <small>{t.aiPriority}</small>
+                <strong style={{ color: "#f59e0b" }}>{lowStockCount + lossProducts.length} {t.actionNeeded}</strong>
               </div>
             </div>
           </div>
 
-          {/* MAIN CORE METRICS GRID */}
-          <div className="status-mini-grid">
-            <StatCard label={t.revenue} value={compactMoney(metrics?.totalRevenue || 0)} helper={`${metrics?.totalUnits || 0} ${t.unitsSold}`} tone="brand" delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
-            <StatCard label={t.grossProfit} value={compactMoney(metrics?.totalProfit || 0)} helper={`${percent(metrics?.avgMargin || 0)} ${t.avgMarginText}`} tone={(metrics?.totalProfit || 0) >= 0 ? "success" : "danger"} delta={profitDelta.text} deltaTone={profitDelta.tone} />
-            <StatCard label={t.inventoryValue} value={compactMoney(metrics?.inventoryValue || 0)} helper={`${metrics?.totalStock || 0} ${t.unitsAvailableShort}`} tone="warning" delta={inventoryDelta.text} deltaTone={inventoryDelta.tone} />
-            <StatCard label={t.riskScore} value={`${safeRiskScore}/100`} helper={t.riskControl} tone={riskTone} delta={riskDelta.text} deltaTone={riskDelta.tone} />
+          {/* MAIN STRATEGIC METRICS */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <StatCard title={t.revenue} value={compactMoney(metrics?.totalRevenue || 0)} note={`${metrics?.totalUnits || 0} ${t.unitsSold}`} delta={revenueDelta.text} deltaTone={revenueDelta.tone} />
+            <StatCard title={t.grossProfit} value={compactMoney(metrics?.totalProfit || 0)} note={`${percent(metrics?.avgMargin || 0)} ${t.avgMarginText}`} delta={profitDelta.text} deltaTone={profitDelta.tone} />
+            <StatCard title={t.inventoryValue} value={compactMoney(metrics?.inventoryValue || 0)} note={`${metrics?.totalStock || 0} ${t.unitsAvailableShort}`} delta={inventoryDelta.text} deltaTone={inventoryDelta.tone} />
+            <StatCard title={t.riskScore} value={`${safeRiskScore}/100`} note={t.cashRunwayHelper} delta={riskDelta.text} deltaTone={riskDelta.tone} />
           </div>
 
-          {/* CHARTS CONTAINER SECTION */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, minWidth: 0 }} className="chart-grid">
-            <LineChartCard title={t.cashflowTrend} subtitle={t.inflowOutflow} data={cashflowTrend} valueLabel={t.cashIn} secondaryLabel={t.cashOut} maxTicks={4} />
-            <LineChartCard title={t.profitTrend} subtitle={t.profit7Days} data={profitTrend} valueLabel={t.grossProfit} maxTicks={4} />
-          </div>
-        </div>
-
-        {/* RIGHT SIDEBAR: OPERATIONAL CONTROL ROOM */}
-        <div className="command-side">
-          <div style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <Badge label={t.opsControl} tone="brand" />
-              <Badge label={t.liveBoard} tone="blue" />
-            </div>
-            <h3 style={{ margin: "0 0 4px 0", fontSize: 15, fontWeight: 800 }}>{t.dailySellerControl}</h3>
-            <p style={{ margin: "0 0 14px 0", color: "#64748b", fontSize: 12 }}>{t.workRhythmHelper}</p>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {opsSignals.map((item, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f8fafc", borderRadius: 14, border: "1px solid #e2e8f0" }}>
-                  <div>
-                    <small style={{ display: "block", color: "#64748b", fontSize: 11, fontWeight: 600 }}>{item.label}</small>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{item.value}</span>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <Badge label={item.helper} tone={item.tone} />
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* CHARTS LAYER */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
+            <LineChartCard title={t.cashflowTrend} subtitle={t.inflowOutflow} data={cashflowTrend} valueKey="value" secondaryKey="secondary" labelKey="label" labels={[t.cashIn, t.cashOut]} />
+            <LineChartCard title={t.profitTrend} subtitle={t.profit7Days} data={profitTrend} valueKey="value" labelKey="label" labels={[t.grossProfit]} />
           </div>
 
-          {/* ONBOARDING PROGRESS SYSTEM */}
-          <div style={{ ...cardStyle, background: "linear-gradient(180deg, #ffffff, #f8fafc)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <Badge label={t.onboardingStatus} tone="neutral" />
-              <strong style={{ fontSize: 13, color: "#0f766e" }}>{checklistProgress}%</strong>
-            </div>
-            <h3 style={{ margin: "0 0 10px 0", fontSize: 14 }}>{t.operationalReadiness}</h3>
-            <div style={{ marginBottom: 12 }}><Progress value={checklistProgress} /></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {checklist.map((item, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: item.done ? "#0f172a" : "#64748b" }}>
-                  <span style={{ color: item.done ? "#10b981" : "#cbd5e1", fontWeight: 900 }}>{item.done ? "✓" : "○"}</span>
-                  <span style={{ textDecoration: item.done ? "line-through" : "none", opacity: item.done ? 0.65 : 1 }}>{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* FLOW WORKFLOW STEPS INTERACTIVE LINE */}
-      <div style={cardStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <Badge label={t.workRhythm} tone="success" />
-          <Badge label={t.workRhythmValue} tone="neutral" />
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }} className="kpi-status-grid">
-          {workflowSteps.map((w, i) => (
-            <div key={i} style={{ padding: 12, borderRadius: 16, background: w.active ? "#f0fdf4" : "#f8fafc", border: w.active ? "1px solid #bbf7d0" : "1px solid #e2e8f0", minWidth: 0 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                <span style={{ width: 18, height: 18, borderRadius: 999, background: w.active ? "#10b981" : "#94a3b8", color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900 }}>{w.step}</span>
-                <strong style={{ fontSize: 13, color: "#0f172a" }}>{w.title}</strong>
-              </div>
-              <p style={{ margin: 0, fontSize: 12, color: "#475569", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {w.detail}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* LOWER GRID: PRODUCT PERFORMANCE & ACTIONS LIST */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.42fr) minmax(300px, 0.58fr)", gap: 12 }} className="feed-grid">
-        <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
-          <div style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
+          {/* DYNAMIC WORKFLOW CONTROLLER */}
+          <div style={{ ...cardStyle, padding: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
               <div>
-                <Badge label={t.skuPerformance} tone="brand" />
-                <h3 style={{ margin: "4px 0 0 0", fontSize: 16 }}>{t.priorityProducts}</h3>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.opsControl}</h3>
+                <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>{t.dailySellerControl}</p>
               </div>
-              <button type="button" onClick={onGoProducts} style={ghostButtonStyle}>{t.manageProducts}</button>
+              <Badge label={t.liveBoard} tone="success" />
             </div>
-            <ProductTable products={filteredProducts} onStock={onStock} onSale={onSale} onDelete={onDelete} />
-          </div>
-        </div>
-
-        {/* RIGHT ACTION PLANS INSIGHT AT A GLANCE */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }} className="command-side">
-          <div style={cardStyle}>
-            <Badge label={t.bestNextAction} tone="success" />
-            <h3 style={{ margin: "10px 0 12px 0", fontSize: 15 }}>{t.aiDecisionToday}</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-              {nextBestActions.map((act, i) => (
-                <div key={i} style={{ padding: 12, borderRadius: 16, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                  <strong style={{ display: "block", fontSize: 13, color: "#0f172a", marginBottom: 2 }}>{act.title}</strong>
-                  <small style={{ color: "#64748b", lineHeight: 1.4 }}>{act.detail}</small>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              {workflowSteps.map((ws) => (
+                <div key={ws.step} style={{ padding: 12, borderRadius: 12, background: ws.active ? "#f8fafc" : "#f1f5f9", border: "1px solid #e2e8f0", opacity: ws.active ? 1 : 0.6 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: "50%", background: ws.active ? "#0f766e" : "#94a3b8", color: "white", fontSize: 11, fontWeight: "bold" }}>{ws.step}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{ws.title}</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11, color: "#475569", lineBreak: "anywhere" }}>{ws.detail}</p>
                 </div>
               ))}
             </div>
-            <button type="button" onClick={onGoAI} style={{ ...ctaButtonStyle, width: "100%" }}>{t.openActionPlan}</button>
-          </div>
-
-          <div style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <Badge label={t.globalBadge} tone="blue" />
-              <Badge label={t.scaleReady} tone="success" />
-            </div>
-            <h3 style={{ margin: "0 0 4px 0", fontSize: 14 }}>{t.globalTitle}</h3>
-            <p style={{ margin: 0, color: "#64748b", fontSize: 12, lineHeight: 1.6 }}>{t.globalDescription}</p>
           </div>
         </div>
+
+        {/* SIDE COMMAND CONTROL PANEL */}
+        <div className="command-side">
+          {/* ONBOARDING FLOW */}
+          <div style={{ ...cardStyle, padding: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{t.onboardingStatus}</h4>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#0f766e" }}>{checklistProgress}%</span>
+            </div>
+            <Progress value={checklistProgress} style={{ marginBottom: 12 }} />
+            <div style={{ display: "grid", gap: 8 }}>
+              {checklist.map((item, idx) => (
+                <div key={idx} style={{ display: "flex", alignItems: "start", gap: 8, fontSize: 11.5 }}>
+                  <span style={{ color: item.done ? "#10b981" : "#94a3b8", fontWeight: "bold" }}>{item.done ? "✓" : "○"}</span>
+                  <span style={{ color: item.done ? "#64748b" : "#1e293b", textDecoration: item.done ? "line-through" : "none" }}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* AUTOMATED AI ANOMALY & RISK SIGNALS */}
+          <div style={{ ...cardStyle, padding: "16px" }}>
+            <h4 style={{ margin: "0 0 12px 0", fontSize: 13, fontWeight: 600 }}>{t.autoAction}</h4>
+            <div style={{ display: "grid", gap: 10 }}>
+              {opsSignals.map((signal, idx) => (
+                <div key={idx} style={{ padding: 10, borderRadius: 10, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>{signal.label}</span>
+                    <Badge label={signal.value} tone={signal.tone} />
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11, color: "#1e293b", fontWeight: 500 }}>{signal.helper}</p>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={onGoAI} style={{ ...ghostButtonStyle, width: "100%", marginTop: 12, fontSize: 12, justifyContent: "center" }}>{t.openAiCenter} →</button>
+          </div>
+
+          {/* GLOBAL SAAS EXPANSION CARD */}
+          <div style={{ ...cardStyle, padding: "16px", background: "linear-gradient(to bottom right, #fafafa, #f4f4f5)", border: "1px dashed #d4d4d8" }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+              <Badge label={t.globalBadge} tone="muted" />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#2563eb" }} />
+            </div>
+            <h4 style={{ margin: "0 0 4px 0", fontSize: 13, fontWeight: 600, color: "#18181b" }}>{t.globalTitle}</h4>
+            <p style={{ margin: "0 0 12px 0", fontSize: 11, color: "#71717a", lineHeight: 1.4 }}>{t.globalDescription}</p>
+            <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ flex: 1, background: "#fff", padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4e7", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#a1a1aa" }}>{t.expansionReadiness}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#16a34a" }}>{t.scaleReady}</div>
+              </div>
+              <div style={{ flex: 1, background: "#fff", padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4e7", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#a1a1aa" }}>{t.buildPhase}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#2563eb" }}>v2.0-MultiLang</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CORE SKU PERFORMANCE LAYER */}
+      <div style={{ ...cardStyle, padding: "16px", contentVisibility: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.skuPerformance}</h3>
+            <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>{t.priorityProducts}</p>
+          </div>
+          <button type="button" onClick={onGoProducts} style={{ ...ghostButtonStyle, fontSize: 12 }}>{t.manageProducts}</button>
+        </div>
+        <ProductTable products={filteredProducts} onStock={onStock} onSale={onSale} onDelete={onDelete} />
       </div>
     </div>
   );
