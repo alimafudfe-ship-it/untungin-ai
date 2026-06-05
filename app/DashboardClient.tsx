@@ -77,7 +77,7 @@ export default function DashboardPage() {
     return sortedProducts;
   }, [selectedFilter, sortedProducts]);
 
-// ====================================================================
+  // ====================================================================
   // FUNGSI RISET PASAR - PURE REAL-TIME TIKTOK SHOP API CONNECTED
   // ====================================================================
   const handleDashboardScrape = useCallback(async (keywordInput: string) => {
@@ -87,38 +87,35 @@ export default function DashboardPage() {
     setLoading(true);
     setMarketData(null);
 
-try {
-    // Menembak endpoint lokal rute murni market-intelligence
-    const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
+    try {
+      // Menembak endpoint lokal rute murni market-intelligence
+      const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error! Status: ${response.status}`);
       }
-    });
 
-    if (!response.ok) {
-      throw new Error(`HTTP Error! Status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    
-    // ✅ PERBAIKAN: Ambil properti .products dari dalam objek JSON backend
-    if (result && result.products) {
-      setMarketData(result.products); 
-if (typeof setFilteredProducts === "function") {
-        setFilteredProducts(result.products);
+      const result = await response.json();
+      
+      // ✅ INTEGRASI PERBAIKAN: Mengirimkan full payload 'result' objek utuh ke Suite 
+      // agar dibaca dengan baik beserta properti categories, keyword, dan shops.
+      if (result) {
+        setMarketData(result); 
+      } else {
+        setMarketData({ products: [], keyword: cleanKeyword });
       }
-    } else {
-      setMarketData([]);
-      if (typeof setFilteredProducts === "function") setFilteredProducts([]);
-    }
 
-  } catch (err) {
-    console.error("Gagal melakukan riset pasar real-time:", err);
-    alert("Gagal mengambil data real-time. Pastikan koneksi API TikTok Shop Anda aktif.");
-  } finally {
-    setLoading(false);
-  }
+    } catch (err) {
+      console.error("Gagal melakukan riset pasar real-time:", err);
+      alert("Gagal mengambil data real-time. Pastikan koneksi API TikTok Shop Anda aktif.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
   
   useEffect(() => {

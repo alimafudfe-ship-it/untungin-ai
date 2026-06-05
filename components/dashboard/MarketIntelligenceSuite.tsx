@@ -99,6 +99,7 @@ function downloadText(filename: string, content: string, type = "text/csv;charse
   URL.revokeObjectURL(url);
 }
 
+// Menghapus tanda kurung kurawal pembungkus implisit baris kode array ekspor
 function productToCsv(item: MIProduct) {
   return [
     "product", item.id, item.productName, item.marketplace, item.country, item.category, item.keyword,
@@ -205,10 +206,11 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
 
   useEffect(() => {
     if (marketData) {
+      // Menangani fleksibilitas jika data berupa array langsung ataupun dibungkus objek murni
       const rawProducts = Array.isArray(marketData) 
         ? marketData 
         : (marketData?.products || marketData?.items || marketData?.results || []);
-      const rootKeyword = marketData.keyword || keyword || "-";
+      const rootKeyword = marketData.keyword || keyword || "sepatu";
 
       const normalizedProducts = rawProducts.map((item: any, index: number): MIProduct => {
         return {
@@ -280,22 +282,25 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
       list = list.filter((p) => {
         const normalizedMarketProduct = (p.marketplace || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
         const normalizedSelectedMarket = selectedMarketplace.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-        return normalizedMarketProduct === normalizedSelectedMarket || normalizedMarketProduct.includes(normalizedSelectedMarket);
+        
+        // Pelonggaran filter toleransi kata kunci dasar: "tiktok" mencakup "tiktokshop"
+        return (
+          normalizedMarketProduct === normalizedSelectedMarket || 
+          normalizedMarketProduct.includes(normalizedSelectedMarket) ||
+          (normalizedSelectedMarket === "tiktokshop" && normalizedMarketProduct === "tiktok")
+        );
       });
     }
 
     return list;
   }, [apiState.products, selectedMarketplace]);
 
-const handleSearchClick = () => {
+  const handleSearchClick = () => {
     const cleanKeyword = keyword.trim();
     if (!cleanKeyword) return;
     
-    // 1. Pemicu fungsi pencarian utama ke parent (API route)
     onSearch(cleanKeyword);
     
-    // 2. Memaksa objek apiState memperbarui keyword internalnya 
-    // agar sinkron dengan teks di header "Produk Kompetitor Terlaris"
     setApiState(prev => ({
       ...prev,
       products: prev.products.map(p => ({ ...p, keyword: cleanKeyword }))
