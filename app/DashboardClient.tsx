@@ -112,7 +112,7 @@ export default function DashboardPage() {
       setLoading(false);
     }
   }, []);
-  
+
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER !== "midtrans") return;
     const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
