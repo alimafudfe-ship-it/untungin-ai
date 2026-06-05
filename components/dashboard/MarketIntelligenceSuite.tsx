@@ -285,9 +285,19 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
     return list;
   }, [apiState.products, selectedMarketplace]);
 
-  const handleSearchClick = () => {
-    if (!keyword.trim()) return;
-    onSearch(keyword);
+const handleSearchClick = () => {
+    const cleanKeyword = keyword.trim();
+    if (!cleanKeyword) return;
+    
+    // 1. Pemicu fungsi pencarian utama ke parent (API route)
+    onSearch(cleanKeyword);
+    
+    // 2. Memaksa objek apiState memperbarui keyword internalnya 
+    // agar sinkron dengan teks di header "Produk Kompetitor Terlaris"
+    setApiState(prev => ({
+      ...prev,
+      products: prev.products.map(p => ({ ...p, keyword: cleanKeyword }))
+    }));
   };
 
   return (
