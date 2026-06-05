@@ -12,6 +12,7 @@ type QuickMarket = "All" | "Shopee" | "TikTok Shop" | "Tokopedia" | "Lazada";
 
 type ApiState = MIBundle;
 
+// 🚫 MOCKUP DIHAPUS: State awal diatur benar-benar kosong tanpa dummy data
 const EMPTY_BUNDLE: MIBundle = {
   products: [],
   categories: [],
@@ -24,7 +25,7 @@ const EMPTY_BUNDLE: MIBundle = {
   errors: [],
   generatedAt: new Date().toISOString(),
   dataMode: "empty",
-  activeSource: "Memuat sumber data",
+  activeSource: "TikTok Real-time API",
   isDemo: false,
   rowCount: 0,
 };
@@ -68,6 +69,7 @@ function count(value: number | undefined) {
   return Number(value || 0).toLocaleString("id-ID");
 }
 
+// Menghitung Tone Warna badge berdasarkan skor real-time
 function scoreTone(score: number): Tone {
   if (score >= 82) return "success";
   if (score >= 68) return "blue";
@@ -99,7 +101,6 @@ function downloadText(filename: string, content: string, type = "text/csv;charse
   URL.revokeObjectURL(url);
 }
 
-// Menghapus tanda kurung kurawal pembungkus implisit baris kode array ekspor
 function productToCsv(item: MIProduct) {
   return [
     "product", item.id, item.productName, item.marketplace, item.country, item.category, item.keyword,
@@ -119,7 +120,7 @@ function exportProducts(rows: MIProduct[]) {
 function recommendationForProduct(item: MIProduct) {
   const score = scoreProduct(item);
   if (item.competitionScore <= 50 && score >= 75) return "Layak dites kecil: cari supplier, hitung margin bersih, lalu validasi 3 angle konten.";
-  if (item.competitionScore >= 65) return "Masuk hanya dengan diferensiasi: bundling, foto lebih kuat, bonus, atau kreator niche.";
+  if (item.competitionScore >= 65) return "Masuk hanya dengan dferensiasi: bundling, foto lebih kuat, bonus, atau kreator niche.";
   if (item.marginSignal >= 78) return "Menarik untuk bundling dan upsell karena sinyal margin kuat.";
   return "Pantau 7 hari: cek review negatif, seller baru, dan stabilitas demand sebelum stok besar.";
 }
@@ -128,12 +129,17 @@ function buildPlaybook(bundle: MIBundle) {
   const summary = summarizeBundle(bundle);
   const top = summary.topProduct;
   const low = summary.lowCompetition;
+  
+  if (!top && !low) {
+    return ["Belum ada data real-time untuk menyusun playbook aksi pasar. Lakukan riset kata kunci terlebih dahulu."];
+  }
+
   return [
     top ? `Prioritas pertama: ${top.productName}. Skor peluang ${Math.round(scoreProduct(top))}/100, sold 30d ${count(top.sold30d)}, revenue 30d ${compactMoney(top.revenue30d)}.` : "Belum ada produk prioritas.",
     low ? `Peluang kompetisi rendah: ${low.productName}. Demand ${low.demandScore}/100, kompetisi ${low.competitionScore}/100.` : "Belum ada produk dengan kombinasi demand tinggi dan kompetisi rendah.",
-    "Aksi 1: ambil 5 produk teratas, cek 20 listing kompetitor, lalu catat keluhan review 1-2 bintang.",
-    "Aksi 2: validasi supplier, berat paket, retur, garansi, fee marketplace, voucher, dan komisi affiliate.",
-    "Aksi 3: tes konten 7 hari sebelum stok besar: demo, problem-solution, before-after, dan testimoni.",
+    "Aksi 1: Ambil 5 produk teratas dari pencarian real-time, lalu catat keluhan review 1-2 bintang kompetitor.",
+    "Aksi 2: Validasi biaya logistik supplier, komisi affiliate TikTok Shop, dan potongan admin market.",
+    "Aksi 3: Tes format konten video pendek/live streaming selama 7 hari sebelum mendatangkan stok grosir."
   ];
 }
 
@@ -204,75 +210,83 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
   const [keyword, setKeyword] = useState("");
   const [apiState, setApiState] = useState<ApiState>(EMPTY_BUNDLE);
 
+  // 📡 SYNCRONIZER MURNI: Sinkronisasi data real-time langsung dari response API Scraper TikTok Shop
   useEffect(() => {
-    if (marketData) {
-      // Menangani fleksibilitas jika data berupa array langsung ataupun dibungkus objek murni
-      const rawProducts = Array.isArray(marketData) 
-        ? marketData 
-        : (marketData?.products || marketData?.items || marketData?.results || []);
-      const rootKeyword = marketData.keyword || keyword || "sepatu";
-
-      const normalizedProducts = rawProducts.map((item: any, index: number): MIProduct => {
-        return {
-          id: item.id || `scraped-prod-${index}-${Date.now()}`,
-          productName: item.productName || item.product_name || item.title || item.name || "Produk Tanpa Nama",
-          marketplace: item.marketplace || "TikTok Shop",
-          country: item.country || "ID",
-          category: item.category || "General",
-          keyword: rootKeyword,
-          period: item.period || "month",
-          
-          priceMin: Number(item.priceMin || item.price_min || item.sellingPrice || item.selling_price || item.price || 0),
-          priceMax: Number(item.priceMax || item.price_max || item.sellingPrice || item.selling_price || item.price || 0),
-          
-          sold7d: Number(item.sold7d || item.sold_7d || 0),
-          sold30d: Number(item.sold30d || item.sold_30d || item.sales || item.sold || item.quantitySold || item.quantity_sold || 0),
-          
-          revenue7d: Number(item.revenue7d || item.revenue_7d || 0),
-          revenue30d: Number(item.revenue30d || item.revenue_30d || item.revenue || 0),
-          
-          growth7d: Number(item.growth7d || item.growth_7d || 0),
-          growth30d: Number(item.growth30d || item.growth_30d || 0),
-          
-          sellerCount: Number(item.sellerCount || item.seller_count || 1),
-          creatorCount: Number(item.creatorCount || item.creator_count || 0),
-          videoCount: Number(item.videoCount || item.video_count || 0),
-          adCount: Number(item.adCount || item.ad_count || 0),
-          liveCount: Number(item.liveCount || item.live_count || 0),
-          
-          avgRating: Number(item.avgRating || item.avg_rating || item.rating || 5),
-          reviewCount: Number(item.reviewCount || item.review_count || 0),
-          
-          demandScore: Number(item.demandScore || item.demand_score || 75),
-          growthScore: Number(item.growthScore || item.growth_score || 60),
-          competitionScore: Number(item.competitionScore || item.competition_score || 35),
-          saturationScore: Number(item.saturationScore || item.saturation_score || 25),
-          marginSignal: Number(item.marginSignal || item.margin_signal || 80),
-          
-          signal: item.signal || "rising",
-          source: item.source || "TikTok Scraper API",
-          sourceUrl: item.sourceUrl || item.source_url || "",
-          notes: item.notes || item.description || ""
-        };
-      });
-
-      setApiState({
-        products: normalizedProducts,
-        categories: marketData.categories || [],
-        shops: marketData.shops || [],
-        creators: marketData.creators || [],
-        videos: marketData.videos || [],
-        lives: marketData.lives || [],
-        sources: marketData.sources || [],
-        providers: marketData.providers || [],
-        errors: marketData.errors || [],
-        generatedAt: marketData.generatedAt || new Date().toISOString(),
-        dataMode: "mixed",
-        activeSource: "TikTok Real-time API",
-        isDemo: false,
-        rowCount: normalizedProducts.length,
-      });
+    // Jika tidak ada data atau saat proses memuat baru berjalan, kosongkan state (Hapus Sisa-sisa Dummy)
+    if (!marketData) {
+      setApiState(EMPTY_BUNDLE);
+      return;
     }
+
+    const rawProducts = Array.isArray(marketData) 
+      ? marketData 
+      : (marketData.products || marketData.items || marketData.results || []);
+
+    // Jika data dari server kosong murni, set state kosong agar UI menampilkan "EmptyState"
+    if (rawProducts.length === 0) {
+      setApiState(prev => ({ ...prev, products: [], rowCount: 0, dataMode: "empty" }));
+      return;
+    }
+
+    const rootKeyword = marketData.keyword || keyword || "Real-time Pencarian";
+
+    const normalizedProducts = rawProducts.map((item: any, index: number): MIProduct => {
+      const pMin = Number(item.priceMin || item.price_min || item.sellingPrice || item.selling_price || item.price || 0);
+      const pMax = Number(item.priceMax || item.price_max || item.sellingPrice || item.selling_price || item.price || 0);
+      const s30d = Number(item.sold30d || item.sold_30d || item.sales || item.sold || item.quantitySold || item.quantity_sold || 0);
+      const r30d = Number(item.revenue30d || item.revenue_30d || item.revenue || (pMin * s30d) || 0);
+
+      return {
+        id: (item.id || item.product_id || `tiktok-live-${index}-${Date.now()}`).toString(),
+        productName: item.productName || item.product_name || item.title || item.name || "Produk Tanpa Nama",
+        marketplace: item.marketplace || "TikTok Shop",
+        country: item.country || "ID",
+        category: item.category || "General",
+        keyword: rootKeyword,
+        period: item.period || "month",
+        priceMin: pMin,
+        priceMax: pMax,
+        sold7d: Number(item.sold7d || item.sold_7d || 0),
+        sold30d: s30d,
+        revenue7d: Number(item.revenue7d || item.revenue_7d || 0),
+        revenue30d: r30d,
+        growth7d: Number(item.growth7d || item.growth_7d || 0),
+        growth30d: Number(item.growth30d || item.growth_30d || 0),
+        sellerCount: Number(item.sellerCount || item.seller_count || 1),
+        creatorCount: Number(item.creatorCount || item.creator_count || 0),
+        videoCount: Number(item.videoCount || item.video_count || 0),
+        adCount: Number(item.adCount || item.ad_count || 0),
+        liveCount: Number(item.liveCount || item.live_count || 0),
+        avgRating: Number(item.avgRating || item.avg_rating || item.rating || 0),
+        reviewCount: Number(item.reviewCount || item.review_count || 0),
+        demandScore: Number(item.demandScore || item.demand_score || 0),
+        growthScore: Number(item.growthScore || item.growth_score || 0),
+        competitionScore: Number(item.competitionScore || item.competition_score || 0),
+        saturationScore: Number(item.saturationScore || item.saturation_score || 0),
+        marginSignal: Number(item.marginSignal || item.margin_signal || 0),
+        signal: item.signal || "stable",
+        source: item.source || "TikTok Shop Scraper Real-time",
+        sourceUrl: item.sourceUrl || item.source_url || "",
+        notes: item.notes || item.description || ""
+      };
+    });
+
+    setApiState({
+      products: normalizedProducts,
+      categories: marketData.categories || [],
+      shops: marketData.shops || [],
+      creators: marketData.creators || [],
+      videos: marketData.videos || [],
+      lives: marketData.lives || [],
+      sources: marketData.sources || [],
+      providers: marketData.providers || [],
+      errors: marketData.errors || [],
+      generatedAt: marketData.generatedAt || new Date().toISOString(),
+      dataMode: "live-sync",
+      activeSource: "TikTok Real-time API",
+      isDemo: false,
+      rowCount: normalizedProducts.length,
+    });
   }, [marketData]);
 
   const filteredProducts = useMemo(() => {
@@ -283,7 +297,6 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
         const normalizedMarketProduct = (p.marketplace || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
         const normalizedSelectedMarket = selectedMarketplace.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
         
-        // Pelonggaran filter toleransi kata kunci dasar: "tiktok" mencakup "tiktokshop"
         return (
           normalizedMarketProduct === normalizedSelectedMarket || 
           normalizedMarketProduct.includes(normalizedSelectedMarket) ||
@@ -298,26 +311,20 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
   const handleSearchClick = () => {
     const cleanKeyword = keyword.trim();
     if (!cleanKeyword) return;
-    
     onSearch(cleanKeyword);
-    
-    setApiState(prev => ({
-      ...prev,
-      products: prev.products.map(p => ({ ...p, keyword: cleanKeyword }))
-    }));
   };
 
   return (
     <div style={{ display: "grid", gap: 24, padding: "24px 0" }}>
       <div style={cardStyle}>
-        <Badge label="Market Intelligence Search" tone="blue" />
+        <Badge label="TikTok Live Scraper Mode" tone="success" />
         <h2 style={{ margin: "10px 0 6px" }}>Pantau produk kompetitor terlaris dan analisis tren omzet pasar secara real-time.</h2>
         <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
           <input
             style={{ ...inputStyle, flex: 1 }}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Ketik keyword riset market (contoh: BAJU RENANG, MUKENA, dll)"
+            placeholder="Ketik keyword riset market TikTok Shop (contoh: BAJU RENANG, MUKENA, dll)"
           />
           <button style={ctaButtonStyle} onClick={handleSearchClick} disabled={loading}>
             {loading ? "Mencari data..." : "Riset Pasar"}
@@ -361,7 +368,9 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
         <div style={{ display: "grid", gap: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3>Produk Kompetitor Terlaris untuk "{marketData?.keyword || keyword || "Semua"}"</h3>
-            <button style={ghostButtonStyle} onClick={() => exportProducts(filteredProducts)}>Export CSV</button>
+            {filteredProducts.length > 0 && (
+              <button style={ghostButtonStyle} onClick={() => exportProducts(filteredProducts)}>Export CSV</button>
+            )}
           </div>
           {loading ? (
             <EmptyState title="Sedang memproses" description="Menghubungkan ke API pemantau dan menyusun data pasar terbaru..." />
@@ -372,7 +381,7 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
               ))}
             </div>
           ) : (
-            <EmptyState title="Data kosong" description="Belum ada data untuk keyword ini. Silakan ketik kata kunci di atas lalu klik Riset Pasar." />
+            <EmptyState title="Data Live Kosong" description="Belum ada data real-time untuk keyword ini. Silakan ketik kata kunci di atas lalu klik tombol Riset Pasar." />
           )}
         </div>
       )}
@@ -393,7 +402,7 @@ function OverviewPanel({ bundle }: { bundle: MIBundle; products?: Product[] }) {
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <section style={cardStyle}>
-        <h3>AI Market Playbook</h3>
+        <h3>AI Market Playbook (Real-time Analysis)</h3>
         <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
           {playbook.map((p, idx) => <li key={idx}>{p}</li>)}
         </ul>
@@ -406,7 +415,7 @@ function CategoryTable({ rows }: { rows: MICategory[] }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
       {rows.length === 0 ? (
-        <EmptyState title="Kategori Kosong" description="Belum ada rekaman ceruk data pasar terlampir." />
+        <EmptyState title="Kategori Kosong" description="Tidak ada rekaman data kategori real-time yang tersedia." />
       ) : (
         rows.map((item) => (
           <div key={item.id} style={{ padding: 16, borderRadius: 18, background: "#fff", border: "1px solid #e2e8f0" }}>
@@ -428,7 +437,7 @@ function ShopTable({ rows }: { rows: MIShop[] }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
       {rows.length === 0 ? (
-        <EmptyState title="Toko Kosong" description="Tidak ada profil penjual kompetitor terdeteksi saat ini." />
+        <EmptyState title="Toko Kosong" description="Tidak ada data profil toko kompetitor yang terdeteksi dari hasil pencarian." />
       ) : (
         rows.map((item) => (
           <div key={item.id} style={{ padding: 16, borderRadius: 18, background: "#fff", border: "1px solid #e2e8f0" }}>
@@ -450,7 +459,7 @@ function CreatorTable({ rows }: { rows: MICreator[] }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
       {rows.length === 0 ? (
-        <EmptyState title="Kreator Kosong" description="Data afiliasi ataupun talenta video kreatif belum dikaitkan." />
+        <EmptyState title="Kreator Kosong" description="Belum ada data kreator affiliate TikTok Shop yang terjaring." />
       ) : (
         rows.map((item) => (
           <div key={item.id} style={{ padding: 16, borderRadius: 18, background: "#fff", border: "1px solid #e2e8f0" }}>
@@ -472,7 +481,7 @@ function VideoTable({ rows }: { rows: MIVideoAd[] }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
       {rows.length === 0 ? (
-        <EmptyState title="Iklan Video Kosong" description="Belum ada pancingan (hook) matriks performa iklan tersaring." />
+        <EmptyState title="Iklan Video Kosong" description="Belum ada matriks performa video kreatif/iklan yang dikembalikan oleh API." />
       ) : (
         rows.map((item) => (
           <div key={item.id} style={{ padding: 16, borderRadius: 18, background: "#fff", border: "1px solid #e2e8f0" }}>
@@ -494,7 +503,7 @@ function LiveTable({ rows }: { rows: MILivestream[] }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
       {rows.length === 0 ? (
-        <EmptyState title="Sesi Sederhana Live Commerce Nihil" description="Aktivitas pantauan promosi siaran langsung kosong." />
+        <EmptyState title="Live Commerce Nihil" description="Aktivitas promosi siaran langsung (Live) real-time tidak ditemukan." />
       ) : (
         rows.map((item) => (
           <div key={item.id} style={{ padding: 16, borderRadius: 18, background: "#fff", border: "1px solid #e2e8f0" }}>
