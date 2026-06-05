@@ -102,7 +102,7 @@ function downloadText(filename: string, content: string, type = "text/csv;charse
 function productToCsv(item: MIProduct) {
   return [
     "product", item.id, item.productName, item.marketplace, item.country, item.category, item.keyword,
-    item.priceMin, item.priceMax, item.sold7d, item.sold30d, item.revenue7d, item.revenue30d,
+    item.priceMin, item.priceMax, item.sold30d, item.sold30d, item.revenue30d, item.revenue30d,
     item.growth7d, item.growth30d, item.sellerCount, item.creatorCount, item.videoCount,
     item.liveCount, item.adCount, item.avgRating, item.reviewCount, item.demandScore,
     item.growthScore, item.competitionScore, Math.round(scoreProduct(item)), item.source,
@@ -203,29 +203,32 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
   const [keyword, setKeyword] = useState("");
   const [apiState, setApiState] = useState<ApiState>(EMPTY_BUNDLE);
 
-  // Sinkronisasi data real-time dengan parser pengaman schema data camelCase & snake_case
+  // Sinkronisasi data real-time dengan parser pengaman schema data camelCase & snake_case pencarian TikTok
   useEffect(() => {
     if (marketData) {
       const rawProducts = marketData.products || marketData.items || marketData.results || [];
+      const rootKeyword = marketData.keyword || "";
 
       const normalizedProducts = rawProducts.map((item: any, index: number): MIProduct => {
         return {
           id: item.id || `scraped-prod-${index}-${Date.now()}`,
-          // Menyesuaikan mapping data agar terbaca oleh ProductCard & kalkulator skor Untungin
+          // Memetakan 'product_name' (snake_case) dari skema scraper Anda ke 'productName' bawaan dashboard
           productName: item.productName || item.product_name || item.title || item.name || "Produk Tanpa Nama",
-          marketplace: item.marketplace || "Shopee",
+          marketplace: item.marketplace || "TikTok Shop",
           country: item.country || "ID",
           category: item.category || "General",
-          keyword: item.keyword || item.product_name || item.name || "-",
+          keyword: rootKeyword || item.keyword || "-",
           period: item.period || "month",
           
           priceMin: Number(item.priceMin || item.price_min || item.sellingPrice || item.selling_price || item.price || 0),
           priceMax: Number(item.priceMax || item.price_max || item.sellingPrice || item.selling_price || item.price || 0),
           
           sold7d: Number(item.sold7d || item.sold_7d || 0),
+          // Memetakan 'sold_30d' dari skema scraper Anda ke 'sold30d'
           sold30d: Number(item.sold30d || item.sold_30d || item.sales || item.sold || item.quantitySold || item.quantity_sold || 0),
           
           revenue7d: Number(item.revenue7d || item.revenue_7d || 0),
+          // Memetakan 'revenue_30d' dari skema scraper Anda ke 'revenue30d'
           revenue30d: Number(item.revenue30d || item.revenue_30d || item.revenue || 0),
           
           growth7d: Number(item.growth7d || item.growth_7d || 0),
@@ -240,14 +243,14 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
           avgRating: Number(item.avgRating || item.avg_rating || item.rating || 5),
           reviewCount: Number(item.reviewCount || item.review_count || 0),
           
-          demandScore: Number(item.demandScore || item.demand_score || 70),
-          growthScore: Number(item.growthScore || item.growth_score || 50),
-          competitionScore: Number(item.competitionScore || item.competition_score || 30),
-          saturationScore: Number(item.saturationScore || item.saturation_score || 20),
+          demandScore: Number(item.demandScore || item.demand_score || 75),
+          growthScore: Number(item.growthScore || item.growth_score || 60),
+          competitionScore: Number(item.competitionScore || item.competition_score || 35),
+          saturationScore: Number(item.saturationScore || item.saturation_score || 25),
           marginSignal: Number(item.marginSignal || item.margin_signal || 80),
           
           signal: item.signal || "rising",
-          source: item.source || "Scraper API",
+          source: item.source || "TikTok Scraper API",
           sourceUrl: item.sourceUrl || item.source_url || "",
           notes: item.notes || item.description || ""
         };
@@ -265,7 +268,7 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
         errors: marketData.errors || [],
         generatedAt: marketData.generatedAt || new Date().toISOString(),
         dataMode: "mixed",
-        activeSource: "Real-time API",
+        activeSource: "TikTok Real-time API",
         isDemo: false,
         rowCount: normalizedProducts.length,
       });
@@ -287,11 +290,13 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
           console.warn("[Dashboard Info] Menggunakan repositori lokal:", err.message);
         });
     }
-  }, [marketData]); // Menggunakan dependensi langsung objek marketData agar sinkron saat scrap selesai
+  }, [marketData]);
 
-  // Sistem pencocokan filter marketplace yang kebal terhadap perbedaan spasi dan underscore casing 
+  // Sistem penapis internal yang kebal terhadap perbedaan spasi, huruf besar/kecil, dan pencarian kata kunci lokal
   const filteredProducts = useMemo(() => {
     let list = apiState.products || [];
+    
+    // 1. Filter Berdasarkan Pilihan Tab Marketplace
     if (selectedMarketplace !== "All") {
       list = list.filter((p) => {
         const normalizedMarketProduct = (p.marketplace || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
@@ -299,8 +304,21 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
         return normalizedMarketProduct === normalizedSelectedMarket;
       });
     }
+
+    // 2. Filter Pengaman Kata Kunci untuk menangani log penapisan lokal komponen jika keyword diisi
+    if (keyword.trim()) {
+      const searchTarget = keyword.toLowerCase().trim();
+      list = list.filter((p) => {
+        return (
+          (p.productName || "").toLowerCase().includes(searchTarget) ||
+          (p.category || "").toLowerCase().includes(searchTarget) ||
+          (p.keyword || "").toLowerCase().includes(searchTarget)
+        );
+      });
+    }
+
     return list;
-  }, [apiState.products, selectedMarketplace]);
+  }, [apiState.products, selectedMarketplace, keyword]);
 
   const handleSearchClick = () => {
     if (!keyword.trim()) return;
