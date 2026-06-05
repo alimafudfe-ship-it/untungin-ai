@@ -102,7 +102,7 @@ function downloadText(filename: string, content: string, type = "text/csv;charse
 function productToCsv(item: MIProduct) {
   return [
     "product", item.id, item.productName, item.marketplace, item.country, item.category, item.keyword,
-    item.priceMin, item.priceMax, item.sold30d, item.sold30d, item.revenue30d, item.revenue30d,
+    item.priceMin, item.priceMax, item.sold7d, item.sold30d, item.revenue7d, item.revenue30d,
     item.growth7d, item.growth30d, item.sellerCount, item.creatorCount, item.videoCount,
     item.liveCount, item.adCount, item.avgRating, item.reviewCount, item.demandScore,
     item.growthScore, item.competitionScore, Math.round(scoreProduct(item)), item.source,
@@ -203,32 +203,28 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
   const [keyword, setKeyword] = useState("");
   const [apiState, setApiState] = useState<ApiState>(EMPTY_BUNDLE);
 
-  // Sinkronisasi data real-time dengan parser pengaman schema data camelCase & snake_case pencarian TikTok
   useEffect(() => {
     if (marketData) {
       const rawProducts = marketData.products || marketData.items || marketData.results || [];
-      const rootKeyword = marketData.keyword || "";
+      const rootKeyword = marketData.keyword || keyword || "-";
 
       const normalizedProducts = rawProducts.map((item: any, index: number): MIProduct => {
         return {
           id: item.id || `scraped-prod-${index}-${Date.now()}`,
-          // Memetakan 'product_name' (snake_case) dari skema scraper Anda ke 'productName' bawaan dashboard
           productName: item.productName || item.product_name || item.title || item.name || "Produk Tanpa Nama",
           marketplace: item.marketplace || "TikTok Shop",
           country: item.country || "ID",
           category: item.category || "General",
-          keyword: rootKeyword || item.keyword || "-",
+          keyword: rootKeyword,
           period: item.period || "month",
           
           priceMin: Number(item.priceMin || item.price_min || item.sellingPrice || item.selling_price || item.price || 0),
           priceMax: Number(item.priceMax || item.price_max || item.sellingPrice || item.selling_price || item.price || 0),
           
           sold7d: Number(item.sold7d || item.sold_7d || 0),
-          // Memetakan 'sold_30d' dari skema scraper Anda ke 'sold30d'
           sold30d: Number(item.sold30d || item.sold_30d || item.sales || item.sold || item.quantitySold || item.quantity_sold || 0),
           
           revenue7d: Number(item.revenue7d || item.revenue_7d || 0),
-          // Memetakan 'revenue_30d' dari skema scraper Anda ke 'revenue30d'
           revenue30d: Number(item.revenue30d || item.revenue_30d || item.revenue || 0),
           
           growth7d: Number(item.growth7d || item.growth_7d || 0),
@@ -272,53 +268,22 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
         isDemo: false,
         rowCount: normalizedProducts.length,
       });
-    } else {
-      fetch("/api/market-intelligence/bundle")
-        .then((res) => {
-          const contentType = res.headers.get("content-type");
-          if (!res.ok || !contentType || !contentType.includes("application/json")) {
-            throw new Error("Rute API bundle tidak mengembalikan JSON valid.");
-          }
-          return res.json();
-        })
-        .then((payload) => {
-          if (payload && payload.ok && payload.bundle) {
-            setApiState(payload.bundle);
-          }
-        })
-        .catch((err) => {
-          console.warn("[Dashboard Info] Menggunakan repositori lokal:", err.message);
-        });
     }
   }, [marketData]);
 
-  // Sistem penapis internal yang kebal terhadap perbedaan spasi, huruf besar/kecil, dan pencarian kata kunci lokal
   const filteredProducts = useMemo(() => {
     let list = apiState.products || [];
     
-    // 1. Filter Berdasarkan Pilihan Tab Marketplace
     if (selectedMarketplace !== "All") {
       list = list.filter((p) => {
         const normalizedMarketProduct = (p.marketplace || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
         const normalizedSelectedMarket = selectedMarketplace.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-        return normalizedMarketProduct === normalizedSelectedMarket;
-      });
-    }
-
-    // 2. Filter Pengaman Kata Kunci untuk menangani log penapisan lokal komponen jika keyword diisi
-    if (keyword.trim()) {
-      const searchTarget = keyword.toLowerCase().trim();
-      list = list.filter((p) => {
-        return (
-          (p.productName || "").toLowerCase().includes(searchTarget) ||
-          (p.category || "").toLowerCase().includes(searchTarget) ||
-          (p.keyword || "").toLowerCase().includes(searchTarget)
-        );
+        return normalizedMarketProduct === normalizedSelectedMarket || normalizedMarketProduct.includes(normalizedSelectedMarket);
       });
     }
 
     return list;
-  }, [apiState.products, selectedMarketplace, keyword]);
+  }, [apiState.products, selectedMarketplace]);
 
   const handleSearchClick = () => {
     if (!keyword.trim()) return;
@@ -327,7 +292,6 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
 
   return (
     <div style={{ display: "grid", gap: 24, padding: "24px 0" }}>
-      {/* HEADER SEARCH BAR */}
       <div style={cardStyle}>
         <Badge label="Market Intelligence Search" tone="blue" />
         <h2 style={{ margin: "10px 0 6px" }}>Pantau produk kompetitor terlaris dan analisis tren omzet pasar secara real-time.</h2>
@@ -344,7 +308,6 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
         </div>
       </div>
 
-      {/* QUICK MARKETPLACE FILTER */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {MARKETPLACES.map((m) => (
           <button
@@ -357,7 +320,6 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
         ))}
       </div>
 
-      {/* SEGMENT TABS */}
       <div style={{ display: "flex", gap: 12, borderBottom: "1px solid #e2e8f0", paddingBottom: 8, flexWrap: "wrap" }}>
         {TABS.map((t) => (
           <button
@@ -378,11 +340,10 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
         ))}
       </div>
 
-      {/* MAIN DATA RENDERING CONTAINER */}
       {activeTab === "products" && (
         <div style={{ display: "grid", gap: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3>Produk Kompetitor Terlaris untuk "{keyword || "Semua"}"</h3>
+            <h3>Produk Kompetitor Terlaris untuk "{marketData?.keyword || keyword || "Semua"}"</h3>
             <button style={ghostButtonStyle} onClick={() => exportProducts(filteredProducts)}>Export CSV</button>
           </div>
           {loading ? (
@@ -410,7 +371,6 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
   );
 }
 
-// SUB PANELS MANAGEMENT
 function OverviewPanel({ bundle }: { bundle: MIBundle; products?: Product[] }) {
   const playbook = buildPlaybook(bundle);
   return (
