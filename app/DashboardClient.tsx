@@ -78,7 +78,7 @@ export default function DashboardPage() {
   }, [selectedFilter, sortedProducts]);
 
 // ====================================================================
-  // FUNGSI RISET PASAR - FIXED 404 & FALLBACK REAL-TIME SIMULATION
+  // FUNGSI RISET PASAR - PURE REAL-TIME TIKTOK SHOP API CONNECTED
   // ====================================================================
   const handleDashboardScrape = useCallback(async (keywordInput: string) => {
     const cleanKeyword = keywordInput.trim();
@@ -88,93 +88,31 @@ export default function DashboardPage() {
     setMarketData(null);
 
     try {
-      // Menggunakan kembali endpoint aktif Anda dengan parameter keyword
-      const currentStoreId = selectedStoreId || (stores && stores[0]?.id) || "0cde71b6-bd46-4b82-89b0-137685a06536";
-      const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${currentStoreId}&keyword=${encodeURIComponent(cleanKeyword)}`, {
+      // Menembak endpoint lokal yang baru saja kita buat di Langkah 1
+      const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         }
       });
 
-      // Amankan pembacaan teks respons terlebih dahulu untuk menghindari crash "<!DOCTYPE"
-      const responseText = await response.text();
-      let result: any = null;
-
-      try {
-        result = JSON.parse(responseText);
-      } catch (jsonErr) {
-        console.warn("[Dashboard Info] Response bukan JSON valid, mengaktifkan mesin simulasi pasar cerdas.");
+      if (!response.ok) {
+        throw new Error(`HTTP Error! Status: ${response.status}`);
       }
 
-      // Jika response error, 404, atau datanya kosong, jalankan generator data pasar otomatis (UI Anti-Kosong)
-      if (!response.ok || !result || !result.products || result.products.length === 0) {
-        console.log(`[Market Intel] Menghasilkan simulasi data riset real-time untuk kata kunci: "${cleanKeyword}"`);
-        
-        // Formulasi perhitungan acak berbasis teks kata kunci agar variasi angka terlihat natural dan dinamis
-        const seed = cleanKeyword.length;
-        
-        result = {
-          keyword: cleanKeyword,
-          generatedAt: new Date().toISOString(),
-          products: [
-            {
-              id: `mi-prod-1-${Date.now()}`,
-              productName: `${cleanKeyword.charAt(0).toUpperCase() + cleanKeyword.slice(1)} Viral Style Premium Edition`,
-              marketplace: "TikTok Shop",
-              category: "Trending Market",
-              priceMin: 75000 + (seed * 2000),
-              priceMax: 149000 + (seed * 3500),
-              sold30d: 3820 + (seed * 15),
-              revenue30d: (3820 + (seed * 15)) * (95000 + (seed * 1000)),
-              growth30d: 45 + (seed % 20),
-              sellerCount: 8 + (seed % 5),
-              creatorCount: 64 + (seed * 2),
-              videoCount: 112 + seed,
-              adCount: 9,
-              avgRating: 4.8,
-              reviewCount: 430,
-              demandScore: 85,
-              growthScore: 76,
-              competitionScore: 38,
-              marginSignal: 82,
-              saturationScore: 30,
-              signal: "viral"
-            },
-            {
-              id: `mi-prod-2-${Date.now()}`,
-              productName: `${cleanKeyword.toUpperCase()} Minimalist & Comfortable Pack`,
-              marketplace: "TikTok Shop",
-              category: "Best Seller Niche",
-              priceMin: 45000 + (seed * 1000),
-              priceMax: 89000 + (seed * 2000),
-              sold30d: 1950 + (seed * 8),
-              revenue30d: (1950 + (seed * 8)) * (55000 + (seed * 500)),
-              growth30d: 22 + (seed % 10),
-              sellerCount: 15 + (seed % 3),
-              creatorCount: 32 + seed,
-              videoCount: 45 + (seed % 12),
-              adCount: 3,
-              avgRating: 4.6,
-              reviewCount: 198,
-              demandScore: 72,
-              growthScore: 64,
-              competitionScore: 48,
-              marginSignal: 75,
-              saturationScore: 24,
-              signal: "rising"
-            }
-          ]
-        };
-      }
-
+      const result = await response.json();
+      
+      // Simpan data asli kiriman dari server TikTok ke state UI
       setMarketData(result);
+
     } catch (err) {
-      console.error("Gagal melakukan riset pasar:", err);
+      console.error("Gagal melakukan riset pasar real-time:", err);
+      alert("Gagal mengambil data real-time. Pastikan koneksi API TikTok Shop Anda aktif.");
     } finally {
       setLoading(false);
     }
-  }, [selectedStoreId, stores]);
+  }, []);
+  
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER !== "midtrans") return;
     const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
