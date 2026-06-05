@@ -87,32 +87,36 @@ export default function DashboardPage() {
     setLoading(true);
     setMarketData(null);
 
-    try {
-      // Menembak endpoint lokal yang baru saja kita buat di Langkah 1
-      const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP Error! Status: ${response.status}`);
+try {
+    // Menembak endpoint lokal rute murni market-intelligence
+    const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
       }
+    });
 
-      const result = await response.json();
-      
-      // Simpan data asli kiriman dari server TikTok ke state UI
-      setMarketData(result);
-
-    } catch (err) {
-      console.error("Gagal melakukan riset pasar real-time:", err);
-      alert("Gagal mengambil data real-time. Pastikan koneksi API TikTok Shop Anda aktif.");
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error(`HTTP Error! Status: ${response.status}`);
     }
-  }, []);
 
+    const result = await response.json();
+    
+    // ✅ PERBAIKAN: Ambil properti .products dari dalam objek JSON backend
+    if (result && result.products) {
+      setMarketData(result.products); 
+    } else {
+      setMarketData([]); // Fallback aman jika struktur rusak
+    }
+
+  } catch (err) {
+    console.error("Gagal melakukan riset pasar real-time:", err);
+    alert("Gagal mengambil data real-time. Pastikan koneksi API TikTok Shop Anda aktif.");
+  } finally {
+    setLoading(false);
+  }
+  }, []);
+  
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER !== "midtrans") return;
     const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
