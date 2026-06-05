@@ -205,7 +205,9 @@ export function MarketIntelligenceSuite({ onSearch, loading, marketData, product
 
   useEffect(() => {
     if (marketData) {
-      const rawProducts = marketData.products || marketData.items || marketData.results || [];
+      const rawProducts = Array.isArray(marketData) 
+        ? marketData 
+        : (marketData?.products || marketData?.items || marketData?.results || []);
       const rootKeyword = marketData.keyword || keyword || "-";
 
       const normalizedProducts = rawProducts.map((item: any, index: number): MIProduct => {
