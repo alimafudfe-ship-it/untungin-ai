@@ -105,8 +105,12 @@ try {
     // ✅ PERBAIKAN: Ambil properti .products dari dalam objek JSON backend
     if (result && result.products) {
       setMarketData(result.products); 
+if (typeof setFilteredProducts === "function") {
+        setFilteredProducts(result.products);
+      }
     } else {
-      setMarketData([]); // Fallback aman jika struktur rusak
+      setMarketData([]);
+      if (typeof setFilteredProducts === "function") setFilteredProducts([]);
     }
 
   } catch (err) {
