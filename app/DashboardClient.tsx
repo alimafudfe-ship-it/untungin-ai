@@ -77,7 +77,7 @@ export default function DashboardPage() {
     return sortedProducts;
   }, [selectedFilter, sortedProducts]);
 
-  // ====================================================================
+// ====================================================================
   // FUNGSI RISET PASAR - PURE REAL-TIME TIKTOK SHOP API CONNECTED
   // ====================================================================
   const handleDashboardScrape = useCallback(async (keywordInput: string) => {
@@ -102,10 +102,12 @@ export default function DashboardPage() {
 
       const result = await response.json();
       
-      // ✅ INTEGRASI PERBAIKAN: Mengirimkan full payload 'result' objek utuh ke Suite 
-      // agar dibaca dengan baik beserta properti categories, keyword, dan shops.
-      if (result) {
+      // ✅ PERBAIKAN: Kirim full object payload agar marketData.products terbaca oleh MarketIntelligenceSuite
+      if (result && result.products) {
         setMarketData(result); 
+      } else if (Array.isArray(result)) {
+        // Antispasasi jika backend mengirim format array langsung
+        setMarketData({ products: result, keyword: cleanKeyword });
       } else {
         setMarketData({ products: [], keyword: cleanKeyword });
       }
