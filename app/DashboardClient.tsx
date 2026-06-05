@@ -407,13 +407,19 @@ export default function DashboardPage() {
           <MarketplaceSyncPanel syncing={syncing} setSyncing={setSyncing} lastSync={lastSync} setLastSync={setLastSync} products={products} setProducts={setProducts} currentUserId={currentUserId} workspaceId={workspaceId} selectedStoreId={selectedStoreId} />
         )}
 
-        {activeTab === "market-intel" && (
-          <MarketIntelligenceSuite 
-            marketData={marketData || { products: [] }} 
-            onSearch={handleDashboardScrape} 
-            loading={loading} 
-          />
-        )}
+{activeTab === "market-intel" && (
+  <MarketIntelligenceSuite 
+    marketData={
+      marketData && marketData.products 
+        ? marketData 
+        : Array.isArray(marketData) 
+          ? { products: marketData } 
+          : { products: [] }
+    } 
+    onSearch={handleDashboardScrape} 
+    loading={loading} 
+  />
+)}
 
         {activeTab === "insight-ai" && (
           <AIRecommendationPanel products={products} expenses={expenses} metrics={metrics as any} />
