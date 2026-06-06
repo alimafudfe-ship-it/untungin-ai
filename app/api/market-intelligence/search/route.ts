@@ -60,10 +60,12 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const TIKTOK_BASE_URL = "https://open-api.tiktokglobalshop.com";
-    
-    // 🌟 PERBAIKAN ENDPOINT: Jalur resmi v2 untuk pencarian list produk pasar global
-    const API_PATH = "/api/v2/products/search"; 
+return NextResponse.json({
+  keyword: cleanKeyword,
+  generatedAt: new Date().toISOString(),
+  products: [],
+  message: "TikTok API belum dikonfigurasi"
+});
     const timestamp = Math.floor(Date.now() / 1000).toString();
 
     // Pastikan payload bersih tanpa spasi ekstra formatting agar sinkron dengan sign generator

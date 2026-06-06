@@ -1,1 +1,0 @@
-export default function Page(){return <main style={{padding:24}}><h1>Market Intelligence</h1><p>Endpoints:</p><ul><li>/api/market/trending</li><li>/api/market/top</li><li>POST /api/market/history</li></ul></main>}
