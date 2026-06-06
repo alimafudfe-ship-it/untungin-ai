@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
-// Fungsi pembantu untuk membuat signature TikTok Shop API v2 (POST Request)
 function generateTikTokSignature(
   uri: string, 
   params: Record<string, string>, 
@@ -9,8 +8,6 @@ function generateTikTokSignature(
   bodyString?: string
 ): string {
   const combinedParams = { ...params };
-  
-  // Sesuai dokumentasi resmi: sign dan access_token tidak ikut dihitung di string awal
   delete combinedParams.sign;
   delete combinedParams.access_token;
 
@@ -21,13 +18,11 @@ function generateTikTokSignature(
     signString += key + combinedParams[key];
   }
   
-  // Untuk POST request, raw body string harus ditaruh sebelum appSecret penutup
   if (bodyString) {
     signString += bodyString;
   }
   
   signString += appSecret;
-
   return crypto.createHmac("sha256", appSecret).update(signString).digest("hex");
 }
 
@@ -36,12 +31,8 @@ export async function GET(request: NextRequest) {
   const keyword = searchParams.get("keyword") || "";
   const cleanKeyword = keyword.trim();
 
-  // 1. Validasi parameter input awal
   if (!cleanKeyword) {
-    return NextResponse.json(
-      { error: "Gagal memproses", message: "Keyword pencarian tidak boleh kosong." }, 
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Keyword kosong" }, { status: 400 });
   }
 
   try {
@@ -49,29 +40,23 @@ export async function GET(request: NextRequest) {
     const appKey = process.env.TIKTOK_APP_KEY;
     const appSecret = process.env.TIKTOK_SHOP_APP_SECRET;
 
-    // 2. Validasi Kredensial Environment Server
     if (!accessToken || !appKey || !appSecret) {
-      return NextResponse.json(
-        { 
-          error: "Konfigurasi Env Tidak Lengkap",
-          message: "Kredensial API (Access Token / App Key / App Secret) belum dikonfigurasi di file .env server Anda."
-        }, 
-        { status: 501 } // Status 501 Not Implemented
-      );
+      return NextResponse.json({ 
+        error: "Kredensial .env Tidak Ditemukan",
+        details: "Periksa TIKTOK_ACCESS_TOKEN, TIKTOK_APP_KEY, atau TIKTOK_SHOP_APP_SECRET"
+      }, { status: 400 });
     }
 
     const TIKTOK_BASE_URL = "https://open-api.tiktokglobalshop.com";
     const API_PATH = "/api/v2/products/search";
     const timestamp = Math.floor(Date.now() / 1000).toString();
 
-    // Siapkan body request untuk pencarian produk
     const requestBody = {
       search_keyword: cleanKeyword,
       page_size: 20
     };
     const bodyString = JSON.stringify(requestBody);
 
-    // Kumpulan query param wajib untuk enkripsi signature
     const queryParams: Record<string, string> = {
       app_key: appKey,
       timestamp: timestamp,
@@ -82,17 +67,14 @@ export async function GET(request: NextRequest) {
       queryParams.shop_id = shopId.trim();
     }
 
-    // Generate signature resmi berbasis gabungan Path + Query + Body + Secret
     const sign = generateTikTokSignature(API_PATH, queryParams, appSecret, bodyString);
     
-    // Masukkan token dan hasil sign ke query parameter akhir
     queryParams.access_token = accessToken;
     queryParams.sign = sign;
 
     const queryString = new URLSearchParams(queryParams).toString();
     const FULL_API_URL = `${TIKTOK_BASE_URL}${API_PATH}?${queryString}`;
 
-    // 3. Request langsung ke Live API TikTok
     const tiktokResponse = await fetch(FULL_API_URL, {
       method: "POST",
       headers: {
@@ -109,46 +91,42 @@ export async function GET(request: NextRequest) {
     try {
       tiktokData = textResponse ? JSON.parse(textResponse) : {};
     } catch (e) {
-      return NextResponse.json(
-        { 
-          error: "Format Respon Rusak", 
-          message: "Gagal membaca data. TikTok tidak mengembalikan format JSON yang valid.",
-          raw: textResponse 
-        }, 
-        { status: 502 }
-      );
+      return NextResponse.json({ 
+        error: "TikTok tidak mengembalikan JSON valid", 
+        raw_response: textResponse 
+      }, { status: 400 });
     }
 
-    // 4. Tangkap Error Spesifik dari API TikTok (Jika signature salah, token kedaluwarsa, dll)
+    // 🔍 INSPEKSI DI SINI: Jika kode buntu / error 400, muntahkan detailnya!
     if (!tiktokResponse.ok || (tiktokData.code !== 0 && tiktokData.code !== 200)) {
-      return NextResponse.json(
-        { 
-          error: `TikTok API Error (Status: ${tiktokResponse.status})`, 
-          message: tiktokData.message || "TikTok menolak akses karena masalah autentikasi atau signature mismatch.",
-          tiktok_code: tiktokData.code,
-          request_log: {
-            path: API_PATH,
+      console.error("❌ DETAIL ERROR DARI TIKTOK SHOP API:", tiktokData);
+      
+      // Kita kirim pesan error asli dari server TikTok langsung ke Response HTTP 400
+      return NextResponse.json({
+        error: `TikTok API Error (Code: ${tiktokData.code || 'Unknown'})`,
+        message: tiktokData.message || "Akses ditolak oleh API Gateway TikTok.",
+        debug_info: {
+          hint: "Periksa apakah access_token Anda sudah expired atau parameter sign tidak sesuai.",
+          tiktok_raw_payload: tiktokData,
+          sent_params: {
+            app_key: appKey,
             timestamp: timestamp,
-            app_key: appKey
+            shop_id_sent: queryParams.shop_id || "tidak dikirim"
           }
-        }, 
-        { status: 400 } // Dilempar ke catch frontend agar memicu modal peringatan terperinci
-      );
+        }
+      }, { status: 400 });
     }
 
     const dataObj = tiktokData.data || tiktokData;
-    
-    // 5. Tangani kondisi jika data sukses diakses tapi produk memang kosong
     if (!dataObj.products || dataObj.products.length === 0) {
       return NextResponse.json({
         keyword: cleanKeyword,
         generatedAt: new Date().toISOString(),
-        products: [], 
-        message: "Pencarian selesai. Tidak ada produk yang ditemukan untuk kata kunci ini."
+        products: [],
+        message: "Tidak ada produk asli yang ditemukan."
       });
     }
 
-    // 6. Mapping data asli murni dari TikTok Shop API v2
     const realProducts = dataObj.products.map((prod: any) => {
       const priceMin = prod.price?.min_amount || prod.min_sale_price || 0;
       const priceMax = prod.price?.max_amount || prod.max_sale_price || 0;
@@ -192,12 +170,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    return NextResponse.json(
-      { 
-        error: "Server Error", 
-        message: `Terjadi kegagalan internal pada server proxy Anda: ${error.message}` 
-      }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
