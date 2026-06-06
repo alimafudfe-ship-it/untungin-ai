@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey | string>("overview");
   const [products, setProducts] = useState<Product[]>([]);
-  const [marketData, setMarketData] = useState<any>(null);
+  const [marketData, setMarketData] = useState<any>({ products: [], keyword: "" }); // Inisialisasi struktur object yang aman
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [goals] = useState<Goal[]>(DEMO_GOALS);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -77,7 +77,7 @@ export default function DashboardPage() {
     return sortedProducts;
   }, [selectedFilter, sortedProducts]);
 
-// ====================================================================
+  // ====================================================================
   // FUNGSI RISET PASAR - PURE REAL-TIME TIKTOK SHOP API CONNECTED
   // ====================================================================
   const handleDashboardScrape = useCallback(async (keywordInput: string) => {
@@ -85,11 +85,12 @@ export default function DashboardPage() {
     if (!cleanKeyword) return;
     
     setLoading(true);
-    setMarketData(null);
+    // Tetap pertahankan struktur objek kosong agar UI tidak crash (error undefined) saat loading data baru
+    setMarketData({ products: [], keyword: cleanKeyword });
 
     try {
-      // Menembak endpoint lokal rute murni market-intelligence
-      const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}`, {
+      // Ditambahkan timestamp cache-buster agar browser dipaksa mengambil data paling baru (Real-time murni)
+      const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}&_t=${Date.now()}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -102,19 +103,23 @@ export default function DashboardPage() {
 
       const result = await response.json();
       
-      // ✅ PERBAIKAN: Kirim full object payload agar marketData.products terbaca oleh MarketIntelligenceSuite
+      // Validasi struktur data yang masuk dari API internal backend
       if (result && result.products) {
-        setMarketData(result); 
+        setMarketData({
+          products: Array.isArray(result.products) ? result.products : [],
+          keyword: result.keyword || cleanKeyword
+        }); 
       } else if (Array.isArray(result)) {
-        // Antispasasi jika backend mengirim format array langsung
         setMarketData({ products: result, keyword: cleanKeyword });
+      } else if (result && result.data) {
+        setMarketData({ products: Array.isArray(result.data) ? result.data : [], keyword: cleanKeyword });
       } else {
         setMarketData({ products: [], keyword: cleanKeyword });
       }
 
     } catch (err) {
       console.error("Gagal melakukan riset pasar real-time:", err);
-      alert("Gagal mengambil data real-time. Pastikan koneksi API TikTok Shop Anda aktif.");
+      alert("Gagal mengambil data real-time. Pastikan endpoint API internal dan koneksi internet Anda normal.");
     } finally {
       setLoading(false);
     }
@@ -407,19 +412,19 @@ export default function DashboardPage() {
           <MarketplaceSyncPanel syncing={syncing} setSyncing={setSyncing} lastSync={lastSync} setLastSync={setLastSync} products={products} setProducts={setProducts} currentUserId={currentUserId} workspaceId={workspaceId} selectedStoreId={selectedStoreId} />
         )}
 
-{activeTab === "market-intel" && (
-  <MarketIntelligenceSuite 
-    marketData={
-      marketData && marketData.products 
-        ? marketData 
-        : Array.isArray(marketData) 
-          ? { products: marketData } 
-          : { products: [] }
-    } 
-    onSearch={handleDashboardScrape} 
-    loading={loading} 
-  />
-)}
+        {activeTab === "market-intel" && (
+          <MarketIntelligenceSuite 
+            marketData={
+              marketData && marketData.products 
+                ? marketData 
+                : Array.isArray(marketData) 
+                  ? { products: marketData } 
+                  : { products: [] }
+            } 
+            onSearch={handleDashboardScrape} 
+            loading={loading} 
+          />
+        )}
 
         {activeTab === "insight-ai" && (
           <AIRecommendationPanel products={products} expenses={expenses} metrics={metrics as any} />
