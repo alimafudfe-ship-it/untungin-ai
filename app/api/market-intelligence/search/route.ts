@@ -27,14 +27,21 @@ export async function GET(request: NextRequest) {
   try {
     const accessToken = process.env.TIKTOK_ACCESS_TOKEN;
     const appKey = process.env.TIKTOK_APP_KEY;
-    const appSecret = process.env.TIKTOK_APP_SECRET; // 💡 Pastikan menambahkan ini di Vercel Env
+    const appSecret = process.env.TIKTOK_SHOP_APP_SECRET; // 👈 Diubah agar membaca TIKTOK_SHOP_APP_SECRET dari image_3936aa.png
 
     if (!accessToken || !appKey || !appSecret) {
-      return NextResponse.json(
-        { error: "Konfigurasi Env Tidak Lengkap: TIKTOK_ACCESS_TOKEN, TIKTOK_APP_KEY, atau TIKTOK_APP_SECRET belum diatur." }, 
-        { status: 501 }
-      );
-    }
+  return NextResponse.json(
+    { 
+      error: "Konfigurasi Env Tidak Lengkap",
+      details: {
+        accessToken: accessToken ? "Terpasang" : "Hilang",
+        appKey: appKey ? "Terpasang" : "Hilang",
+        appSecret: appSecret ? "Terpasang" : "Hilang"
+      }
+    }, 
+    { status: 501 }
+  );
+}
 
     const TIKTOK_BASE_URL = "https://open-api.tiktokglobalshop.com";
     const API_PATH = "/api/v2/products/search";
