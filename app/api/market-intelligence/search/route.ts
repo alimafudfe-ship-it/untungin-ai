@@ -1,4 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto"; // Digunakan untuk generate signature resmi TikTok
+
+// Fungsi pembantu untuk membuat signature TikTok Shop API
+function generateTikTokSignature(uri: string, params: Record<string, string>, appSecret: string): string {
+  const combinedParams = { ...params };
+  const sortedKeys = Object.keys(combinedParams).sort();
+  
+  let signString = appSecret + uri;
+  for (const key of sortedKeys) {
+    signString += key + combinedParams[key];
+  }
+  signString += appSecret;
+
+  return crypto.createHmac("sha256", appSecret).update(signString).digest("hex");
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -12,56 +27,76 @@ export async function GET(request: NextRequest) {
   try {
     const accessToken = process.env.TIKTOK_ACCESS_TOKEN;
     const appKey = process.env.TIKTOK_APP_KEY;
+    const appSecret = process.env.TIKTOK_APP_SECRET; // 💡 Pastikan menambahkan ini di Vercel Env
 
-    if (!accessToken || !appKey) {
+    if (!accessToken || !appKey || !appSecret) {
       return NextResponse.json(
-        { error: "Koneksi gagal: TIKTOK_ACCESS_TOKEN atau TIKTOK_APP_KEY belum dikonfigurasi di Vercel Env." }, 
+        { error: "Konfigurasi Env Tidak Lengkap: TIKTOK_ACCESS_TOKEN, TIKTOK_APP_KEY, atau TIKTOK_APP_SECRET belum diatur." }, 
         { status: 501 }
       );
     }
 
-    // 1. Endpoint Resmi TikTok Menggunakan Struktur POST
-    const TIKTOK_API_URL = `https://open-api.tiktokglobalshop.com/api/v2/products/search`; 
-    
-    // Catatan: Idealnya Anda perlu menambahkan query string wajib (?app_key=${appKey}&timestamp=...&sign=...) sesuai SDK TikTok.
-    const tiktokResponse = await fetch(TIKTOK_API_URL, {
-      method: "POST", // 👈 Menggunakan POST sesuai dokumentasi Partner Center
+    const TIKTOK_BASE_URL = "https://open-api.tiktokglobalshop.com";
+    const API_PATH = "/api/v2/products/search";
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+
+    // 1. Parameter Wajib URL Query untuk TikTok Partner API v2
+    const queryParams: Record<string, string> = {
+      app_key: appKey,
+      access_token: accessToken,
+      timestamp: timestamp,
+      shop_id: searchParams.get("shop_id") || "", // Tambahkan jika riset spesifik per toko
+    };
+
+    // Bersihkan query param yang kosong
+    Object.keys(queryParams).forEach(key => !queryParams[key] && delete queryParams[key]);
+
+    // 2. Generate Signature Resmi
+    const sign = generateTikTokSignature(API_PATH, queryParams, appSecret);
+    queryParams.sign = sign;
+
+    const queryString = new URLSearchParams(queryParams).toString();
+    const FULL_API_URL = `${TIKTOK_BASE_URL}${API_PATH}?${queryString}`;
+
+    const tiktokResponse = await fetch(FULL_API_URL, {
+      method: "POST",
       headers: {
-        "x-tts-access-token": accessToken,
-        "App-Key": appKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        search_keyword: cleanKeyword, // 👈 Payload body pencarian resmi TikTok
+        search_keyword: cleanKeyword,
         page_size: 20
       }),
       cache: 'no-store' 
     });
 
-    // 2. Cegah sirkuit putus. Jika TikTok melempar error (termasuk 404), tangkap dengan aman di sini
-    if (!tiktokResponse.ok) {
+    // Ambil response berupa teks untuk menghindari crash saat parsing JSON
+    const textResponse = await tiktokResponse.text();
+    let tiktokData: any = {};
+    
+    try {
+      tiktokData = textResponse ? JSON.parse(textResponse) : {};
+    } catch (e) {
+      return NextResponse.json({ error: "Format respon dari TikTok bukan JSON valid.", raw: textResponse }, { status: 502 });
+    }
+
+    // 3. Jika TikTok merespon dengan error, kirim ke frontend dengan status error yang jelas!
+    if (!tiktokResponse.ok || tiktokData.code !== 0) {
       return NextResponse.json(
         { 
-          error: `TikTok API merespons dengan error backend.`, 
-          details: `Status Code dari TikTok: ${tiktokResponse.status}. Pastikan URL, Sign, dan Jago/BSI billing Anda aktif.` 
+          error: `TikTok API Error (Code: ${tiktokData.code || tiktokResponse.status})`, 
+          message: tiktokData.message || "Gagal mendapatkan data valid dari TikTok Partner Center."
         }, 
-        { status: 200 } // 👈 Sengaja mengembalikan status 200 agar rute Next.js tidak dicap 404 hancur oleh Vercel
+        { status: 400 } // Frontend akan menangkap ini sebagai error di blok .catch() atau state loading error
       );
     }
 
-    const typeofResponse = await tiktokResponse.text();
-    if (!typeofResponse) {
-      return NextResponse.json({ keyword: cleanKeyword, products: [], message: "Respon kosong dari TikTok." });
-    }
-
-    const tiktokData = JSON.parse(typeofResponse);
-
-    if (!tiktokData || !tiktokData.data || !tiktokData.data.products || tiktokData.data.products.length === 0) {
+    if (!tiktokData.data || !tiktokData.data.products || tiktokData.data.products.length === 0) {
       return NextResponse.json({
         keyword: cleanKeyword,
         generatedAt: new Date().toISOString(),
         products: [], 
-        message: "Tidak ada produk yang ditemukan di TikTok Shop untuk kata kunci ini."
+        message: "Tidak ada produk yang ditemukan untuk kata kunci ini."
       });
     }
 
@@ -82,7 +117,7 @@ export async function GET(request: NextRequest) {
         growth30d: prod.growth_rate || 0,
         sellerCount: 1, 
         creatorCount: prod.affiliate_creator_count || 0, 
-        videoCount: prod.related_video_count || 0,    
+        videoCount: prod.related_video_count || 0,        
         adCount: prod.active_ads_count || 0,            
         avgRating: prod.review_rating || 0,            
         reviewCount: prod.review_count || 0,            
@@ -102,7 +137,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    // 3. Tangkap kegagalan fatal jaringan agar tidak berubah menjadi 404 global
     return NextResponse.json(
       { error: `Gagal terhubung ke jaringan TikTok Shop: ${error.message}` }, 
       { status: 500 }
