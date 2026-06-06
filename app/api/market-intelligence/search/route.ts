@@ -30,19 +30,8 @@ export async function GET(request: NextRequest) {
   const keyword = searchParams.get("keyword") || "";
   const cleanKeyword = keyword.trim();
 
-  // Jika keyword kosong, berikan satu item info di UI agar tidak memicu alert crash
   if (!cleanKeyword) {
-    return NextResponse.json({
-      keyword: "Kosong",
-      generatedAt: new Date().toISOString(),
-      products: [{
-        id: "err-1",
-        productName: "⚠️ Peringatan: Kata kunci pencarian kosong.",
-        marketplace: "Sistem",
-        category: "Error Input",
-        priceMin: 0, priceMax: 0, sold30d: 0, revenue30d: 0
-      }]
-    }, { status: 200 });
+    return NextResponse.json({ error: "Keyword kosong" }, { status: 400 });
   }
 
   try {
@@ -50,23 +39,17 @@ export async function GET(request: NextRequest) {
     const appKey = process.env.TIKTOK_APP_KEY;
     const appSecret = process.env.TIKTOK_SHOP_APP_SECRET;
 
-    // Jika ENV bermasalah, selundupkan pesan ke dalam tabel UI
     if (!accessToken || !appKey || !appSecret) {
-      return NextResponse.json({
-        keyword: cleanKeyword,
-        generatedAt: new Date().toISOString(),
-        products: [{
-          id: "err-env",
-          productName: `❌ Kredensial .env Tidak Lengkap (Token: ${accessToken ? 'Aman' : 'Hilang'}, Key: ${appKey ? 'Aman' : 'Hilang'}, Secret: ${appSecret ? 'Aman' : 'Hilang'})`,
-          marketplace: "TikTok Shop",
-          category: "Setup Error",
-          priceMin: 0, priceMax: 0, sold30d: 0, revenue30d: 0
-        }]
-      }, { status: 200 });
+      return NextResponse.json({ 
+        error: "Kredensial Tidak Lengkap",
+        message: "Periksa file .env Anda."
+      }, { status: 400 });
     }
 
     const TIKTOK_BASE_URL = "https://open-api.tiktokglobalshop.com";
-    const API_PATH = "/api/v2/products/search";
+    
+    // 🌟 PERBAIKAN PATH: Menggunakan standard global routing API v2 TikTok Partner
+    const API_PATH = "/api/v2/api/products/search"; 
     const timestamp = Math.floor(Date.now() / 1000).toString();
 
     const requestBody = {
@@ -109,37 +92,16 @@ export async function GET(request: NextRequest) {
     try {
       tiktokData = textResponse ? JSON.parse(textResponse) : {};
     } catch (e) {
-      return NextResponse.json({
-        keyword: cleanKeyword,
-        generatedAt: new Date().toISOString(),
-        products: [{
-          id: "err-json",
-          productName: "❌ Respon TikTok rusak (Bukan format JSON valid)",
-          marketplace: "TikTok Shop",
-          category: "Format Error",
-          priceMin: 0, priceMax: 0, sold30d: 0, revenue30d: 0
-        }]
-      }, { status: 200 });
+      return NextResponse.json({ error: "TikTok tidak merespon dengan JSON valid" }, { status: 400 });
     }
 
-    // 🛠️ TRICK UTAMA: Jika TikTok menolak/Error 400, bungkus errornya menjadi data produk buatan
-    // Ini menjamin status HTTP murni tetap 200, alert hitam hilang, dan teks error tercetak di komponen UI Anda!
+    // Jika masih ada penolakan dari TikTok, berikan respon transparannya ke console backend
     if (!tiktokResponse.ok || (tiktokData.code !== 0 && tiktokData.code !== 200)) {
+      console.error("❌ Detail Penolakan API TikTok:", tiktokData);
       return NextResponse.json({
-        keyword: cleanKeyword,
-        generatedAt: new Date().toISOString(),
-        products: [{
-          id: "err-tiktok-api",
-          productName: `❌ TIKTOK REJECTED (Code: ${tiktokData.code}) -> Message: ${tiktokData.message || 'Signature / Token Tidak Valid'}`,
-          marketplace: "TikTok Shop",
-          category: "API Auth Error",
-          priceMin: 0,
-          priceMax: 0,
-          sold30d: 0,
-          revenue30d: 0,
-          notes: "Silakan periksa kembali kecocokan TIKTOK_SHOP_APP_SECRET dan pastikan Access Token belum expired."
-        }]
-      }, { status: 200 }); // Status dipaksa 200 agar lolos dari jeratan catch frontend!
+        error: `TikTok API Error (${tiktokData.code})`,
+        message: tiktokData.message || "Akses ditolak oleh TikTok Gateway."
+      }, { status: 400 });
     }
 
     const dataObj = tiktokData.data || tiktokData;
@@ -195,17 +157,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    // Jika ada crash sistem server, tampilkan juga sebagai row di tabel
-    return NextResponse.json({
-      keyword: cleanKeyword,
-      generatedAt: new Date().toISOString(),
-      products: [{
-        id: "err-fatal",
-        productName: `❌ Internal Proxy Error: ${error.message}`,
-        marketplace: "Local Server",
-        category: "Crash",
-        priceMin: 0, priceMax: 0, sold30d: 0, revenue30d: 0
-      }]
-    }, { status: 200 });
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
