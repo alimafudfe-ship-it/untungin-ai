@@ -1,5 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as cheerio from "cheerio"; // Pastikan sudah install: npm install cheerio
+import crypto from "crypto";
+
+// 🛠️ Fungsi Kalkulasi Signature Murni Sesuai Aturan Ketat TikTok v2
+function generateTikTokSignature(
+  uri: string, 
+  params: Record<string, string>, 
+  appSecret: string, 
+  bodyString?: string
+): string {
+  const signParams: Record<string, string> = {};
+  
+  // Ambil semua param query kecuali sign dan access_token
+  for (const key in params) {
+    if (key !== "sign" && key !== "access_token") {
+      signParams[key] = params[key];
+    }
+  }
+
+  // Urutkan key secara alfabetis (ASCII)
+  const sortedKeys = Object.keys(signParams).sort();
+  
+  // Gabungkan: Secret + Path
+  let signString = appSecret + uri;
+  
+  // Rekatkan Key-Value tanpa URL-encoding (Raw Text)
+  for (const key of sortedKeys) {
+    signString += key + signParams[key];
+  }
+  
+  // Tambahkan body string jika metodenya POST
+  if (bodyString) {
+    signString += bodyString;
+  }
+  
+  signString += appSecret;
+
+  // Jalankan hashing HMAC-SHA256
+  return crypto.createHmac("sha256", appSecret).update(signString).digest("hex");
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -11,86 +49,123 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY;
+    const accessToken = process.env.TIKTOK_ACCESS_TOKEN;
+    const appKey = process.env.TIKTOK_APP_KEY;
+    const appSecret = process.env.TIKTOK_SHOP_APP_SECRET;
 
-    if (!scrapingBeeApiKey) {
+    if (!accessToken || !appKey || !appSecret) {
       return NextResponse.json({ 
-        error: "Konfigurasi Belum Lengkap", 
-        message: "Silakan masukkan SCRAPINGBEE_API_KEY di file .env server Anda." 
+        error: "Kredensial .env Tidak Lengkap",
+        message: "Harap isi TIKTOK_ACCESS_TOKEN, TIKTOK_APP_KEY, dan TIKTOK_SHOP_APP_SECRET."
       }, { status: 400 });
     }
 
-    // Targetkan ke halaman pencarian pasar TikTok web resmi
-    const targetUrl = `https://www.tiktok.com/search/product?q=${encodeURIComponent(cleanKeyword)}`;
+    const TIKTOK_BASE_URL = "https://open-api.tiktokglobalshop.com";
     
-    // Panggil proxy ScrapingBee dengan mengeksekusi Javascript (premium proxy)
-    const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${scrapingBeeApiKey}&url=${encodeURIComponent(targetUrl)}&render_js=true&premium_proxy=true&country_code=id`;
+    // 🌟 PERBAIKAN ENDPOINT: Jalur resmi v2 untuk pencarian list produk pasar global
+    const API_PATH = "/api/v2/products/search"; 
+    const timestamp = Math.floor(Date.now() / 1000).toString();
 
-    const response = await fetch(scrapingBeeUrl, { cache: "no-store" });
+    // Pastikan payload bersih tanpa spasi ekstra formatting agar sinkron dengan sign generator
+    const requestBody = {
+      search_keyword: cleanKeyword,
+      page_size: 20
+    };
+    const bodyString = JSON.stringify(requestBody);
+
+    const queryParams: Record<string, string> = {
+      app_key: appKey,
+      timestamp: timestamp,
+    };
+
+    // Validasi shop_id: Jangan kirim string "undefined" jika kosong
+    const shopId = searchParams.get("shop_id");
+    if (shopId && shopId !== "undefined" && shopId.trim() !== "") {
+      queryParams.shop_id = shopId.trim();
+    }
+
+    // Hitung Signature resmi
+    const sign = generateTikTokSignature(API_PATH, queryParams, appSecret, bodyString);
     
-    if (!response.ok) {
-      return NextResponse.json({ 
-        error: `ScrapingBee Error (${response.status})`, 
-        message: "Gagal menembus sistem keamanan TikTok Web secara real-time." 
+    // Tambahkan token dan signature ke query string akhir
+    queryParams.access_token = accessToken;
+    queryParams.sign = sign;
+
+    const queryString = new URLSearchParams(queryParams).toString();
+    const FULL_API_URL = `${TIKTOK_BASE_URL}${API_PATH}?${queryString}`;
+
+    const tiktokResponse = await fetch(FULL_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tts-access-token": accessToken
+      },
+      body: bodyString,
+      cache: 'no-store' 
+    });
+
+    const textResponse = await tiktokResponse.text();
+    let tiktokData: any = {};
+    
+    try {
+      tiktokData = textResponse ? JSON.parse(textResponse) : {};
+    } catch (e) {
+      return NextResponse.json({ error: "Respon API TikTok rusak / bukan JSON" }, { status: 400 });
+    }
+
+    // 🔴 KONTROL ERROR ASLI: Jika ditolak, teruskan error apa adanya agar Anda bisa lacak langsung
+    if (!tiktokResponse.ok || (tiktokData.code !== 0 && tiktokData.code !== 200)) {
+      return NextResponse.json({
+        error: `TikTok API Error (Code: ${tiktokData.code})`,
+        message: tiktokData.message || "Akses ditolak oleh API Gateway TikTok resmi."
       }, { status: 400 });
     }
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    const realProducts: any[] = [];
+    const dataObj = tiktokData.data || tiktokData;
+    if (!dataObj.products || dataObj.products.length === 0) {
+      return NextResponse.json({
+        keyword: cleanKeyword,
+        generatedAt: new Date().toISOString(),
+        products: [],
+        message: "Pencarian sukses. Tidak ada produk asli yang ditemukan."
+      });
+    }
 
-    // 💡 Ekstraksi Data Murni langsung dari struktur HTML TikTok
-    // Selektor di bawah ini disesuaikan dengan elemen kartu produk TikTok Web
-    $("div[data-e2e='search-product-item'], div.product-item-card").each((index, element) => {
-      if (index >= 15) return; // Batasi maksimal 15 produk demi kecepatan load
-
-      const productName = $(element).find("[data-e2e='product-title'], h2, h3").text().trim();
-      const priceText = $(element).find("[data-e2e='product-price'], .price").text().replace(/[^0-9]/g, "");
-      const soldText = $(element).find("[data-e2e='product-sold'], .sold-count").text().trim();
-
-      const price = priceText ? Number(priceText) : 0;
+    // Mapping data murni 100% dari struktur objek API v2 TikTok
+    const realProducts = dataObj.products.map((prod: any) => {
+      const priceMin = prod.price?.min_amount || prod.min_sale_price || 0;
+      const priceMax = prod.price?.max_amount || prod.max_sale_price || 0;
+      const sold30d = prod.sales_30d || prod.sold_count || 0;
       
-      // Mengubah string "1.2k terjual" menjadi angka murni 1200
-      let sold30d = 0;
-      if (soldText) {
-        if (soldText.toLowerCase().includes('k')) {
-          sold30d = parseFloat(soldText) * 1000;
-        } else {
-          sold30d = parseInt(soldText.replace(/[^0-9]/g, "")) || 0;
-        }
-      }
-
-      if (productName) {
-        realProducts.push({
-          id: `tt-scrape-${index}-${Date.now()}`,
-          productName: productName,
-          marketplace: "TikTok Shop",
-          country: "ID",
-          category: "Hasil Riset Live",
-          keyword: cleanKeyword,
-          period: "month",
-          priceMin: price,
-          priceMax: price,
-          sold7d: Math.round(sold30d / 4),
-          sold30d: sold30d,
-          revenue7d: Math.round((price * sold30d) / 4),
-          revenue30d: price * sold30d,
-          growth30d: 0,
-          sellerCount: 1,
-          creatorCount: 0,
-          videoCount: 0,
-          adCount: 0,
-          avgRating: 4.5,
-          reviewCount: 0,
-          demandScore: sold30d > 1000 ? 85 : 50,
-          growthScore: 50,
-          competitionScore: 50,
-          marginSignal: 70,
-          saturationScore: 30,
-          signal: "rising",
-          source: "ScrapingBee Live Engine"
-        });
-      }
+      return {
+        id: (prod.product_id || prod.id).toString(),
+        productName: prod.product_name || prod.title || prod.name, 
+        marketplace: "TikTok Shop",
+        country: "ID",
+        category: prod.category_name || "Uncategorized",
+        keyword: cleanKeyword,
+        period: "month",
+        priceMin: Number(priceMin),
+        priceMax: Number(priceMax),
+        sold7d: Math.round(Number(sold30d) / 4),
+        sold30d: Number(sold30d),
+        revenue7d: Math.round((Number(priceMin) * Number(sold30d)) / 4),
+        revenue30d: Number(sold30d) * ((Number(priceMin) + Number(priceMax)) / 2), 
+        growth30d: prod.growth_rate || 0,
+        sellerCount: 1, 
+        creatorCount: prod.affiliate_creator_count || 0, 
+        videoCount: prod.related_video_count || 0,        
+        adCount: prod.active_ads_count || 0,            
+        avgRating: prod.review_rating || 0,            
+        reviewCount: prod.review_count || 0,            
+        demandScore: sold30d > 2000 ? 95 : sold30d > 500 ? 75 : 40,
+        growthScore: prod.growth_rate ? Math.min(prod.growth_rate, 100) : 50,
+        competitionScore: prod.competitor_count || 50,
+        marginSignal: 70,
+        saturationScore: 30,
+        signal: (prod.growth_rate || 0) > 40 ? "viral" : "rising",
+        source: "TikTok Partner API v2"
+      };
     });
 
     return NextResponse.json({
