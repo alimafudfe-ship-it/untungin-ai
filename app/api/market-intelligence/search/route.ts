@@ -1,28 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
+// 🛠️ PERBAIKAN UTAMA: Algoritma Signature TikTok Shop API v2 yang Akurat
 function generateTikTokSignature(
   uri: string, 
   params: Record<string, string>, 
   appSecret: string, 
   bodyString?: string
 ): string {
-  const combinedParams = { ...params };
-  delete combinedParams.sign;
-  delete combinedParams.access_token;
+  // 1. Ambil semua parameter query KECUALI 'sign' dan 'access_token'
+  const signParams: Record<string, string> = {};
+  for (const key in params) {
+    if (key !== "sign" && key !== "access_token") {
+      signParams[key] = params[key];
+    }
+  }
 
-  const sortedKeys = Object.keys(combinedParams).sort();
+  // 2. Urutkan parameter berdasarkan key secara alfabetis (ASCII)
+  const sortedKeys = Object.keys(signParams).sort();
   
+  // 3. Bangun string dasar: appSecret + path
   let signString = appSecret + uri;
+  
+  // 4. Rekatkan key dan value TANPA URL-encode (Raw String)
   for (const key of sortedKeys) {
-    signString += key + combinedParams[key];
+    signString += key + signParams[key];
   }
   
+  // 5. Jika ada json body (untuk POST request), tempelkan di bagian akhir sebelum secret penutup
   if (bodyString) {
     signString += bodyString;
   }
   
   signString += appSecret;
+
+  // 6. Jalankan Enkripsi HMAC-SHA256
   return crypto.createHmac("sha256", appSecret).update(signString).digest("hex");
 }
 
@@ -51,24 +63,29 @@ export async function GET(request: NextRequest) {
     const API_PATH = "/api/v2/products/search";
     const timestamp = Math.floor(Date.now() / 1000).toString();
 
+    // Pastikan format minified (tanpa spasi ekstra/indentasi) agar string JSON identik saat di-fetch
     const requestBody = {
       search_keyword: cleanKeyword,
       page_size: 20
     };
     const bodyString = JSON.stringify(requestBody);
 
+    // Kumpulan basis query params wajib awal
     const queryParams: Record<string, string> = {
       app_key: appKey,
       timestamp: timestamp,
     };
 
+    // Bersihkan penanganan shop_id agar tidak merusak enkripsi jika kosong
     const shopId = searchParams.get("shop_id");
     if (shopId && shopId !== "undefined" && shopId.trim() !== "") {
       queryParams.shop_id = shopId.trim();
     }
 
+    // Hitung Signature Murni
     const sign = generateTikTokSignature(API_PATH, queryParams, appSecret, bodyString);
     
+    // Pasang access_token dan sign ke query params AKHIR (setelah enkripsi selesai)
     queryParams.access_token = accessToken;
     queryParams.sign = sign;
 
@@ -97,16 +114,15 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // 🔍 INSPEKSI DI SINI: Jika kode buntu / error 400, muntahkan detailnya!
+    // Jika terjadi penolakan (Error 400), teruskan payload asli dari TikTok untuk pelacakan langsung di UI
     if (!tiktokResponse.ok || (tiktokData.code !== 0 && tiktokData.code !== 200)) {
       console.error("❌ DETAIL ERROR DARI TIKTOK SHOP API:", tiktokData);
       
-      // Kita kirim pesan error asli dari server TikTok langsung ke Response HTTP 400
       return NextResponse.json({
         error: `TikTok API Error (Code: ${tiktokData.code || 'Unknown'})`,
         message: tiktokData.message || "Akses ditolak oleh API Gateway TikTok.",
         debug_info: {
-          hint: "Periksa apakah access_token Anda sudah expired atau parameter sign tidak sesuai.",
+          hint: "Periksa kecocokan App Secret Anda atau status kedaluwarsa Access Token.",
           tiktok_raw_payload: tiktokData,
           sent_params: {
             app_key: appKey,
