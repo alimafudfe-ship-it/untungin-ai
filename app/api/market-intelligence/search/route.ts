@@ -1,40 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
-// 🛠️ PERBAIKAN UTAMA: Algoritma Signature TikTok Shop API v2 yang Akurat
 function generateTikTokSignature(
   uri: string, 
   params: Record<string, string>, 
   appSecret: string, 
   bodyString?: string
 ): string {
-  // 1. Ambil semua parameter query KECUALI 'sign' dan 'access_token'
   const signParams: Record<string, string> = {};
   for (const key in params) {
     if (key !== "sign" && key !== "access_token") {
       signParams[key] = params[key];
     }
   }
-
-  // 2. Urutkan parameter berdasarkan key secara alfabetis (ASCII)
   const sortedKeys = Object.keys(signParams).sort();
-  
-  // 3. Bangun string dasar: appSecret + path
   let signString = appSecret + uri;
-  
-  // 4. Rekatkan key dan value TANPA URL-encode (Raw String)
   for (const key of sortedKeys) {
     signString += key + signParams[key];
   }
-  
-  // 5. Jika ada json body (untuk POST request), tempelkan di bagian akhir sebelum secret penutup
   if (bodyString) {
     signString += bodyString;
   }
-  
   signString += appSecret;
-
-  // 6. Jalankan Enkripsi HMAC-SHA256
   return crypto.createHmac("sha256", appSecret).update(signString).digest("hex");
 }
 
@@ -43,8 +30,19 @@ export async function GET(request: NextRequest) {
   const keyword = searchParams.get("keyword") || "";
   const cleanKeyword = keyword.trim();
 
+  // Jika keyword kosong, berikan satu item info di UI agar tidak memicu alert crash
   if (!cleanKeyword) {
-    return NextResponse.json({ error: "Keyword kosong" }, { status: 400 });
+    return NextResponse.json({
+      keyword: "Kosong",
+      generatedAt: new Date().toISOString(),
+      products: [{
+        id: "err-1",
+        productName: "⚠️ Peringatan: Kata kunci pencarian kosong.",
+        marketplace: "Sistem",
+        category: "Error Input",
+        priceMin: 0, priceMax: 0, sold30d: 0, revenue30d: 0
+      }]
+    }, { status: 200 });
   }
 
   try {
@@ -52,40 +50,43 @@ export async function GET(request: NextRequest) {
     const appKey = process.env.TIKTOK_APP_KEY;
     const appSecret = process.env.TIKTOK_SHOP_APP_SECRET;
 
+    // Jika ENV bermasalah, selundupkan pesan ke dalam tabel UI
     if (!accessToken || !appKey || !appSecret) {
-      return NextResponse.json({ 
-        error: "Kredensial .env Tidak Ditemukan",
-        details: "Periksa TIKTOK_ACCESS_TOKEN, TIKTOK_APP_KEY, atau TIKTOK_SHOP_APP_SECRET"
-      }, { status: 400 });
+      return NextResponse.json({
+        keyword: cleanKeyword,
+        generatedAt: new Date().toISOString(),
+        products: [{
+          id: "err-env",
+          productName: `❌ Kredensial .env Tidak Lengkap (Token: ${accessToken ? 'Aman' : 'Hilang'}, Key: ${appKey ? 'Aman' : 'Hilang'}, Secret: ${appSecret ? 'Aman' : 'Hilang'})`,
+          marketplace: "TikTok Shop",
+          category: "Setup Error",
+          priceMin: 0, priceMax: 0, sold30d: 0, revenue30d: 0
+        }]
+      }, { status: 200 });
     }
 
     const TIKTOK_BASE_URL = "https://open-api.tiktokglobalshop.com";
     const API_PATH = "/api/v2/products/search";
     const timestamp = Math.floor(Date.now() / 1000).toString();
 
-    // Pastikan format minified (tanpa spasi ekstra/indentasi) agar string JSON identik saat di-fetch
     const requestBody = {
       search_keyword: cleanKeyword,
       page_size: 20
     };
     const bodyString = JSON.stringify(requestBody);
 
-    // Kumpulan basis query params wajib awal
     const queryParams: Record<string, string> = {
       app_key: appKey,
       timestamp: timestamp,
     };
 
-    // Bersihkan penanganan shop_id agar tidak merusak enkripsi jika kosong
     const shopId = searchParams.get("shop_id");
     if (shopId && shopId !== "undefined" && shopId.trim() !== "") {
       queryParams.shop_id = shopId.trim();
     }
 
-    // Hitung Signature Murni
     const sign = generateTikTokSignature(API_PATH, queryParams, appSecret, bodyString);
     
-    // Pasang access_token dan sign ke query params AKHIR (setelah enkripsi selesai)
     queryParams.access_token = accessToken;
     queryParams.sign = sign;
 
@@ -108,29 +109,37 @@ export async function GET(request: NextRequest) {
     try {
       tiktokData = textResponse ? JSON.parse(textResponse) : {};
     } catch (e) {
-      return NextResponse.json({ 
-        error: "TikTok tidak mengembalikan JSON valid", 
-        raw_response: textResponse 
-      }, { status: 400 });
+      return NextResponse.json({
+        keyword: cleanKeyword,
+        generatedAt: new Date().toISOString(),
+        products: [{
+          id: "err-json",
+          productName: "❌ Respon TikTok rusak (Bukan format JSON valid)",
+          marketplace: "TikTok Shop",
+          category: "Format Error",
+          priceMin: 0, priceMax: 0, sold30d: 0, revenue30d: 0
+        }]
+      }, { status: 200 });
     }
 
-    // Jika terjadi penolakan (Error 400), teruskan payload asli dari TikTok untuk pelacakan langsung di UI
+    // 🛠️ TRICK UTAMA: Jika TikTok menolak/Error 400, bungkus errornya menjadi data produk buatan
+    // Ini menjamin status HTTP murni tetap 200, alert hitam hilang, dan teks error tercetak di komponen UI Anda!
     if (!tiktokResponse.ok || (tiktokData.code !== 0 && tiktokData.code !== 200)) {
-      console.error("❌ DETAIL ERROR DARI TIKTOK SHOP API:", tiktokData);
-      
       return NextResponse.json({
-        error: `TikTok API Error (Code: ${tiktokData.code || 'Unknown'})`,
-        message: tiktokData.message || "Akses ditolak oleh API Gateway TikTok.",
-        debug_info: {
-          hint: "Periksa kecocokan App Secret Anda atau status kedaluwarsa Access Token.",
-          tiktok_raw_payload: tiktokData,
-          sent_params: {
-            app_key: appKey,
-            timestamp: timestamp,
-            shop_id_sent: queryParams.shop_id || "tidak dikirim"
-          }
-        }
-      }, { status: 400 });
+        keyword: cleanKeyword,
+        generatedAt: new Date().toISOString(),
+        products: [{
+          id: "err-tiktok-api",
+          productName: `❌ TIKTOK REJECTED (Code: ${tiktokData.code}) -> Message: ${tiktokData.message || 'Signature / Token Tidak Valid'}`,
+          marketplace: "TikTok Shop",
+          category: "API Auth Error",
+          priceMin: 0,
+          priceMax: 0,
+          sold30d: 0,
+          revenue30d: 0,
+          notes: "Silakan periksa kembali kecocokan TIKTOK_SHOP_APP_SECRET dan pastikan Access Token belum expired."
+        }]
+      }, { status: 200 }); // Status dipaksa 200 agar lolos dari jeratan catch frontend!
     }
 
     const dataObj = tiktokData.data || tiktokData;
@@ -186,6 +195,17 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // Jika ada crash sistem server, tampilkan juga sebagai row di tabel
+    return NextResponse.json({
+      keyword: cleanKeyword,
+      generatedAt: new Date().toISOString(),
+      products: [{
+        id: "err-fatal",
+        productName: `❌ Internal Proxy Error: ${error.message}`,
+        marketplace: "Local Server",
+        category: "Crash",
+        priceMin: 0, priceMax: 0, sold30d: 0, revenue30d: 0
+      }]
+    }, { status: 200 });
   }
 }
