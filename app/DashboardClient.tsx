@@ -42,6 +42,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey | string>("overview");
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [affiliateData, setAffiliateData] = useState<any>(null);
   const [aiMetrics, setAiMetrics] = useState<any>(null);
   const [loadingAiMetrics, setLoadingAiMetrics] = useState(false);
   const [marketData, setMarketData] = useState<any>({ products: [], keyword: "" }); // Inisialisasi struktur object yang aman
@@ -255,6 +257,27 @@ useEffect(() => {
     return true;
   }
 
+useEffect(() => {
+  if (!selectedProduct) return;
+
+  async function loadAffiliates() {
+    try {
+      const res = await fetch(
+        `/api/affiliates?product_id=${selectedProduct.id}`
+      );
+      const json = await res.json();
+
+      if (json.success) {
+        setAffiliateData(json.data);
+      }
+    } catch (err) {
+      console.error("Affiliate load error:", err);
+    }
+  }
+
+  loadAffiliates();
+}, [selectedProduct]);
+
   function openUpgradeModal(plan: UpgradePlan = "lifetime") { setSelectedPlan(plan); setShowUpgradeModal(true); }
 
   async function handleLogout() {
@@ -356,19 +379,58 @@ useEffect(() => {
         </header>
 
         {/* DYNAMIC CONTENT SWITCH TAB */}
-        {activeTab === "overview" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <ExecutiveDashboard 
-              products={products} 
-              expenses={expenses} 
-              filteredProducts={filteredProducts}
-              metrics={metrics as any} 
-              cashflowTrend={getCashflowTrend(expenses)}
-              profitTrend={getProfitTrend(products)}
-              isPro={isPro}
-              isDemoMode={isDemoMode}
-              lastSync={lastSync}
-              syncing={syncing}
+{activeTab === "overview" && (
+  <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    
+    {/* 🔥 TAMBAHKAN DI SINI */}
+    {aiMetrics && (
+      <div style={{
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 12,
+        padding: 16
+      }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+          🔥 Insight Bisnis Hari Ini
+        </h3>
+
+        <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
+          
+          <p>💰 Total Profit: <b>{aiMetrics.total_profit.toLocaleString()}</b></p>
+          <p>📈 Revenue: <b>{aiMetrics.total_revenue.toLocaleString()}</b></p>
+          <p>📊 Avg Margin: <b>{(aiMetrics.avg_margin * 100).toFixed(1)}%</b></p>
+
+          {aiMetrics.insights_flags?.has_loss && (
+            <p style={{ color: "#dc2626" }}>❌ Ada produk merugi</p>
+          )}
+
+          {aiMetrics.insights_flags?.has_dead_stock && (
+            <p style={{ color: "#ea580c" }}>📦 Ada dead stock</p>
+          )}
+
+          {aiMetrics.low_stock?.length > 0 && (
+            <p style={{ color: "#ca8a04" }}>
+              ⚠️ {aiMetrics.low_stock.length} produk hampir habis
+            </p>
+          )}
+
+        </div>
+      </div>
+    )}
+
+    {/* EXISTING DASHBOARD */}
+    <ExecutiveDashboard 
+      products={products} 
+      expenses={expenses} 
+      filteredProducts={filteredProducts}
+      metrics={metrics as any} 
+      aiMetrics={aiMetrics}
+      cashflowTrend={getCashflowTrend(expenses)}
+      profitTrend={getProfitTrend(products)}
+      isPro={isPro}
+      isDemoMode={isDemoMode}
+      lastSync={lastSync}
+      syncing={syncing}
               onGoMarketplace={async () => {
                 if (!stores || stores.length === 0) {
                   const tiktokAuthLink = "https://services.tiktokshop.com/open/authorize?service_id=7641105771128489748";
@@ -432,6 +494,45 @@ useEffect(() => {
             />
           </div>
         )}
+
+{/* 🔥 AFFILIATE INTELLIGENCE */}
+{affiliateData && selectedProduct && (
+  <div style={{
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    padding: 16
+  }}>
+    <h3 style={{ fontSize: 14, fontWeight: 700 }}>
+      🤝 Affiliate - {selectedProduct.name}
+    </h3>
+
+    {/* LIST */}
+    {affiliateData.affiliates.map((a: any) => (
+      <div key={a.id} style={{
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 13
+      }}>
+        <span>{a.name}</span>
+        <span>Score: {a.score.toFixed(1)}</span>
+      </div>
+    ))}
+
+    {/* INSIGHT */}
+    <div style={{ marginTop: 10, fontSize: 13 }}>
+      <p>🔥 Top: {affiliateData.insights.top_affiliate.name}</p>
+      <p>❌ Worst: {affiliateData.insights.worst_affiliate.name}</p>
+    </div>
+
+    {/* RECOMMENDATION */}
+    <div style={{ marginTop: 10, fontSize: 13, color: "#2563eb" }}>
+      {affiliateData.recommendations.map((r: string, i: number) => (
+        <p key={i}>{r}</p>
+      ))}
+    </div>
+  </div>
+)}
 
         {activeTab === "integrasi" && (
           <MarketplaceSyncPanel syncing={syncing} setSyncing={setSyncing} lastSync={lastSync} setLastSync={setLastSync} products={products} setProducts={setProducts} currentUserId={currentUserId} workspaceId={workspaceId} selectedStoreId={selectedStoreId} />
