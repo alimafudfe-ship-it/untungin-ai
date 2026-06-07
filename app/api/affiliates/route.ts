@@ -18,16 +18,37 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase
-      .from("affiliates")
-      .select("*")
-      .eq("product_id", product_id);
+const { data, error } = await supabase
+  .from("affiliates")
+  .select("*")
+  .eq("product_id", product_id);
 
-    if (error) throw error;
+if (error) throw error;
 
-    const ranked = rankAffiliates(data || []);
-    const insights = getAffiliateInsights(data || []);
-    const recommendations = getAffiliateRecommendations(data || []);
+// ✅ TAMBAHAN DI SINI
+if (!data || data.length === 0) {
+  return NextResponse.json({
+    success: true,
+    data: {
+      affiliates: [],
+      insights: {
+        top_affiliate: null,
+        worst_affiliate: null,
+        empty: true
+      },
+      recommendations: [
+        "⚠️ Belum ada affiliate aktif",
+        "👉 Aktifkan program affiliate untuk produk ini",
+        "👉 Rekrut 3–5 creator untuk mulai testing"
+      ]
+    }
+  });
+}
+
+// 👇 BARU LANJUT NORMAL
+const ranked = rankAffiliates(data || []);
+const insights = getAffiliateInsights(data || []);
+const recommendations = getAffiliateRecommendations(data || []);
 
     return NextResponse.json({
       success: true,
