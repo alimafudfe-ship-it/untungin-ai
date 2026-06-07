@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [affiliateData, setAffiliateData] = useState<any>(null);
+  const [decisions, setDecisions] = useState<any[]>([]);
   const [aiMetrics, setAiMetrics] = useState<any>(null);
   const [loadingAiMetrics, setLoadingAiMetrics] = useState(false);
   const [marketData, setMarketData] = useState<any>({ products: [], keyword: "" }); // Inisialisasi struktur object yang aman
@@ -278,6 +279,23 @@ useEffect(() => {
   loadAffiliates();
 }, [selectedProduct]);
 
+useEffect(() => {
+  if (!currentUserId) return;
+
+  async function loadDecisions() {
+    const res = await fetch(
+      `/api/ai/decision?user_id=${currentUserId}`
+    );
+    const json = await res.json();
+
+    if (json.success) {
+      setDecisions(json.data);
+    }
+  }
+
+  loadDecisions();
+}, [currentUserId, products]);
+
   function openUpgradeModal(plan: UpgradePlan = "lifetime") { setSelectedPlan(plan); setShowUpgradeModal(true); }
 
   async function handleLogout() {
@@ -378,6 +396,35 @@ useEffect(() => {
           </div>
         </header>
 
+{decisions.length > 0 && (
+  <div style={{
+    background: "#0f172a",
+    color: "#fff",
+    borderRadius: 12,
+    padding: 16
+  }}>
+    <h3 style={{ fontWeight: 700 }}>
+      🧠 AI COO - Keputusan Hari Ini
+    </h3>
+
+    {decisions.map((d, i) => (
+      <div key={i} style={{ marginTop: 10 }}>
+        <p>
+          {d.type === "restock" && "📦"}
+          {d.type === "stop" && "❌"}
+          {d.type === "scale" && "🚀"}{" "}
+          <b>{d.product}</b>
+        </p>
+        <p style={{ fontSize: 13, opacity: 0.8 }}>
+          {d.reason}
+        </p>
+        <p style={{ fontSize: 13, color: "#38bdf8" }}>
+          👉 {d.action}
+        </p>
+      </div>
+    ))}
+  </div>
+)}
         {/* DYNAMIC CONTENT SWITCH TAB */}
 {activeTab === "overview" && (
   <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
