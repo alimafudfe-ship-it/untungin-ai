@@ -42,6 +42,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey | string>("overview");
   const [products, setProducts] = useState<Product[]>([]);
+  const [aiMetrics, setAiMetrics] = useState<any>(null);
+  const [loadingAiMetrics, setLoadingAiMetrics] = useState(false);
   const [marketData, setMarketData] = useState<any>({ products: [], keyword: "" }); // Inisialisasi struktur object yang aman
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [goals] = useState<Goal[]>(DEMO_GOALS);
@@ -223,6 +225,29 @@ export default function DashboardPage() {
 
     return () => { isMounted = false; authListener?.data?.subscription?.unsubscribe(); };
   }, [router]);
+
+useEffect(() => {
+  if (!currentUserId || isDemoMode) return;
+
+  async function loadAiMetrics() {
+    try {
+      setLoadingAiMetrics(true);
+
+      const res = await fetch(`/api/metrics?user_id=${currentUserId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        setAiMetrics(json.data);
+      }
+    } catch (err) {
+      console.error("AI Metrics error:", err);
+    } finally {
+      setLoadingAiMetrics(false);
+    }
+  }
+
+  loadAiMetrics();
+}, [currentUserId, products]); // trigger ulang kalau produk berubah  
 
   function ensureLoggedIn() {
     if (!hasSupabaseEnv) { alert("Supabase ENV belum lengkap."); return false; }
