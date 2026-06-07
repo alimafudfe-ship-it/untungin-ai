@@ -18,19 +18,30 @@ export async function GET(request: NextRequest) {
       .limit(100);
 
     if (keyword) {
-      query = query.ilike("title", `%${keyword}%`);
+      query = query.ilike("name", `%${keyword}%`);
     }
 
     const { data, error } = await query;
 
     if (error) throw error;
 
-    return NextResponse.json({
-      ok: true,
-      keyword,
-      totalProducts: data?.length || 0,
-      products: data || []
-    });
+const products = (data || []).map((p: any) => ({
+  id: p.id,
+  product_name: p.name,
+  marketplace: p.marketplace,
+  price: Number(p.selling_price || 0),
+  sales: Number(p.quantity_sold || 0),
+  profit: Number(p.profit || 0),
+  margin: Number(p.margin || 0),
+  created_at: p.created_at
+}));    
+
+return NextResponse.json({
+  ok: true,
+  keyword,
+  totalProducts: products.length,
+  products
+});
 
   } catch (error: any) {
     return NextResponse.json(
