@@ -12,7 +12,8 @@ import { AppShell } from "@/components/dashboard/AppShell";
 import { cardStyle } from "@/components/dashboard/ui";
 import { ExpensePanel, ExpenseFormState, ProductForm, ProductFormState } from "@/components/dashboard/Forms";
 import { ProductTable } from "@/components/dashboard/ProductTable";
-import AIRecommendationPanel, { MarketplaceSyncPanel } from "@/components/dashboard/AdvancedPanels";
+// ✅ BENAR: Karena kedua komponen di AdvancedPanels menggunakan Named Export ('export function')
+import { AIRecommendationPanel, MarketplaceSyncPanel } from "@/components/dashboard/AdvancedPanels";
 import { ReportsPanel } from "@/components/dashboard/ReportsPanel";
 import { ExecutiveDashboard } from "@/components/dashboard/ExecutiveDashboard";
 import { MarketIntelligenceSuite } from "@/components/dashboard/MarketIntelligenceSuite";
