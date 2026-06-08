@@ -49,7 +49,7 @@ export default function DashboardPage() {
   const [decisions, setDecisions] = useState<any[]>([]);
   const [aiMetrics, setAiMetrics] = useState<any>(null);
   const [loadingAiMetrics, setLoadingAiMetrics] = useState(false);
-  const [marketData, setMarketData] = useState<any>({ products: [], keyword: "" }); // Inisialisasi struktur object yang aman
+  const [marketData, setMarketData] = useState<any>({ products: [], keyword: "" });
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [goals] = useState<Goal[]>(DEMO_GOALS);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -92,11 +92,9 @@ export default function DashboardPage() {
     if (!cleanKeyword) return;
     
     setLoading(true);
-    // Tetap pertahankan struktur objek kosong agar UI tidak crash (error undefined) saat loading data baru
     setMarketData({ products: [], keyword: cleanKeyword });
 
     try {
-      // Ditambahkan timestamp cache-buster agar browser dipaksa mengambil data paling baru (Real-time murni)
       const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}&_t=${Date.now()}`, {
         method: "GET",
         headers: {
@@ -110,7 +108,6 @@ export default function DashboardPage() {
 
       const result = await response.json();
       
-      // Validasi struktur data yang masuk dari API internal backend
       if (result && result.products) {
         setMarketData({
           products: Array.isArray(result.products) ? result.products : [],
@@ -131,6 +128,25 @@ export default function DashboardPage() {
       setLoading(false);
     }
   }, []);
+
+  // ====================================================================
+  // FUNGSI AI CHAT BUSINESS ADVISOR (PERBAIKAN ERROR "NOT DEFINED")
+  // ====================================================================
+  const sendMessage = useCallback(() => {
+    const cleanInput = chatInput.trim();
+    if (!cleanInput) return;
+
+    setChatMessages((prev) => [...prev, { role: "user", text: cleanInput }]);
+    setChatInput("");
+
+    // Simulasi respons AI advisor
+    setTimeout(() => {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Terima kasih atas pertanyaannya. Tim AI Untungin sedang mengolah data finansial tokomu untuk memberikan rekomendasi operasional terbaik." }
+      ]);
+    }, 1000);
+  }, [chatInput]);
   
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER !== "midtrans") return;
@@ -231,28 +247,26 @@ export default function DashboardPage() {
     return () => { isMounted = false; authListener?.data?.subscription?.unsubscribe(); };
   }, [router]);
 
-useEffect(() => {
-  if (!currentUserId || isDemoMode) return;
+  useEffect(() => {
+    if (!currentUserId || isDemoMode) return;
 
-  async function loadAiMetrics() {
-    try {
-      setLoadingAiMetrics(true);
-
-      const res = await fetch(`/api/metrics?user_id=${currentUserId}`);
-      const json = await res.json();
-
-      if (json.success) {
-        setAiMetrics(json.data);
+    async function loadAiMetrics() {
+      try {
+        setLoadingAiMetrics(true);
+        const res = await fetch(`/api/metrics?user_id=${currentUserId}`);
+        const json = await res.json();
+        if (json.success) {
+          setAiMetrics(json.data);
+        }
+      } catch (err) {
+        console.error("AI Metrics error:", err);
+      } finally {
+        setLoadingAiMetrics(false);
       }
-    } catch (err) {
-      console.error("AI Metrics error:", err);
-    } finally {
-      setLoadingAiMetrics(false);
     }
-  }
 
-  loadAiMetrics();
-}, [currentUserId, products]); // trigger ulang kalau produk berubah  
+    loadAiMetrics();
+  }, [currentUserId, products, isDemoMode]);  
 
   function ensureLoggedIn() {
     if (!hasSupabaseEnv) { alert("Supabase ENV belum lengkap."); return false; }
@@ -260,43 +274,37 @@ useEffect(() => {
     return true;
   }
 
-useEffect(() => {
-  if (!selectedProduct) return;
+  useEffect(() => {
+    if (!selectedProduct) return;
 
-  async function loadAffiliates() {
-    try {
-      const res = await fetch(
-        `/api/affiliates?product_id=${selectedProduct.id}`
-      );
-      const json = await res.json();
-
-      if (json.success) {
-        setAffiliateData(json.data);
+    async function loadAffiliates() {
+      try {
+        const res = await fetch(`/api/affiliates?product_id=${selectedProduct.id}`);
+        const json = await res.json();
+        if (json.success) {
+          setAffiliateData(json.data);
+        }
+      } catch (err) {
+        console.error("Affiliate load error:", err);
       }
-    } catch (err) {
-      console.error("Affiliate load error:", err);
     }
-  }
 
-  loadAffiliates();
-}, [selectedProduct]);
+    loadAffiliates();
+  }, [selectedProduct]);
 
-useEffect(() => {
-  if (!currentUserId) return;
+  useEffect(() => {
+    if (!currentUserId) return;
 
-  async function loadDecisions() {
-    const res = await fetch(
-      `/api/ai/decision?user_id=${currentUserId}`
-    );
-    const json = await res.json();
-
-    if (json.success) {
-      setDecisions(json.data);
+    async function loadDecisions() {
+      const res = await fetch(`/api/ai/decision?user_id=${currentUserId}`);
+      const json = await res.json();
+      if (json.success) {
+        setDecisions(json.data);
+      }
     }
-  }
 
-  loadDecisions();
-}, [currentUserId, products]);
+    loadDecisions();
+  }, [currentUserId, products]);
 
   function openUpgradeModal(plan: UpgradePlan = "lifetime") { setSelectedPlan(plan); setShowUpgradeModal(true); }
 
@@ -398,175 +406,132 @@ useEffect(() => {
           </div>
         </header>
 
-{decisions.length > 0 && (
-  <div style={{
-    background: "#0f172a",
-    color: "#fff",
-    borderRadius: 12,
-    padding: 16
-  }}>
-    <h3 style={{ fontWeight: 700 }}>
-      🧠 AI COO - Keputusan Hari Ini
-    </h3>
-
-    {decisions.map((d, i) => (
-      <div key={i} style={{ marginTop: 10 }}>
-        <p>
-          {d.type === "restock" && "📦"}
-          {d.type === "stop" && "❌"}
-          {d.type === "scale" && "🚀"}{" "}
-          <b>{d.product}</b>
-        </p>
-        <p style={{ fontSize: 13, opacity: 0.8 }}>
-          {d.reason}
-        </p>
-        <p style={{ fontSize: 13, color: "#38bdf8" }}>
-          👉 {d.action}
-        </p>
-      </div>
-    ))}
-  </div>
-)}
         {/* DYNAMIC CONTENT SWITCH TAB */}
-{activeTab === "overview" && (
-  <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {activeTab === "overview" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
-    {/* 🧠 AI COO DECISION */}
-    {decisions.length > 0 && (
-      <div style={{
-        background: "#0f172a",
-        color: "#fff",
-        borderRadius: 12,
-        padding: 16
-      }}>
-        <h3 style={{ fontWeight: 700 }}>
-          🧠 AI COO - Keputusan Hari Ini
-        </h3>
+            {/* 🧠 AI COO DECISION */}
+            {decisions.length > 0 && (
+              <div style={{ background: "#0f172a", color: "#fff", borderRadius: 12, padding: 16 }}>
+                <h3 style={{ fontWeight: 700, marginBottom: 8 }}>
+                  🧠 AI COO - Keputusan Hari Ini
+                </h3>
 
-        {decisions.map((d, i) => (
-          <div key={i} style={{ marginTop: 10 }}>
-            <p>
-              {d.type === "restock" && "📦"}
-              {d.type === "stop" && "❌"}
-              {d.type === "scale" && "🚀"}{" "}
-              <b>{d.product}</b>
-            </p>
-            <p style={{ fontSize: 13, opacity: 0.8 }}>
-              {d.reason}
-            </p>
-            <p style={{ fontSize: 13, color: "#38bdf8" }}>
-              👉 {d.action}
-            </p>
+                {decisions.map((d, i) => (
+                  <div key={i} style={{ marginTop: 10, borderBottom: i < decisions.length - 1 ? "1px solid #334155" : "none", paddingBottom: 10 }}>
+                    <p style={{ margin: "4px 0" }}>
+                      {d.type === "restock" && "📦"}
+                      {d.type === "stop" && "❌"}
+                      {d.type === "scale" && "🚀"}{" "}
+                      <b>{d.product}</b>
+                    </p>
+                    <p style={{ fontSize: 13, opacity: 0.8, margin: "4px 0" }}>
+                      {d.reason}
+                    </p>
+                    <p style={{ fontSize: 13, color: "#38bdf8", margin: "4px 0" }}>
+                      👉 {d.action}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 🔥 AI METRICS */}
+            {aiMetrics && (
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
+                  🔥 Insight Bisnis Hari Ini
+                </h3>
+
+                <p style={{ margin: "4px 0" }}>💰 Profit: {aiMetrics.total_profit?.toLocaleString()}</p>
+                <p style={{ margin: "4px 0" }}>📈 Revenue: {aiMetrics.total_revenue?.toLocaleString()}</p>
+                <p style={{ margin: "4px 0" }}>📊 Margin: {(aiMetrics.avg_margin * 100).toFixed(1)}%</p>
+
+                {aiMetrics.insights_flags?.has_loss && (
+                  <p style={{ color: "#dc2626", fontWeight: 600, margin: "8px 0 4px 0" }}>❌ Ada produk merugi</p>
+                )}
+
+                {aiMetrics.insights_flags?.has_dead_stock && (
+                  <p style={{ color: "#ea580c", fontWeight: 600, margin: "4px 0" }}>📦 Ada dead stock</p>
+                )}
+              </div>
+            )}
+
+            {/* 📊 DASHBOARD EXECUTIVE */}
+            <ExecutiveDashboard 
+              products={products} 
+              expenses={expenses} 
+              filteredProducts={filteredProducts}
+              metrics={metrics as any} 
+              aiMetrics={aiMetrics}
+              cashflowTrend={getCashflowTrend(expenses)}
+              profitTrend={getProfitTrend(products)}
+              isPro={isPro}
+              isDemoMode={isDemoMode}
+              lastSync={lastSync}
+              syncing={syncing}
+              onDelete={deleteProduct}
+            />
+
+            {/* 🤝 AFFILIATE ANALYSIS */}
+            {affiliateData && selectedProduct && (
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
+                <h3 style={{ marginBottom: 12 }}>🤝 Affiliate - {selectedProduct.name}</h3>
+
+                {affiliateData.affiliates?.map((a: any) => (
+                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, margin: "4px 0" }}>
+                    <span>{a.name}</span>
+                    <span>{a.score?.toFixed(1)}</span>
+                  </div>
+                ))}
+
+                <p style={{ margin: "8px 0 4px 0" }}>
+                  🔥 Top: {affiliateData.insights?.top_affiliate?.name || "-"}
+                </p>
+                <p style={{ margin: "4px 0" }}>
+                  ❌ Worst: {affiliateData.insights?.worst_affiliate?.name || "-"}
+                </p>
+
+                {affiliateData.recommendations?.map((r: string, i: number) => (
+                  <p key={i} style={{ color: "#2563eb", margin: "4px 0" }}>{r}</p>
+                ))}
+              </div>
+            )}
+
+            {/* 🤖 AI CHAT PANEL */}
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
+              <h3 style={{ marginBottom: 12 }}>🤖 AI Business Advisor</h3>
+
+              <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #f1f5f9", padding: 8, borderRadius: 8, background: "#f8fafc", marginBottom: 12 }}>
+                {chatMessages.length === 0 && (
+                  <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", margin: "16px 0" }}>Belum ada obrolan. Tanyakan sesuatu tentang margin atau stok tokomu!</p>
+                )}
+                {chatMessages.map((m, i) => (
+                  <p key={i} style={{ fontSize: 13, margin: "6px 0" }}>
+                    <b>{m.role === "user" ? "You" : "AI"}:</b> {m.text}
+                  </p>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
+                  placeholder="Ketik pesan analisis di sini..."
+                  style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14 }}
+                />
+                <button 
+                  onClick={sendMessage}
+                  style={{ padding: "10px 20px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}
+                >
+                  Kirim
+                </button>
+              </div>
+            </div>
+
           </div>
-        ))}
-      </div>
-    )}
-
-    {/* 🔥 AI METRICS */}
-    {aiMetrics && (
-      <div style={{
-        background: "#ffffff",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        padding: 16
-      }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700 }}>
-          🔥 Insight Bisnis Hari Ini
-        </h3>
-
-        <p>💰 Profit: {aiMetrics.total_profit.toLocaleString()}</p>
-        <p>📈 Revenue: {aiMetrics.total_revenue.toLocaleString()}</p>
-        <p>📊 Margin: {(aiMetrics.avg_margin * 100).toFixed(1)}%</p>
-
-        {aiMetrics.insights_flags?.has_loss && (
-          <p style={{ color: "#dc2626" }}>❌ Ada produk merugi</p>
         )}
-
-        {aiMetrics.insights_flags?.has_dead_stock && (
-          <p style={{ color: "#ea580c" }}>📦 Ada dead stock</p>
-        )}
-    </div>
-    )}
-
-    {/* 📊 DASHBOARD */}
-    <ExecutiveDashboard 
-      products={products} 
-      expenses={expenses} 
-      filteredProducts={filteredProducts}
-      metrics={metrics as any} 
-      aiMetrics={aiMetrics}
-      cashflowTrend={getCashflowTrend(expenses)}
-      profitTrend={getProfitTrend(products)}
-      isPro={isPro}
-      isDemoMode={isDemoMode}
-      lastSync={lastSync}
-      syncing={syncing}
-      onDelete={deleteProduct}
-    />
-
-    {/* 🤝 AFFILIATE */}
-    {affiliateData && selectedProduct && (
-      <div style={{
-        background: "#ffffff",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        padding: 16
-      }}>
-        <h3>🤝 Affiliate - {selectedProduct.name}</h3>
-
-        {affiliateData.affiliates?.map((a: any) => (
-          <div key={a.id} style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: 13
-          }}>
-            <span>{a.name}</span>
-            <span>{a.score?.toFixed(1)}</span>
-          </div>
-        ))}
-
-        <p>
-          🔥 Top: {affiliateData.insights?.top_affiliate?.name || "-"}
-        </p>
-        <p>
-          ❌ Worst: {affiliateData.insights?.worst_affiliate?.name || "-"}
-        </p>
-
-        {affiliateData.recommendations?.map((r: string, i: number) => (
-          <p key={i} style={{ color: "#2563eb" }}>{r}</p>
-        ))}
-      </div>
-    )}
-
-    {/* 🤖 AI CHAT */}
-    <div style={{
-      background: "#fff",
-      border: "1px solid #e2e8f0",
-      borderRadius: 12,
-      padding: 16
-    }}>
-      <h3>🤖 AI Business Advisor</h3>
-
-      <div style={{ maxHeight: 200, overflowY: "auto" }}>
-        {chatMessages.map((m, i) => (
-          <p key={i}>
-            <b>{m.role === "user" ? "You" : "AI"}:</b> {m.text}
-          </p>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", marginTop: 10 }}>
-        <input
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <button onClick={sendMessage}>Kirim</button>
-      </div>
-    </div>
-
-  </div>
-)}
 
         {activeTab === "integrasi" && (
           <MarketplaceSyncPanel syncing={syncing} setSyncing={setSyncing} lastSync={lastSync} setLastSync={setLastSync} products={products} setProducts={setProducts} currentUserId={currentUserId} workspaceId={workspaceId} selectedStoreId={selectedStoreId} />
