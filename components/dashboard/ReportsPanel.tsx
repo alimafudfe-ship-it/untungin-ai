@@ -14,6 +14,13 @@ export function ReportsPanel({ metrics, products, expenses, onExportCSV, onExpor
   const safeProfit = Number(metrics?.totalProfit) || 0;
 
   const expenseRatio = safeProfit > 0 ? (safeExpenses / safeProfit) * 100 : 0;
+
+  // 🛡️ TAMBAHAN PENGAMAN UNTUK RISK SCORE (Bypass snake_case / camelCase & undefined)
+  const safeRiskScore = metrics?.riskScore !== undefined 
+    ? metrics.riskScore 
+    : (metrics as any)?.risk_score !== undefined 
+      ? (metrics as any).risk_score 
+      : 0;
   return (
     <div style={{ display: "grid", gap: 18 }}>
       <section style={{ ...cardStyle, display: "flex", justifyContent: "space-between", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
