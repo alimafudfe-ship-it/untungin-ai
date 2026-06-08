@@ -44,6 +44,8 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [affiliateData, setAffiliateData] = useState<any>(null);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<any[]>([]); 
   const [decisions, setDecisions] = useState<any[]>([]);
   const [aiMetrics, setAiMetrics] = useState<any>(null);
   const [loadingAiMetrics, setLoadingAiMetrics] = useState(false);
@@ -464,6 +466,35 @@ useEffect(() => {
         </div>
       </div>
     )}
+
+    <div style={{
+      background: "#fff",
+      border: "1px solid #e2e8f0",
+      borderRadius: 12,
+      padding: 16
+    }}>
+      <h3>🤖 AI Business Advisor</h3>
+
+      <div style={{ maxHeight: 200, overflowY: "auto" }}>
+        {chatMessages.map((m, i) => (
+          <p key={i}>
+            <b>{m.role === "user" ? "You" : "AI"}:</b> {m.text}
+          </p>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", marginTop: 10 }}>
+        <input
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          style={{ flex: 1 }}
+        />
+        <button onClick={sendMessage}>Kirim</button>
+      </div>
+    </div>
+
+  </div>
+)}
 
     {/* EXISTING DASHBOARD */}
     <ExecutiveDashboard 
