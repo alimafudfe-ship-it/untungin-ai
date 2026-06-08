@@ -39,7 +39,7 @@ export function ReportsPanel({ metrics, products, expenses, onExportCSV, onExpor
         <StatCard label="Cashflow bersih" value={money(metrics.netCash)} helper="Profit dikurangi expenses" tone={metrics.netCash >= 0 ? "success" : "danger"} />
         <StatCard label="Expense ratio" value={`${Math.round(expenseRatio)}%`} helper="Expenses dibanding profit produk" tone={expenseRatio > 45 ? "danger" : expenseRatio > 25 ? "warning" : "success"} />
         <StatCard label="Inventory value" value={compactMoney(metrics.inventoryValue)} helper="Modal masih berada di stok" tone="neutral" />
-        <StatCard label="Risk score" value={`${metrics.riskScore}/100`} helper="Profit, stok, expense, cashflow" tone={metrics.riskScore >= 50 ? "danger" : metrics.riskScore >= 25 ? "warning" : "success"} />
+        <StatCard label="Risk score" value={`${safeRiskScore}/100`} helper="Profit, stok, expense, cashflow" tone={safeRiskScore >= 50 ? "danger" : safeRiskScore >= 25 ? "warning" : "success"} />
       </section>
 
       <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
