@@ -85,6 +85,26 @@ export default function DashboardPage() {
   }, [selectedFilter, sortedProducts]);
 
   // ====================================================================
+  // FUNGSI NAVIGASI INTER-PANEL (CENTRALIZED HANDLERS)
+  // ====================================================================
+  const handleGoMarketplace = useCallback(() => {
+    setActiveTab("integrasi");
+  }, []);
+
+  const handleGoProducts = useCallback(() => {
+    setActiveTab("produk");
+  }, []);
+
+  const handleGoAI = useCallback(() => {
+    setActiveTab("insight-ai");
+  }, []);
+
+  const handleGoBilling = useCallback(() => {
+    setSelectedPlan("lifetime");
+    setShowUpgradeModal(true);
+  }, []);
+
+  // ====================================================================
   // FUNGSI RISET PASAR - PURE REAL-TIME TIKTOK SHOP API CONNECTED
   // ====================================================================
   const handleDashboardScrape = useCallback(async (keywordInput: string) => {
@@ -457,7 +477,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* 📊 DASHBOARD EXECUTIVE */}
+            {/* 📊 DASHBOARD EXECUTIVE WITH INTER-PANEL HANDLERS CONNECTED */}
             <ExecutiveDashboard 
               products={products} 
               expenses={expenses} 
@@ -471,6 +491,13 @@ export default function DashboardPage() {
               lastSync={lastSync}
               syncing={syncing}
               onDelete={deleteProduct}
+              stores={stores}
+              workspaceId={workspaceId}
+              userEmail={userEmail}
+              onGoMarketplace={handleGoMarketplace}
+              onGoProducts={handleGoProducts}
+              onGoAI={handleGoAI}
+              onGoBilling={handleGoBilling}
             />
 
             {/* 🤝 AFFILIATE ANALYSIS */}
@@ -504,7 +531,7 @@ export default function DashboardPage() {
 
               <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #f1f5f9", padding: 8, borderRadius: 8, background: "#f8fafc", marginBottom: 12 }}>
                 {chatMessages.length === 0 && (
-                  <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", margin: "16px 0" }}>Belum ada obrolan. Tanyakan sesuatu tentang margin atau stok tokomu!</p>
+                  <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", margin: "16px 0" }}>Belum ada obrolan. Tanyakan sesuatu tentang margin atau stok道を!</p>
                 )}
                 {chatMessages.map((m, i) => (
                   <p key={i} style={{ fontSize: 13, margin: "6px 0" }}>
