@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "MASUKKAN_APP_KEY_TIKTOK_KAMU_DISINI";
     const REDIRECT_URI = "https://untungin-ai-pmd1.vercel.app/api/auth/tiktok/callback";
 
-    const tiktokAuthUrl = new URL("https://auth.tiktok-services.com/oauth/authorize");
+    const tiktokAuthUrl = new URL("https://auth.tiktok-shops.com/oauth/authorize");
     tiktokAuthUrl.searchParams.append("app_key", TIKTOK_APP_KEY);
     tiktokAuthUrl.searchParams.append("redirect_uri", REDIRECT_URI);
     tiktokAuthUrl.searchParams.append("state", stateParams); 

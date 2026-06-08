@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "MASUKKAN_APP_SECRET_TIKTOK_KAMU_DISINI";
 
     // 1. HIT KE SERVER TIKTOK: Tukar Authorization Code menjadi Access Token Resmi Toko Pembeli
-    const tokenUrl = `https://auth.tiktok-services.com/api/v2/token/get?app_key=${TIKTOK_APP_KEY}&app_secret=${TIKTOK_APP_SECRET}&auth_code=${code}&grant_type=authorized_code`;
+    const tokenUrl = `https://auth.tiktok-shops.com/api/v2/token/get?app_key=${TIKTOK_APP_KEY}&app_secret=${TIKTOK_APP_SECRET}&auth_code=${code}&grant_type=authorized_code`;
     
     const tokenResponse = await fetch(tokenUrl, { method: "GET" });
     const tokenData = await tokenResponse.json();
