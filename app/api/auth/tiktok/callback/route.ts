@@ -4,15 +4,18 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // TikTok akan mengirimkan 'code' rahasia ke URL ini
-    const code = searchParams.get("code");
+    // TikTok mengirimkan 'auth_code' setelah seller menyetujui otorisasi
+    const code = searchParams.get("auth_code") || searchParams.get("code");
     const stateParams = searchParams.get("state") || "";
 
     if (!code) {
-      return NextResponse.json({ success: false, error: "Otorisasi dibatalkan atau kode tidak ditemukan." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Otorisasi dibatalkan atau auth_code tidak ditemukan." }, 
+        { status: 400 }
+      );
     }
 
-    // Ekstrak kembali userId dan workspaceId dari state yang dikirim front-end sebelumnya
+    // Ekstrak kembali userId dan workspaceId dari state parameter
     let userId = null;
     let workspaceId = null;
     try {
@@ -25,35 +28,48 @@ export async function GET(request: Request) {
 
     console.log(`Menerima auth code dari TikTok. Menukarkan token untuk Workspace: ${workspaceId}`);
 
-    // Kredensial App kamu dari TikTok Partner Center Console
+    // Ambil kredensial aplikasi Untungin.ai kamu
     const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "MASUKKAN_APP_KEY_TIKTOK_KAMU_DISINI";
     const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "MASUKKAN_APP_SECRET_TIKTOK_KAMU_DISINI";
 
-    // 1. HIT KE SERVER TIKTOK: Tukar Authorization Code menjadi Access Token Resmi Toko Pembeli
-    const tokenUrl = `https://auth.tiktok-shops.com/api/v2/token/get?app_key=${TIKTOK_APP_KEY}&app_secret=${TIKTOK_APP_SECRET}&auth_code=${code}&grant_type=authorized_code`;
+    // PERBAIKAN: Hit ke TikTok menggunakan POST dan kirim parameter dalam bentuk JSON Body
+    const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get";
     
-    const tokenResponse = await fetch(tokenUrl, { method: "GET" });
+    const tokenResponse = await fetch(tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        app_key: TIKTOK_APP_KEY,
+        app_secret: TIKTOK_APP_SECRET,
+        auth_code: code,
+        grant_type: "authorized_code"
+      })
+    });
+
     const tokenData = await tokenResponse.json();
 
-    if (tokenData.error || !tokenData.data?.access_token) {
-      throw new Error(tokenData.message || "Gagal mendapatkan Access Token dari TikTok Shop.");
+    // Periksa respons error dari struktur data spesifik TikTok
+    if (tokenData.code !== 0 || !tokenData.data?.access_token) {
+      throw new Error(tokenData.message || `TikTok API Error: ${JSON.stringify(tokenData)}`);
     }
 
     const accessToken = tokenData.data.access_token;
     const refreshToken = tokenData.data.refresh_token;
     const sellerName = tokenData.data.seller_name || "Toko TikTok Resmi";
-    const openId = tokenData.data.open_id; // ID unik toko di TikTok
+    const openId = tokenData.data.open_id; // ID unik internal toko di TikTok
 
-    // 2. SIMPAN KE SUPABASE (Logika Database Anda)
-    // Di sini kamu tinggal panggil query Supabase untuk menyimpan accessToken, openId, dan sellerName
-    // ke dalam tabel 'marketplace_connections' atau 'stores' milik user yang bersangkutan.
-    //
-    // example: await supabase.from('stores').insert({ workspace_id: workspaceId, platform: 'TikTok', token: accessToken, name: sellerName })
+    // ==========================================
+    // LOGIKA DATABASE SUPABASE KAMU DISINI:
+    // ==========================================
+    // Simpan accessToken, refreshToken, dan openId ini agar sistem bisa menarik data produk
+    // console.log("Simpan token ke DB untuk Workspace:", workspaceId);
+    // ==========================================
 
-    console.log(`Sukses mengintegrasikan Toko Resmi: ${sellerName}`);
+    console.log(`Sukses mengintegrasikan Toko Resmi TikTok: ${sellerName}`);
 
-    // 3. SETELAH SUKSES: Lempar balik halaman browser pembeli ke dashboard utama app Vercel kamu
-    // Kita arahkan kembali ke menu Integrasi agar tabel langsung mendeteksi status "Terhubung"
+    // Lempar kembali browser pengguna ke dashboard utama dengan parameter sukses
     return NextResponse.redirect(new URL("/?tab=integrasi&sync=success", request.url));
 
   } catch (error: any) {
