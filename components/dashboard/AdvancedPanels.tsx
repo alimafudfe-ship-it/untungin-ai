@@ -1,160 +1,174 @@
-import type React from "react";
-import type { DashboardMetrics, Expense, Product } from "@/types/dashboard";
-import { buildForecast, buildRecommendations, getForecastSummary, getMarketplaceStats } from "@/lib/dashboard/recommendations";
-import { compactMoney, money, percent } from "@/lib/dashboard/format";
-import { cardStyle, Badge, Progress, StatCard, ctaButtonStyle, ghostButtonStyle } from "./ui";
-import { ForecastChartCard, MarketplaceBarChart } from "./Charts";
+"use client";
 
-const marketplaceGuides = [
-  {
-    name: "Shopee",
-    status: "OAuth ready",
-    detail: "Shopee menunggu approval. CSV import sudah siap."
-  },
-  {
-    name: "Tokopedia",
-    status: "OAuth ready",
-    detail: "OAuth Tokopedia siap dan feed trend aktif."
-  },
-  {
-    name: "TikTok Shop",
-    status: "Beta Testing",
-    detail: "TikTok Shop OAuth aktif dan feed trend sudah ready."
-  },
-  {
-    name: "Lazada",
-    status: "Planned",
-    detail: "Lazada disiapkan tahap berikutnya."
-  },
-];
+import { useState } from "react";
+import { cardStyle } from "@/components/dashboard/ui";
 
-export function AIRecommendationPanel({ products = [], expenses = [], metrics }: { products?: Product[]; expenses?: Expense[]; metrics: DashboardMetrics }) {
-  const safeProducts = Array.isArray(products) ? products : [];
-  const safeExpenses = Array.isArray(expenses) ? expenses : [];
-  const recommendations = buildRecommendations(safeProducts, safeExpenses, metrics);
-  return (
-    <section style={cardStyle}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
-        <div>
-          <Badge label="AI Recommendation Engine" tone="success" />
-          <h2 style={{ margin: "10px 0 4px" }}>Rekomendasi otomatis yang actionable</h2>
-          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.7 }}>Rules engine membaca margin, stok, cashflow, expense ratio, dan performa marketplace tanpa menunggu user mengetik.</p>
-        </div>
-        <Badge label={`Risk ${metrics.riskScore}/100`} tone={metrics.riskScore >= 50 ? "danger" : metrics.riskScore >= 25 ? "warning" : "success"} />
-      </div>
-      <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
-        {recommendations.map((item) => (
-          <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 14, padding: 16, borderRadius: 18, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-            <div>
-              <Badge label={item.category.toUpperCase()} tone={item.severity} />
-              <h3 style={{ margin: "10px 0 6px" }}>{item.title}</h3>
-              <p style={{ color: "#475569", lineHeight: 1.65, margin: 0 }}>{item.message}</p>
-              <p style={{ color: "#0f172a", lineHeight: 1.65, margin: "8px 0 0", fontWeight: 700 }}>{item.action}</p>
-            </div>
-            <div style={{ minWidth: 170, textAlign: "right", color: "#64748b", fontSize: 13 }}>{item.impact}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+interface MarketplaceSyncPanelProps {
+  products: any[];
+  setProducts: React.Dispatch<React.SetStateAction<any[]>>;
+  syncing: boolean;
+  setSyncing: React.Dispatch<React.SetStateAction<boolean>>;
+  lastSync: string | null;
+  setLastSync: React.Dispatch<React.SetStateAction<string | null>>;
+  currentUserId: string | null;
+  workspaceId: string | null;
+  selectedStoreId: string | null;
 }
 
-export function MarketplaceSyncPanel({ products, syncing, lastSync, onCSVUpload }: { products: Product[]; syncing?: boolean; lastSync?: string | null; onCSVUpload?: (event: React.ChangeEvent<HTMLInputElement>) => void }) {
-  const stats = getMarketplaceStats(products);
-  const totalProfit = stats.reduce((acc, item) => acc + item.profit, 0);
+export function MarketplaceSyncPanel({
+  products,
+  setProducts,
+  syncing,
+  setSyncing,
+  lastSync,
+  setLastSync,
+  currentUserId,
+  workspaceId,
+  selectedStoreId
+}: MarketplaceSyncPanelProps) {
+  
+  // 1. State untuk melacak marketplace yang diklik user
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+
+  // Data tiruan / daftar marketplace yang tersedia
+  const platforms = [
+    { id: "TikTok", name: "TikTok Shop", logo: "🚀", color: "#000000", connected: true },
+    { id: "Shopee", name: "Shopee", logo: "🧡", color: "#ee4d2d", connected: false },
+    { id: "Tokopedia", name: "Tokopedia", logo: "💚", color: "#42b549", connected: false },
+  ];
+
+  // Filter produk berdasarkan marketplace yang sedang aktif diklik
+  const platformProducts = products.filter(p => p.marketplace === selectedPlatform);
+
+  // Fungsi simulasi sinkronisasi data per platform
+  const handleSyncData = async (platform: string) => {
+    setSyncing(true);
+    // Simulasi fetch API backend Untungin.ai ke API E-commerce
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setLastSync(new Date().toLocaleTimeString());
+    setSyncing(false);
+    alert(`Sukses menyinkronkan data dari ${platform}!`);
+  };
+
   return (
-    <div style={{ display: "grid", gap: 18 }}>
-      <section style={{ ...cardStyle, display: "flex", justifyContent: "space-between", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
-        <div>
-          <Badge label="Marketplace Sync Center" tone="blue" />
-          <h2 style={{ margin: "10px 0 4px" }}>Multi marketplace import & sync foundation</h2>
-          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.7 }}>Import CSV v11 membaca header otomatis, menampilkan preview mapping, lalu menghitung omzet, HPP, fee admin, voucher seller, subsidi ongkir, pajak, iklan, stok, margin, dan profit. API official disiapkan untuk seller/partner yang sudah punya akses.</p>
-        </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <label style={{ ...ctaButtonStyle, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
-            {syncing ? "Importing..." : "Import CSV Marketplace"}
-            <input type="file" accept=".csv,text/csv" onChange={onCSVUpload} disabled={syncing} style={{ display: "none" }} />
-          </label>
-          <button type="button" onClick={() => {
-            const csv = [
-              "Marketplace,Nama Produk,HPP,Harga Jual,Jumlah,Stok Awal,Biaya Admin,Biaya Layanan,Voucher Ditanggung Penjual,Subsidi Ongkir,Pajak,Biaya Iklan",
-              "Shopee,Kopi Susu Botol 250ml,8200,18000,48,120,86000,22000,30000,18000,0,125000",
-              "Tokopedia,Bundling Hampers Mini,41000,89000,12,35,42000,14000,15000,25000,0,65000",
-              "Lazada,Serum Brightening 20ml,45000,121000,32,80,96000,30000,0,45000,12000,0"
-            ].join("\n");
-            const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = "template-import-marketplace-untungin.csv"; a.click(); URL.revokeObjectURL(url);
-          }} style={ghostButtonStyle}>Download template</button>
-          <small style={{ color: "#64748b" }}>{lastSync ? `Last sync ${lastSync}` : "Auto mapping Shopee/Tokopedia/TikTok/Lazada CSV ready"}</small>
-        </div>
-      </section>
-      <section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        {marketplaceGuides.map((item) => (
-          <div key={item.name} style={cardStyle}>
-            <Badge label={item.status} tone={item.status.includes("ready") ? "success" : "muted"} />
-            <h3 style={{ margin: "12px 0 6px" }}>{item.name}</h3>
-            <p style={{ color: "#64748b", lineHeight: 1.6, margin: 0 }}>{item.detail}</p>
-          </div>
-        ))}
-      </section>
-      <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}>
-        <MarketplaceBarChart title="Marketplace Profit" subtitle="Profit per channel" data={stats.map((item) => ({ label: item.marketplace, value: item.profit, secondary: item.revenue }))} />
-        <div style={cardStyle}>
-          <Badge label="Channel Analytics" tone="success" />
-          <h3 style={{ margin: "12px 0" }}>Marketplace health</h3>
-          <div style={{ display: "grid", gap: 12 }}>
-            {stats.map((item) => (
-              <div key={item.marketplace} style={{ display: "grid", gap: 7 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><strong>{item.marketplace}</strong><span>{money(item.profit)}</span></div>
-                <Progress value={totalProfit > 0 ? (item.profit / totalProfit) * 100 : 0} />
-                <small style={{ color: "#64748b" }}>{item.units} unit · omzet {compactMoney(item.revenue)} · margin {percent(item.margin)}</small>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a" }}>Integrasi Marketplace</h2>
+        <p style={{ fontSize: 13, color: "#64748b" }}>Kelola koneksi multi-channel store tokomu dalam satu panel terpusat.</p>
+      </div>
+
+      {/* TAMPILAN 1: JIKA USER BELUM MEMILIH PLATFORM (MENU UTAMA) */}
+      {!selectedPlatform ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
+          {platforms.map((platform) => (
+            <div 
+              key={platform.id}
+              onClick={() => setSelectedPlatform(platform.id)} // <--- Mengaktifkan klik di sini
+              style={{ 
+                ...cardStyle, 
+                padding: 20, 
+                cursor: "pointer", 
+                border: "1px solid #e2e8f0", 
+                transition: "transform 0.2s, border-color 0.2s",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = platform.color;
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#e2e8f0";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 28 }}>{platform.logo}</span>
+                <span style={{ 
+                  fontSize: 11, 
+                  padding: "4px 8px", 
+                  borderRadius: 20, 
+                  background: platform.connected ? "#f0fdf4" : "#f1f5f9", 
+                  color: platform.connected ? "#16a34a" : "#64748b",
+                  fontWeight: 600
+                }}>
+                  {platform.connected ? "Terhubung" : "Belum Konek"}
+                </span>
               </div>
-            ))}
-            {stats.length === 0 && <p style={{ color: "#64748b" }}>Belum ada data marketplace.</p>}
-          </div>
+              <div>
+                <strong style={{ fontSize: 16, color: "#0f172a", display: "block" }}>{platform.name}</strong>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>Klik untuk melihat detail data</span>
+              </div>
+            </div>
+          ))}
         </div>
-      </section>
-    </div>
-  );
-}
+      ) : (
+        /* TAMPILAN 2: DETAIL DATA SETELAH USER KLIK SALAH SATU MARKETPLACE */
+        <div style={{ ...cardStyle, padding: 24, background: "#fff", border: "1px solid #e2e8f0" }}>
+          
+          {/* Header Internal Detail Platform */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, borderBottom: "1px solid #f1f5f9", paddingBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button 
+                onClick={() => setSelectedPlatform(null)} // <--- Fungsi Kembali ke Menu Utama
+                style={{ padding: "6px 12px", background: "#f1f5f9", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#475569" }}
+              >
+                ← Kembali
+              </button>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                Manajemen Data: {selectedPlatform}
+              </h3>
+            </div>
 
-export function ForecastingPanel({ products = [], expenses = [], metrics }: { products?: Product[]; expenses?: Expense[]; metrics: DashboardMetrics }) {
-  const safeProducts = Array.isArray(products) ? products : [];
-  const safeExpenses = Array.isArray(expenses) ? expenses : [];
-  const forecast = buildForecast(safeProducts, safeExpenses, 30);
-  const summary = getForecastSummary(forecast);
-  const breakEvenDay = forecast.findIndex((item, index) => forecast.slice(0, index + 1).reduce((acc, point) => acc + point.netCash, 0) > 0) + 1;
-  return (
-    <div style={{ display: "grid", gap: 18 }}>
-      <section style={{ ...cardStyle, display: "flex", justifyContent: "space-between", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
-        <div>
-          <Badge label="Proyeksi AI" tone="success" />
-          <h2 style={{ margin: "10px 0 4px" }}>Prediksi arus kas, profit, dan risiko 30 hari</h2>
-          <p style={{ color: "#64748b", margin: 0, lineHeight: 1.7 }}>Proyeksi berbasis kecepatan penjualan, margin, biaya berjalan, dan kondisi stok. Dibuat stabil untuk operasional harian seller.</p>
-        </div>
-        <button style={ghostButtonStyle}>Ekspor proyeksi</button>
-      </section>
-      <section className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        <StatCard label="Proyeksi omzet" value={compactMoney(summary.revenue)} helper="Proyeksi 30 hari" tone="blue" />
-        <StatCard label="Proyeksi profit" value={compactMoney(summary.profit)} helper="Sebelum expense" tone="success" />
-        <StatCard label="Proyeksi biaya" value={compactMoney(summary.expenses)} helper="Run-rate 30 hari" tone="warning" />
-        <StatCard label="Proyeksi kas bersih" value={compactMoney(summary.netCash)} helper={breakEvenDay > 0 ? `Break-even sekitar H+${breakEvenDay}` : "Perlu kontrol expense"} tone={summary.netCash >= 0 ? "success" : "danger"} />
-      </section>
-      <section className="main-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 18 }}>
-        <ForecastChartCard title="Proyeksi 30 hari" subtitle="Omzet, profit, dan biaya" data={forecast} />
-        <div style={cardStyle}>
-          <Badge label="Keputusan proyeksi" tone={summary.netCash >= 0 ? "success" : "danger"} />
-          <h3 style={{ margin: "12px 0" }}>{summary.label}</h3>
-          <p style={{ color: "#64748b", lineHeight: 1.7 }}>Dengan arus kas sekarang {money(metrics?.netCash ?? 0)}, sistem menyarankan scale hanya untuk produk margin sehat dan stok aman. Produk margin rendah sebaiknya ditahan dari restock sampai harga aman.</p>
-          <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-            <div><small>Proyeksi profit <b style={{ float: "right" }}>{compactMoney(summary.profit)}</b></small><Progress value={summary.revenue > 0 ? (summary.profit / summary.revenue) * 100 : 0} /></div>
-            <div><small>Tekanan biaya <b style={{ float: "right" }}>{compactMoney(summary.expenses)}</b></small><Progress value={summary.profit > 0 ? (summary.expenses / summary.profit) * 100 : 0} /></div>
-            <div><small>Keamanan kas <b style={{ float: "right" }}>{compactMoney(summary.netCash)}</b></small><Progress value={summary.netCash > 0 && summary.profit > 0 ? (summary.netCash / summary.profit) * 100 : 0} /></div>
+            <button
+              onClick={() => handleSyncData(selectedPlatform)}
+              disabled={syncing}
+              style={{ padding: "10px 16px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: "bold", cursor: "pointer", opacity: syncing ? 0.6 : 1 }}
+            >
+              {syncing ? "Sedang Menarik Data..." : `⚡ Tarik Data ${selectedPlatform}`}
+            </button>
           </div>
+
+          {/* Info Ringkas Sinkronisasi */}
+          <div style={{ background: "#f8fafc", padding: 14, borderRadius: 8, marginBottom: 20, fontSize: 13, color: "#475569" }}>
+            📍 Last Sync Status: <b>{lastSync || "Belum pernah disinkronkan"}</b> | Total Terpetakan: <b>{platformProducts.length} Produk</b>
+          </div>
+
+          {/* Tabel / List Data Khusus Marketplace Terpilih */}
+          <h4 style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 12 }}>Daftar Produk Terhubung ({selectedPlatform})</h4>
+          
+          {platformProducts.length === 0 ? (
+            <div style={{ padding: "32px 0", textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+              Belum ada data produk untuk platform ini. Silakan klik tombol <b>Tarik Data</b> di atas untuk sinkronisasi pertama kali.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #e2e8f0", color: "#64748b" }}>
+                    <th style={{ padding: "10px 8px" }}>Nama Produk</th>
+                    <th style={{ padding: "10px 8px" }}>Harga Jual</th>
+                    <th style={{ padding: "10px 8px" }}>Stok Sistem</th>
+                    <th style={{ padding: "10px 8px" }}>Terjual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {platformProducts.map((prod, idx) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "12px 8px", fontWeight: 600, color: "#0f172a" }}>{prod.name}</td>
+                      <td style={{ padding: "12px 8px" }}>Rp {prod.sellingPrice?.toLocaleString()}</td>
+                      <td style={{ padding: "12px 8px" }}>{prod.stockRemaining} pcs</td>
+                      <td style={{ padding: "12px 8px", color: "#16a34a", fontWeight: 600 }}>{prod.quantitySold}x</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
         </div>
-      </section>
+      )}
     </div>
   );
 }
