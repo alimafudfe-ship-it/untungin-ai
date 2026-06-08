@@ -430,8 +430,39 @@ useEffect(() => {
         {/* DYNAMIC CONTENT SWITCH TAB */}
 {activeTab === "overview" && (
   <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-    
-    {/* 🔥 TAMBAHKAN DI SINI */}
+
+    {/* 🧠 AI COO DECISION */}
+    {decisions.length > 0 && (
+      <div style={{
+        background: "#0f172a",
+        color: "#fff",
+        borderRadius: 12,
+        padding: 16
+      }}>
+        <h3 style={{ fontWeight: 700 }}>
+          🧠 AI COO - Keputusan Hari Ini
+        </h3>
+
+        {decisions.map((d, i) => (
+          <div key={i} style={{ marginTop: 10 }}>
+            <p>
+              {d.type === "restock" && "📦"}
+              {d.type === "stop" && "❌"}
+              {d.type === "scale" && "🚀"}{" "}
+              <b>{d.product}</b>
+            </p>
+            <p style={{ fontSize: 13, opacity: 0.8 }}>
+              {d.reason}
+            </p>
+            <p style={{ fontSize: 13, color: "#38bdf8" }}>
+              👉 {d.action}
+            </p>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* 🔥 AI METRICS */}
     {aiMetrics && (
       <div style={{
         background: "#ffffff",
@@ -439,34 +470,75 @@ useEffect(() => {
         borderRadius: 12,
         padding: 16
       }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700 }}>
           🔥 Insight Bisnis Hari Ini
         </h3>
 
-        <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
-          
-          <p>💰 Total Profit: <b>{aiMetrics.total_profit.toLocaleString()}</b></p>
-          <p>📈 Revenue: <b>{aiMetrics.total_revenue.toLocaleString()}</b></p>
-          <p>📊 Avg Margin: <b>{(aiMetrics.avg_margin * 100).toFixed(1)}%</b></p>
+        <p>💰 Profit: {aiMetrics.total_profit.toLocaleString()}</p>
+        <p>📈 Revenue: {aiMetrics.total_revenue.toLocaleString()}</p>
+        <p>📊 Margin: {(aiMetrics.avg_margin * 100).toFixed(1)}%</p>
 
-          {aiMetrics.insights_flags?.has_loss && (
-            <p style={{ color: "#dc2626" }}>❌ Ada produk merugi</p>
-          )}
+        {aiMetrics.insights_flags?.has_loss && (
+          <p style={{ color: "#dc2626" }}>❌ Ada produk merugi</p>
+        )}
 
-          {aiMetrics.insights_flags?.has_dead_stock && (
-            <p style={{ color: "#ea580c" }}>📦 Ada dead stock</p>
-          )}
+        {aiMetrics.insights_flags?.has_dead_stock && (
+          <p style={{ color: "#ea580c" }}>📦 Ada dead stock</p>
+        )}
+    </div>
+    )}
 
-          {aiMetrics.low_stock?.length > 0 && (
-            <p style={{ color: "#ca8a04" }}>
-              ⚠️ {aiMetrics.low_stock.length} produk hampir habis
-            </p>
-          )}
+    {/* 📊 DASHBOARD */}
+    <ExecutiveDashboard 
+      products={products} 
+      expenses={expenses} 
+      filteredProducts={filteredProducts}
+      metrics={metrics as any} 
+      aiMetrics={aiMetrics}
+      cashflowTrend={getCashflowTrend(expenses)}
+      profitTrend={getProfitTrend(products)}
+      isPro={isPro}
+      isDemoMode={isDemoMode}
+      lastSync={lastSync}
+      syncing={syncing}
+      onDelete={deleteProduct}
+    />
 
-        </div>
+    {/* 🤝 AFFILIATE */}
+    {affiliateData && selectedProduct && (
+      <div style={{
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 12,
+        padding: 16
+      }}>
+        <h3>🤝 Affiliate - {selectedProduct.name}</h3>
+
+        {affiliateData.affiliates?.map((a: any) => (
+          <div key={a.id} style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: 13
+          }}>
+            <span>{a.name}</span>
+            <span>{a.score?.toFixed(1)}</span>
+          </div>
+        ))}
+
+        <p>
+          🔥 Top: {affiliateData.insights?.top_affiliate?.name || "-"}
+        </p>
+        <p>
+          ❌ Worst: {affiliateData.insights?.worst_affiliate?.name || "-"}
+        </p>
+
+        {affiliateData.recommendations?.map((r: string, i: number) => (
+          <p key={i} style={{ color: "#2563eb" }}>{r}</p>
+        ))}
       </div>
     )}
 
+    {/* 🤖 AI CHAT */}
     <div style={{
       background: "#fff",
       border: "1px solid #e2e8f0",
@@ -493,122 +565,6 @@ useEffect(() => {
       </div>
     </div>
 
-  </div>
-)}
-
-    {/* EXISTING DASHBOARD */}
-    <ExecutiveDashboard 
-      products={products} 
-      expenses={expenses} 
-      filteredProducts={filteredProducts}
-      metrics={metrics as any} 
-      aiMetrics={aiMetrics}
-      cashflowTrend={getCashflowTrend(expenses)}
-      profitTrend={getProfitTrend(products)}
-      isPro={isPro}
-      isDemoMode={isDemoMode}
-      lastSync={lastSync}
-      syncing={syncing}
-              onGoMarketplace={async () => {
-                if (!stores || stores.length === 0) {
-                  const tiktokAuthLink = "https://services.tiktokshop.com/open/authorize?service_id=7641105771128489748";
-                  alert("Menghubungkan ke TikTok Shop Partner Center... Anda akan dialihkan untuk otorisasi toko.");
-                  window.open(tiktokAuthLink, "_blank");
-                  return;
-                }
-                setSyncing(true);
-                try {
-                  const storeIdParam = selectedStoreId || (stores && stores[0]?.id) || "0cde71b6-bd46-4b82-89b0-137685a06536";
-
-                  const response = await fetch(`/api/marketplace/tiktok/sync?storeId=${storeIdParam}`, {
-                    method: "GET",
-                    headers: {
-                      "Content-Type": "application/json"
-                    }
-                  });
-
-                  const data = await response.json(); 
-                  
-                  if (!response.ok) {
-                    throw new Error(data.message || data.error || "Gagal sync dari server backend");
-                  }
-
-                  const rawProducts = data.products || data.data || (Array.isArray(data) ? data : null);
-
-                  if (!rawProducts || !Array.isArray(rawProducts)) {
-                    throw new Error("Format properti data dari API backend tidak valid.");
-                  }
-
-                  const normalizedProducts = rawProducts.map((prod: any) => ({
-                    id: prod.id || prod.product_id || Math.random().toString(),
-                    name: prod.name || prod.product_name || "Produk Tanpa Nama",
-                    sellingPrice: Number(prod.sellingPrice || prod.selling_price || prod.price || 0),
-                    costPrice: Number(prod.costPrice || prod.cost_price || prod.hpp || 0),
-                    stockRemaining: Number(prod.stockRemaining || prod.stock_remaining || prod.stock || prod.quantity || 0),
-                    quantitySold: Number(prod.quantitySold || prod.quantity_sold || prod.sales || 0),
-                    marketplace: prod.marketplace || "TikTok Shop"
-                  }));
-
-                  setProducts(normalizedProducts);
-                  alert("Sukses! Data produk dan transaksi TikTok Shop berhasil diselaraskan.");
-
-                } catch (error: any) {
-                  console.error("Error memuat data real-time TikTok dari Backend:", error);
-                  alert(`Gagal menyelaraskan data otomatis.\nAlasan: ${error.message}`);
-                } finally {
-                  setSyncing(false);
-                }
-              }}
-              onAddCashflow={() => setActiveTab("cashflow")}
-              onGoAI={() => setActiveTab("insight-ai")}
-              onGoProducts={() => setActiveTab("produk")}
-              onGoReports={() => setActiveTab("laporan")}
-              onGoBilling={() => openUpgradeModal("lifetime")}
-              onImportCSV={() => setActiveTab("integrasi")}
-              onAddProduct={() => setActiveTab("produk")}
-              onStock={() => setActiveTab("produk")}
-              onSale={() => setActiveTab("produk")}
-              onDelete={deleteProduct}
-            />
-          </div>
-        )}
-
-{/* 🔥 AFFILIATE INTELLIGENCE */}
-{affiliateData && selectedProduct && (
-  <div style={{
-    background: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    padding: 16
-  }}>
-    <h3 style={{ fontSize: 14, fontWeight: 700 }}>
-      🤝 Affiliate - {selectedProduct.name}
-    </h3>
-
-    {/* LIST */}
-    {affiliateData.affiliates.map((a: any) => (
-      <div key={a.id} style={{
-        display: "flex",
-        justifyContent: "space-between",
-        fontSize: 13
-      }}>
-        <span>{a.name}</span>
-        <span>Score: {a.score.toFixed(1)}</span>
-      </div>
-    ))}
-
-    {/* INSIGHT */}
-    <div style={{ marginTop: 10, fontSize: 13 }}>
-      <p>🔥 Top: {affiliateData.insights.top_affiliate.name}</p>
-      <p>❌ Worst: {affiliateData.insights.worst_affiliate.name}</p>
-    </div>
-
-    {/* RECOMMENDATION */}
-    <div style={{ marginTop: 10, fontSize: 13, color: "#2563eb" }}>
-      {affiliateData.recommendations.map((r: string, i: number) => (
-        <p key={i}>{r}</p>
-      ))}
-    </div>
   </div>
 )}
 
