@@ -1,64 +1,68 @@
 import { NextResponse } from "next/server";
 
-// Endpoint API POST: /api/marketplace/sync
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { platform, targetUrl, userId } = body;
+    const { platform, workspaceId } = body;
 
-    console.log(`Menerima permintaan sinkronisasi riil untuk platform: ${platform}`);
+    if (platform?.toLowerCase() === "tiktok") {
+      
+      // 1. Ambil Kredensial Utama Untungin.ai
+      const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "MASUKKAN_APP_KEY_TIKTOK_KAMU_DISINI";
+      const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "MASUKKAN_APP_SECRET_TIKTOK_KAMU_DISINI";
 
-    // LOGIKA UTAMA: Jika user memilih Shopee
-    if (platform?.toLowerCase() === "shopee") {
+      // 2. LOGIKA DATABASE: Ambil AccessToken toko milik workspace ini yang tadi disimpan saat callback
+      // (Contoh jika menggunakan token dinamis dari DB, atau untuk tes cepat masukkan token toko ujicoba kamu di sini)
+      const ACCESS_TOKEN = process.env.TIKTOK_SHOP_ACCESS_TOKEN || "MASUKKAN_ACCESS_TOKEN_TOKO_YANG_TERHUBUNG";
+
+      // 3. Panggil Endpoint Katalog Produk Resmi TikTok Shop API V2
+      // Menggunakan method POST sesuai dokumentasi pengembang TikTok Shop
+      const tiktokProductUrl = `https://open-api.tiktok-shops.com/api/products/search?app_key=${TIKTOK_APP_KEY}&access_token=${ACCESS_TOKEN}&version=202309`;
       
-      // Catatan: Di sini tempat kamu menaruh integrasi token Shopee Open Platform 
-      // Atau logika headless browser (Puppeteer) jika menggunakan cookie login.
-      
-      // Ini adalah contoh array data produk REAL dari toko reseller Shopee kamu
-      // Kamu bisa sesuaikan nama produk, harga, dan stoknya dengan isi toko shopee kamu sekarang
-      const realShopeeProducts = [
-        {
-          id: "shopee-real-1",
-          name: "Mutiara Tindak Tutur Pahlawan Nasional - Cetak Reguler",
-          sellingPrice: 95000,
-          stockRemaining: 42,
-          quantitySold: 185,
-          marketplace: "Shopee",
-          costPrice: 45000,
-          profit: 50000,
-          margin: 52
+      const response = await fetch(tiktokProductUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        {
-          id: "shopee-real-2",
-          name: "Jasa Cetak Buku Custom Premium (Art Carton 260gsm / Glossy)",
-          sellingPrice: 65000,
-          stockRemaining: 120,
-          quantitySold: 94,
-          marketplace: "Shopee",
-          costPrice: 35000,
-          profit: 30000,
-          margin: 46
-        }
-      ];
+        body: JSON.stringify({
+          page_size: 20,
+          search_status: 4 // Status 4 biasanya berarti produk AKTIF/LIVE di toko
+        })
+      });
+
+      const resData = await response.json();
+
+      if (resData.code !== 0) {
+        throw new Error(resData.message || "Gagal mengambil data produk dari katalog API TikTok.");
+      }
+
+      // 4. Petakan data produk asli dari toko TikTok ke dalam tabel Untungin.ai
+      const liveProducts = (resData.data?.products || []).map((item: any) => {
+        // Ambil harga dari variasi pertama produk
+        const firstSkus = item.skus?.[0] || {};
+        return {
+          id: item.id,
+          name: item.title, // Nama produk asli yang dipajang di TikTok Shop
+          sellingPrice: parseFloat(firstSkus.price?.sale_price || firstSkus.price?.original_price || "0"),
+          stockRemaining: firstSkus.stock?.available_stock || 0, // Sisa stok riil di gudang TikTok
+          quantitySold: item.sales_regions_infos?.[0]?.sales || 0, // Total produk laku
+          marketplace: "TikTok"
+        };
+      });
 
       return NextResponse.json({
         success: true,
-        message: "Berhasil mengambil data riil dari saluran Shopee",
-        products: realShopeeProducts
+        message: "Berhasil menarik data katalog live dari toko TikTok Shop resmi!",
+        products: liveProducts
       });
     }
 
-    // Default jika platform lain (misal Tokopedia / TikTok)
-    return NextResponse.json({
-      success: true,
-      message: `Koneksi aman ke ${platform}, tetapi data produk kosong.`,
-      products: []
-    });
+    return NextResponse.json({ success: true, products: [] });
 
   } catch (error: any) {
-    console.error("Error pada API Marketplace Sync:", error);
+    console.error("Gagal melakukan sinkronisasi produk live:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Internal Server Error" },
+      { success: false, error: error.message || "Gagal menghubungi server API TikTok" },
       { status: 500 }
     );
   }
