@@ -1,0 +1,55 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+export async function POST(req: Request) {
+  try {
+    const { productId, competitorAvgPrice } = await req.json();
+
+    // 1. Ambil data HPP dan batas biaya produk
+    const { data: product, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", productId)
+      .single();
+
+    if (error || !product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+
+    const hpp = product.cost_price;
+    const otherCost = product.other_cost || 0;
+
+    // 2. Strategi Pricing AI: Coba pasang harga di bawah kompetitor sedikit (undercut 2%)
+    let targetPrice = competitorAvgPrice * 0.98;
+
+    // Batasan Ketat AI: Margin Bersih Minimal Tidak Boleh di bawah 20%
+    const minPriceForSafeMargin = (hpp + otherCost) / 0.8; 
+
+    if (targetPrice < minPriceForSafeMargin) {
+      // Jika harga undercut kompetitor membuat margin < 20%, paksa ke harga aman minimal
+      targetPrice = minPriceForSafeMargin;
+    }
+
+    // Rounding harga ke kelipatan Rp 500 atau Rp 1.000 terdekat agar tampak natural
+    const finalAiPrice = Math.round(targetPrice / 1000) * 1000;
+
+    // 3. Sinkronisasi harga baru ke marketplace (TikTok Shop API)
+    // await updatePriceOnTikTok(product.tiktok_product_id, finalAiPrice);
+
+    // 4. Simpan ke database lokal
+    await supabase
+      .from("products")
+      .update({ selling_price: finalAiPrice })
+      .eq("id", productId);
+
+    return NextResponse.json({ 
+      success: true, 
+      oldPrice: product.selling_price, 
+      newPrice: finalAiPrice,
+      reason: finalAiPrice === minPriceForSafeMargin ? "Harga dipatok pada batas margin aman minimum 20%." : "Harga disesuaikan agar kompetitif dengan pasar."
+    });
+
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}

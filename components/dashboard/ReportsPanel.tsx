@@ -8,7 +8,12 @@ export function ReportsPanel({ metrics, products, expenses, onExportCSV, onExpor
   const expenseBreakdown = getExpenseBreakdown(expenses);
   const productRows = getProductAnalytics(products);
   const inventoryRows = getInventoryAnalytics(products);
-  const expenseRatio = metrics.totalProfit > 0 ? (metrics.totalExpenses / metrics.totalProfit) * 100 : 0;
+
+  // 🛡️ REFACTORING PENGAMAN DATA MENTAH
+  const safeExpenses = Number(metrics?.totalExpenses) || 0;
+  const safeProfit = Number(metrics?.totalProfit) || 0;
+
+  const expenseRatio = safeProfit > 0 ? (safeExpenses / safeProfit) * 100 : 0;
   return (
     <div style={{ display: "grid", gap: 18 }}>
       <section style={{ ...cardStyle, display: "flex", justifyContent: "space-between", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
