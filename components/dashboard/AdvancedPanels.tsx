@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cardStyle } from "@/components/dashboard/ui";
 
 interface MarketplaceSyncPanelProps {
@@ -36,62 +36,54 @@ export function MarketplaceSyncPanel({
     { id: "Tokopedia", name: "Tokopedia", logo: "💚", color: "#42b549", connected: false },
   ];
 
-  // Filter produk asli dari database (Filter berdasarkan kolom marketplace tanpa dummy)
   const platformProducts = products.filter(
     (p) => p.marketplace?.toLowerCase() === selectedPlatform?.toLowerCase()
   );
 
-  // Fungsi CORE API: Menarik data riil dari API integration / Scraper backend
-  const fetchLiveMarketplaceData = async (platform: string) => {
+  // 1. FUNGSI UTAMA: Memicu Otorisasi Akun TikTok Shop milik Pembeli SaaS
+  const handleConnectTikTok = () => {
+    // Kredensial App Key Untungin.ai dari TikTok Partner Center (Disimpan di .env backend demi keamanan)
+    // Di sini kita arahkan ke endpoint auth Next.js yang akan meng-generate URL Oauth Resmi TikTok
+    const state = encodeURIComponent(JSON.stringify({ userId: currentUserId, workspaceId }));
+    
+    // Alur OAuth standard TikTok Shop: Mengarahkan seller ke halaman login & persetujuan integrasi Untungin.ai
+    window.location.href = `/api/auth/tiktok?state=${state}`;
+  };
+
+  // 2. FUNGSI KEDUA: Tarik Data SKU Riil TikTok Shop setelah Toko Sukses Terhubung
+  const fetchLiveTikTokData = async () => {
     setSyncing(true);
     setErrorFetch(null);
     
     try {
-      // Menembak endpoint API internal Untungin.ai yang terhubung ke server/scraper
       const response = await fetch(`/api/marketplace/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          platform: platform,
+          platform: "TikTok",
           userId: currentUserId,
-          workspaceId: workspaceId,
-          // Mengirimkan target url spesifik toko kamu untuk discrape/diambil datanya jika backend mendukung
-          targetUrl: platform === "Shopee" ? "https://seller.shopee.co.id/portal/product/list/live/all" : null
+          workspaceId: workspaceId
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Gagal merespons API Server (Status: ${response.status})`);
-      }
-
+      if (!response.ok) throw new Error(`Server API merespons dengan status: ${response.status}`);
+      
       const resData = await response.json();
 
       if (resData.success && Array.isArray(resData.products)) {
-        // Gabungkan atau timpa produk lama di dashboard dengan data produk real hasil sync terbaru
         setProducts((prev) => {
-          const remainders = prev.filter(p => p.marketplace?.toLowerCase() !== platform.toLowerCase());
+          const remainders = prev.filter(p => p.marketplace?.toLowerCase() !== "tiktok");
           return [...resData.products, ...remainders];
         });
         setLastSync(new Date().toLocaleTimeString("id-ID") + " WIB");
-      } else {
-        // Jika API sukses tapi tidak mengembalikan array data produk
-        setLastSync(new Date().toLocaleTimeString("id-ID") + " WIB");
       }
     } catch (err: any) {
-      console.error(`Gagal melakukan integrasi live ${platform}:`, err);
-      setErrorFetch(err.message || "Koneksi API terputus atau URL target tidak merespons.");
+      console.error("Gagal sinkronisasi data riil TikTok Shop:", err);
+      setErrorFetch(err.message || "Gagal menghubungi API integrasi TikTok.");
     } finally {
       setSyncing(false);
     }
   };
-
-  // Auto-fetch data dari database lokal/API internal saat user klik masuk ke platform tertentu
-  useEffect(() => {
-    if (selectedPlatform) {
-      // Opsional: Jalankan sinkronisasi otomatis saat komponen dibuka jika ingin data selalu terbarukan
-      // fetchLiveMarketplaceData(selectedPlatform);
-    }
-  }, [selectedPlatform]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
@@ -100,7 +92,6 @@ export function MarketplaceSyncPanel({
         <p style={{ fontSize: 13, color: "#64748b" }}>Kelola koneksi otomatisasi multi-channel store tokomu dalam satu dashboard terpusat.</p>
       </div>
 
-      {/* TAMPILAN 1: GRID PILIHAN UTAMA CHANNELS */}
       {!selectedPlatform ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
           {platforms.map((platform) => (
@@ -148,7 +139,6 @@ export function MarketplaceSyncPanel({
           ))}
         </div>
       ) : (
-        /* TAMPILAN 2: DAFTAR DATA PRODUK ASLI DARI DATABASE/API */
         <div style={{ ...cardStyle, padding: 24, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16 }}>
           
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, borderBottom: "1px solid #f1f5f9", paddingBottom: 16, flexWrap: "wrap", gap: 12 }}>
@@ -167,43 +157,61 @@ export function MarketplaceSyncPanel({
               </h3>
             </div>
 
-            <button
-              onClick={() => fetchLiveMarketplaceData(selectedPlatform)}
-              disabled={syncing}
-              style={{ padding: "10px 18px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: "bold", cursor: "pointer", opacity: syncing ? 0.6 : 1 }}
-            >
-              {syncing ? "⏳ Menghubungkan API & Menarik Data..." : `⚡ Hubungkan & Ambil Data Real ${selectedPlatform}`}
-            </button>
+            {selectedPlatform === "TikTok" ? (
+              <div style={{ display: "flex", gap: 12 }}>
+                {/* Tombol Otorisasi khusus untuk menghubungkan Toko Baru milik pembeli */}
+                <button
+                  onClick={handleConnectTikTok}
+                  style={{ padding: "10px 18px", background: "#000000", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: "bold", cursor: "pointer" }}
+                >
+                  ➕ Integrasikan Toko TikTok Baru
+                </button>
+                <button
+                  onClick={fetchLiveTikTokData}
+                  disabled={syncing}
+                  style={{ padding: "10px 18px", background: "#fe2c55", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: "bold", cursor: "pointer", opacity: syncing ? 0.6 : 1 }}
+                >
+                  {syncing ? "⏳ Mengunduh Produk..." : "⚡ Tarik Data Live TikTok"}
+                </button>
+              </div>
+            ) : (
+              <button
+                disabled
+                style={{ padding: "10px 18px", background: "#cbd5e1", color: "#64748b", border: "none", borderRadius: 8, fontSize: 13, fontWeight: "bold", cursor: "not-allowed" }}
+              >
+                Saluran Non-Aktif
+              </button>
+            )}
           </div>
 
           {errorFetch && (
             <div style={{ padding: 12, background: "#fef2f2", color: "#dc2626", borderRadius: 8, fontSize: 13, marginBottom: 16, fontWeight: 500 }}>
-              ⚠️ <b>Gagal Sinkronisasi Live:</b> {errorFetch} (Menampilkan data lokal terakhir di database jika ada)
+              ⚠️ <b>Gagal Sinkronisasi:</b> {errorFetch}
             </div>
           )}
 
           <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12, marginBottom: 24, fontSize: 13, color: "#475569", border: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between" }}>
-            <span>📍 Sinkronisasi API Terakhir: <b style={{ color: "#0f172a" }}>{lastSync || "Belum disinkronkan secara live"}</b></span>
-            <span>Total Terpetakan: <b style={{ color: "#00b14f" }}>{platformProducts.length} SKU</b></span>
+            <span>📍 Sinkronisasi Terakhir: <b style={{ color: "#0f172a" }}>{lastSync || "Belum tersinkronisasi"}</b></span>
+            <span>Total Terpetakan: <b style={{ color: "#fe2c55" }}>{platformProducts.length} SKU</b></span>
           </div>
 
-          <h4 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 16 }}>Daftar SKU Aktif di {selectedPlatform}</h4>
+          <h4 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 16 }}>Daftar SKU Aktif Resmi di {selectedPlatform}</h4>
           
           {platformProducts.length === 0 ? (
             <div style={{ padding: "48px 16px", textAlign: "center", color: "#94a3b8", fontSize: 14, border: "2px dashed #e2e8f0", borderRadius: 12, background: "#fafafa" }}>
               <span style={{ fontSize: 24, display: "block", marginBottom: 8 }}>🔒</span>
-              Belum terdeteksi adanya produk berlabel <b>{selectedPlatform}</b> di akun database Anda.<br />
-              Silakan klik tombol <b style={{ color: "#00b14f" }}>Hubungkan & Ambil Data Real</b> di atas untuk menarik data dari API integration.
+              Belum ada data produk dari toko terhubung.<br />
+              Klik <b style={{ color: "#fe2c55" }}>Tarik Data Live TikTok</b> jika toko Anda sudah diotorisasi.
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid #e2e8f0", color: "#64748b", fontWeight: 600 }}>
-                    <th style={{ padding: "12px 8px" }}>Nama SKU Produk Terkoneksi</th>
+                    <th style={{ padding: "12px 8px" }}>Nama SKU Produk TikTok Shop</th>
                     <th style={{ padding: "12px 8px" }}>Harga Jual</th>
-                    <th style={{ padding: "12px 8px" }}>Stok Tersedia</th>
-                    <th style={{ padding: "12px 8px" }}>Total Penjualan</th>
+                    <th style={{ padding: "12px 8px" }}>Stok Live</th>
+                    <th style={{ padding: "12px 8px" }}>Total Terjual</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,11 +220,11 @@ export function MarketplaceSyncPanel({
                       <td style={{ padding: "14px 8px", fontWeight: 600, color: "#0f172a" }}>{prod.name}</td>
                       <td style={{ padding: "14px 8px" }}>Rp {prod.sellingPrice?.toLocaleString("id-ID")}</td>
                       <td style={{ padding: "14px 8px" }}>
-                        <span style={{ padding: "2px 6px", borderRadius: 4, background: prod.stockRemaining <= 20 ? "#fef2f2" : "#f0fdf4", color: prod.stockRemaining <= 20 ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
+                        <span style={{ padding: "2px 6px", borderRadius: 4, background: "#f0fdf4", color: "#16a34a", fontWeight: 600 }}>
                           {prod.stockRemaining} pcs
                         </span>
                       </td>
-                      <td style={{ padding: "14px 8px", color: "#2563eb", fontWeight: 700 }}>{prod.quantitySold || 0} unit</td>
+                      <td style={{ padding: "14px 8px", color: "#fe2c55", fontWeight: 700 }}>{prod.quantitySold || 0} unit</td>
                     </tr>
                   ))}
                 </tbody>
@@ -235,9 +243,6 @@ export function AIRecommendationPanel({ products, expenses, metrics }: any) {
     <div style={{ ...cardStyle, padding: 24, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16 }}>
       <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>🧠 Rekomendasi Pintar AI</h3>
       <p style={{ fontSize: 13, color: "#64748b" }}>Analisis otomatis performa margin keuntungan dan efisiensi operasional tokomu.</p>
-      <div style={{ marginTop: 16, padding: 12, background: "#f0fdf4", borderRadius: 8, color: "#16a34a", fontSize: 13, fontWeight: 600 }}>
-        ✓ Seluruh sistem stabil. AI sedang memantau matriks pergerakan HPP produk Anda.
-      </div>
     </div>
   );
 }
