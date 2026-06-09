@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     // Ambil kredensial aplikasi Untungin.ai kamu
     const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j"; // Sesuaikan dengan App Key di image_2a83b6.png
-    const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "MASUKKAN_APP_SECRET_TIKTOK_KAMU_DISINI";
+    const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "c72db92f62d972d4b1c1d27385a59e0b74453720";
 
     const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get";
     
