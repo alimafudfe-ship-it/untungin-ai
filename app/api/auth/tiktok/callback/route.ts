@@ -29,10 +29,9 @@ export async function GET(request: Request) {
     console.log(`Menerima auth code dari TikTok. Menukarkan token untuk Workspace: ${workspaceId}`);
 
     // Ambil kredensial aplikasi Untungin.ai kamu
-    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "MASUKKAN_APP_KEY_TIKTOK_KAMU_DISINI";
+    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j"; // Sesuaikan dengan App Key di image_2a83b6.png
     const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "MASUKKAN_APP_SECRET_TIKTOK_KAMU_DISINI";
 
-    // PERBAIKAN: Hit ke TikTok menggunakan POST dan kirim parameter dalam bentuk JSON Body
     const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get";
     
     const tokenResponse = await fetch(tokenUrl, {
@@ -48,34 +47,48 @@ export async function GET(request: Request) {
       })
     });
 
-    const tokenData = await tokenResponse.json();
+    // --- PERBAIKAN UTAMA: AMBIL TEKS MENTAH TERLEBIH DAHULU ---
+    const responseText = await tokenResponse.text();
+    console.log("Response mentah dari TikTok:", responseText);
+
+    let tokenData;
+    try {
+      tokenData = JSON.parse(responseText);
+    } catch (e) {
+      // Jika yang kembali bukan JSON (misal HTML error dari Cloudflare/TikTok)
+      throw new Error(`TikTok tidak mengembalikan JSON valid. Response mentah: ${responseText.substring(0, 200)}`);
+    }
 
     // Periksa respons error dari struktur data spesifik TikTok
     if (tokenData.code !== 0 || !tokenData.data?.access_token) {
-      throw new Error(tokenData.message || `TikTok API Error: ${JSON.stringify(tokenData)}`);
+      throw new Error(tokenData.message || `TikTok API Error (Code: ${tokenData.code}): ${tokenData.message}`);
     }
 
     const accessToken = tokenData.data.access_token;
     const refreshToken = tokenData.data.refresh_token;
     const sellerName = tokenData.data.seller_name || "Toko TikTok Resmi";
-    const openId = tokenData.data.open_id; // ID unik internal toko di TikTok
+    const openId = tokenData.data.open_id; 
 
     // ==========================================
     // LOGIKA DATABASE SUPABASE KAMU DISINI:
     // ==========================================
-    // Simpan accessToken, refreshToken, dan openId ini agar sistem bisa menarik data produk
     // console.log("Simpan token ke DB untuk Workspace:", workspaceId);
     // ==========================================
 
     console.log(`Sukses mengintegrasikan Toko Resmi TikTok: ${sellerName}`);
 
     // Lempar kembali browser pengguna ke dashboard utama dengan parameter sukses
-    return NextResponse.redirect(new URL("/?tab=integrasi&sync=success", request.url));
+    // Menggunakan URL absolut agar redirect Next.js stabil
+    const baseUrl = new URL(request.url).origin;
+    return NextResponse.redirect(`${baseUrl}/?tab=integrasi&sync=success`);
 
   } catch (error: any) {
     console.error("Error pada Callback OAuth TikTok:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Gagal memproses pertukaran token TikTok Shop" },
+      { 
+        success: false, 
+        error: error.message || "Gagal memproses pertukaran token TikTok Shop"
+      },
       { status: 500 }
     );
   }
