@@ -82,14 +82,20 @@ export async function GET(request: Request) {
     const baseUrl = new URL(request.url).origin;
     return NextResponse.redirect(`${baseUrl}/?tab=integrasi&sync=success`);
 
-  } catch (error: any) {
+} catch (error: any) {
     console.error("Error pada Callback OAuth TikTok:", error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message || "Gagal memproses pertukaran token TikTok Shop"
-      },
-      { status: 500 }
+    
+    // PERBAIKAN: Tampilkan error sejelas-jelasnya di browser agar kita tahu penyebabnya
+    return new NextResponse(
+      `<html>
+        <body style="font-family:sans-serif; padding:40px; line-height:1.6;">
+          <h2 style="color:red;">🚨 Integrasi Tertahan (Gagal Tukar Token)</h2>
+          <p><strong>Pesan Error:</strong> ${error.message}</p>
+          <hr/>
+          <p>Silakan infokan pesan di atas ke chat agar kita bisa tahu persis letak salahnya.</p>
+        </body>
+      </html>`,
+      { status: 500, headers: { "Content-Type": "text/html" } }
     );
   }
 }
