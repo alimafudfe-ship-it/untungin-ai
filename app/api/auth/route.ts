@@ -5,22 +5,20 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const stateParams = searchParams.get("state") || "";
 
-    // 1. Ambil App Key dan Redirect URI aplikasi Untungin.ai milikmu
-    // Masukkan App Key dari TikTok Shop Partner Center Console kamu di sini
-    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "MASUKKAN_APP_KEY_TIKTOK_KAMU_DISINI";
+    // 1. Ambil App Key resmi kamu (Cocok dengan dashboard image_2a83b6.png)
+    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j";
     
-    // Pastikan URL ini sudah kamu daftarkan juga di bagian "Redirect URI" di konsol TikTok Developer
+    // Pastikan URL ini sudah 100% sama dengan di Partner Center kamu
     const REDIRECT_URI = "https://untungin-ai-pmd1.vercel.app/api/auth/tiktok/callback";
 
-    // 2. Bangun URL Oauth Resmi Service Auth TikTok Shop untuk pasar Indonesia (SOP Region)
-    // Pengguna SaaS kamu akan diarahkan ke halaman login & klik 'Gunakan Aplikasi ini'
-    const tiktokAuthUrl = new URL("https://auth.tiktok-services.com/oauth/authorize");
+    // 2. PERBAIKAN UTAMA: Menggunakan URL Oauth V2 Resmi TikTok Shop (tiktok-shops, bukan tiktok-services)
+    const tiktokAuthUrl = new URL("https://auth.tiktok-shops.com/oauth/authorize");
     
     tiktokAuthUrl.searchParams.append("app_key", TIKTOK_APP_KEY);
     tiktokAuthUrl.searchParams.append("redirect_uri", REDIRECT_URI);
     tiktokAuthUrl.searchParams.append("state", stateParams); 
 
-    console.log("Mengalihkan pengguna SaaS ke gerbang otorisasi TikTok Shop...");
+    console.log("Mengalihkan pengguna SaaS ke gerbang otorisasi resmi TikTok Shop V2...");
 
     // 3. Alihkan halaman browser ke gerbang login TikTok resmi
     return NextResponse.redirect(tiktokAuthUrl.toString());
