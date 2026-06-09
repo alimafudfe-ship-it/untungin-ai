@@ -34,6 +34,7 @@ export async function GET(request: Request) {
 
     const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get";
     
+// --- PROSES TUKAR AUTH CODE KE ACCESS TOKEN ---
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: {
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
         app_key: TIKTOK_APP_KEY,
         app_secret: TIKTOK_APP_SECRET,
         auth_code: code,
-        grant_type: "authorized_code"
+        grant_type: "authorization_code" // ✨ PERBAIKAN: Harus "authorization_code"
       })
     });
 

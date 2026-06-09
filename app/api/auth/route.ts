@@ -5,22 +5,24 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const stateParams = searchParams.get("state") || "";
 
-    // 1. Ambil App Key resmi kamu (Cocok dengan dashboard image_2a83b6.png)
     const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j";
+    // 💡 MASUKKAN SERVICE ID DARI PARTNER CENTER KAMU DI SINI
+    const TIKTOK_SERVICE_ID = process.env.TIKTOK_SHOP_SERVICE_ID || "MASUKKAN_SERVICE_ID_KAMU_DISINI"; 
     
-    // Pastikan URL ini sudah 100% sama dengan di Partner Center kamu
     const REDIRECT_URI = "https://untungin-ai-pmd1.vercel.app/api/auth/tiktok/callback";
 
-    // 2. PERBAIKAN UTAMA: Menggunakan URL Oauth V2 Resmi TikTok Shop (tiktok-shops, bukan tiktok-services)
+    // Menggunakan URL OAuth V2 Resmi TikTok Shop
     const tiktokAuthUrl = new URL("https://auth.tiktok-shops.com/oauth/authorize");
     
     tiktokAuthUrl.searchParams.append("app_key", TIKTOK_APP_KEY);
     tiktokAuthUrl.searchParams.append("redirect_uri", REDIRECT_URI);
     tiktokAuthUrl.searchParams.append("state", stateParams); 
+    
+    // ✨ PERBAIKAN: Wajib sertakan service_id untuk otorisasi multi-toko / service market di Indonesia
+    tiktokAuthUrl.searchParams.append("service_id", TIKTOK_SERVICE_ID);
 
-    console.log("Mengalihkan pengguna SaaS ke gerbang otorisasi resmi TikTok Shop V2...");
+    console.log("Mengalihkan pengguna SaaS ke gerbang otorisasi resmi TikTok Shop V2 dengan Service ID...");
 
-    // 3. Alihkan halaman browser ke gerbang login TikTok resmi
     return NextResponse.redirect(tiktokAuthUrl.toString());
 
   } catch (error: any) {
