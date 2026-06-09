@@ -26,15 +26,15 @@ export async function GET(request: Request) {
       console.error("Gagal membaca data state parameter:", e);
     }
 
+// Menerima auth code dari TikTok. Menukarkan token...
     console.log(`Menerima auth code dari TikTok. Menukarkan token untuk Workspace: ${workspaceId}`);
 
-    // Ambil kredensial aplikasi Untungin.ai kamu
-    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j"; // Sesuaikan dengan App Key di image_2a83b6.png
+    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j"; 
     const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "c72db92f62d972d4b1c1d27385a59e0b74453720";
 
-    const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get";
+    // ✨ PERBAIKAN UTAMA: Menggunakan subdomain open-api, bukan auth
+    const tokenUrl = "https://open-api.tiktok-shops.com/api/v2/token/get"; 
     
-// --- PROSES TUKAR AUTH CODE KE ACCESS TOKEN ---
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: {
@@ -44,11 +44,11 @@ export async function GET(request: Request) {
         app_key: TIKTOK_APP_KEY,
         app_secret: TIKTOK_APP_SECRET,
         auth_code: code,
-        grant_type: "authorization_code" // ✨ PERBAIKAN: Harus "authorization_code"
+        grant_type: "authorization_code" // Sesuai perbaikan sebelumnya
       })
     });
 
-    // --- PERBAIKAN UTAMA: AMBIL TEKS MENTAH TERLEBIH DAHULU ---
+    // --- PROSES AMBIL TEKS MENTAH ---
     const responseText = await tokenResponse.text();
     console.log("Response mentah dari TikTok:", responseText);
 
