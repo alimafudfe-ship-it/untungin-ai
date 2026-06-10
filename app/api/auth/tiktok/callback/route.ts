@@ -26,29 +26,34 @@ export async function GET(request: Request) {
       console.error("Gagal membaca data state parameter:", e);
     }
 
-// Menerima auth code dari TikTok. Menukarkan token...
     console.log(`Menerima auth code dari TikTok. Menukarkan token untuk Workspace: ${workspaceId}`);
 
+    // Ambil kredensial aplikasi Untungin.ai kamu
     const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j"; 
     const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "c72db92f62d972d4b1c1d27385a59e0b74453720";
 
-    // ✨ PERBAIKAN UTAMA: Menggunakan subdomain open-api, bukan auth
+    // Gunakan open-api endpoint resmi TikTok V2
     const tokenUrl = "https://open-api.tiktok-shops.com/api/v2/token/get"; 
+    
+    // ✨ PERBAIKAN: Bungkus data parameter ke URLSearchParams (Form Urlencoded)
+    const bodyParams = new URLSearchParams({
+      app_key: TIKTOK_APP_KEY,
+      app_secret: TIKTOK_APP_SECRET,
+      auth_code: code,
+      grant_type: "authorization_code" // Menggunakan format "-ation" yang benar
+    });
+
+    console.log("Mengirim request penukaran token ke TikTok...");
     
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded", // ✨ PERBAIKAN: Ganti dari application/json
       },
-      body: JSON.stringify({
-        app_key: TIKTOK_APP_KEY,
-        app_secret: TIKTOK_APP_SECRET,
-        auth_code: code,
-        grant_type: "authorization_code" // Sesuai perbaikan sebelumnya
-      })
+      body: bodyParams.toString() // ✨ Kirim sebagai string query form data
     });
 
-    // --- PROSES AMBIL TEKS MENTAH ---
+    // --- AMBIL TEKS MENTAH UNTUK DEBUGGING ---
     const responseText = await tokenResponse.text();
     console.log("Response mentah dari TikTok:", responseText);
 
@@ -56,13 +61,12 @@ export async function GET(request: Request) {
     try {
       tokenData = JSON.parse(responseText);
     } catch (e) {
-      // Jika yang kembali bukan JSON (misal HTML error dari Cloudflare/TikTok)
       throw new Error(`TikTok tidak mengembalikan JSON valid. Response mentah: ${responseText.substring(0, 200)}`);
     }
 
     // Periksa respons error dari struktur data spesifik TikTok
     if (tokenData.code !== 0 || !tokenData.data?.access_token) {
-      throw new Error(tokenData.message || `TikTok API Error (Code: ${tokenData.code}): ${tokenData.message}`);
+      throw new Error(tokenData.message || `TikTok API Error (Code: ${tokenData.code}): ${JSON.stringify(tokenData)}`);
     }
 
     const accessToken = tokenData.data.access_token;
@@ -70,30 +74,30 @@ export async function GET(request: Request) {
     const sellerName = tokenData.data.seller_name || "Toko TikTok Resmi";
     const openId = tokenData.data.open_id; 
 
-    // ==========================================
+    // =========================================================
     // LOGIKA DATABASE SUPABASE KAMU DISINI:
-    // ==========================================
+    // Kamu bisa pakai accessToken & refreshToken untuk disimpan ke DB
+    // =========================================================
     // console.log("Simpan token ke DB untuk Workspace:", workspaceId);
-    // ==========================================
+    // =========================================================
 
     console.log(`Sukses mengintegrasikan Toko Resmi TikTok: ${sellerName}`);
 
     // Lempar kembali browser pengguna ke dashboard utama dengan parameter sukses
-    // Menggunakan URL absolut agar redirect Next.js stabil
     const baseUrl = new URL(request.url).origin;
     return NextResponse.redirect(`${baseUrl}/?tab=integrasi&sync=success`);
 
-} catch (error: any) {
+  } catch (error: any) {
     console.error("Error pada Callback OAuth TikTok:", error);
     
-    // PERBAIKAN: Tampilkan error sejelas-jelasnya di browser agar kita tahu penyebabnya
+    // Tampilkan error sejelas-jelasnya di browser agar kita tahu jika ada kendala jaringan/API
     return new NextResponse(
       `<html>
         <body style="font-family:sans-serif; padding:40px; line-height:1.6;">
           <h2 style="color:red;">🚨 Integrasi Tertahan (Gagal Tukar Token)</h2>
           <p><strong>Pesan Error:</strong> ${error.message}</p>
           <hr/>
-          <p>Silakan infokan pesan di atas ke chat agar kita bisa tahu persis letak salahnya.</p>
+          <p>Silakan kembalilah ke dashboard utama dan coba klik tombol integrasi sekali lagi untuk memicu token baru.</p>
         </body>
       </html>`,
       { status: 500, headers: { "Content-Type": "text/html" } }
