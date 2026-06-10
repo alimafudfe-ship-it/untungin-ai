@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-// Inisialisasi Supabase menggunakan Service Role Key agar bebas dari kendala RLS saat sync backend
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// 1. Ambil nilai env atau gunakan string tiruan sementara agar tidak crash saat build
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-url.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key-for-build-purposes';
+
+// 2. Inisialisasi aman dari error "supabaseKey is required"
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
@@ -69,18 +71,11 @@ export async function GET(request: Request) {
 
     // 3. Kredensial Baru Hasil Pembuatan di TikTok Partner Center Anda
     const appKey = "6k9tqhh1i366s";
-    const appSecret = "b0edb9990afd61f40c7d704f6e7cdaa0bcdd5809"; // <--- MAS, PASTE APP SECRET ASLI DI SINI YA!
+    const appSecret = "b0edb9990afd61f40c7d704f6e7cdaa0bcdd5809"; 
     
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const apiPath = '/product/202309/products'; 
     const tiktokEndpoint = `https://open-api.tiktokglobalshop.com${apiPath}`;
-
-    if (appSecret === "ISI_DENGAN_APP_SECRET_BARU_MAS") {
-      return NextResponse.json({ 
-        success: false, 
-        message: "Server Error: App Secret belum dimasukkan ke dalam kode backend." 
-      }, { status: 500 });
-    }
 
     // 4. Susun object query yang wajib masuk hitungan signature TikTok
     const queriesForSign: Record<string, string> = {
