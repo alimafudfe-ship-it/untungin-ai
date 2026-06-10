@@ -75,7 +75,7 @@ export async function GET(request: Request) {
     
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const apiPath = '/product/202309/products'; 
-    const tiktokEndpoint = `https://open-api.tiktokglobalshop.com${apiPath}`;
+    const tiktokEndpoint = `https://open-api-yj.tiktokglobalshop.com${apiPath}`;
 
     // 4. Susun object query yang wajib masuk hitungan signature TikTok
     const queriesForSign: Record<string, string> = {
