@@ -23,8 +23,8 @@ export async function GET(request: Request) {
       console.error("Gagal membaca data state parameter:", e);
     }
 
-    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j"; 
-    const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "c72db92f62d972d4b1c1d27385a59e0b74453720";
+    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k9tqhh1i366s"; 
+    const TIKTOK_APP_SECRET = process.env.TIKTOK_SHOP_APP_SECRET || "b0edb9990afd61f40c7d704f6e7cdaa0bcdd5809";
 
     const tokenUrl = "https://open-api.tiktok-shops.com/api/v2/token/get"; 
     
