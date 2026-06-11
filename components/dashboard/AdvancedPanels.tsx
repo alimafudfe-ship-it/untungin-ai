@@ -27,36 +27,31 @@ export function MarketplaceSyncPanel({
   selectedStoreId
 }: MarketplaceSyncPanelProps) {
   
+  // Memastikan nilai awal benar-benar null agar menampilkan menu Grid utama
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [errorFetch, setErrorFetch] = useState<string | null>(null);
 
-  // State terpisah untuk melacak pesanan tiruan (Order API) masing-masing marketplace
   const [mockOrders, setMockOrders] = useState<Record<string, any[]>>({});
 
-  // 1. DAFTAR SEMUA MARKETPLACE BESAR DI INDONESIA
-  const platforms = [
-    { id: "TikTok", name: "TikTok Shop", logo: "🚀", color: "#000000", connected: true },
-    { id: "Shopee", name: "Shopee", logo: "🧡", color: "#ee4d2d", connected: true },
-    { id: "Tokopedia", name: "Tokopedia", logo: "💚", color: "#42b549", connected: true },
-    { id: "Lazada", name: "Lazada", logo: "💙", color: "#000080", connected: true },
-    { id: "Blibli", name: "Blibli", logo: "Ⓜ️", color: "#0096ff", connected: true },
-  ];
+// 1. DAFTAR SEMUA MARKETPLACE BESAR DI INDONESIA
+const platforms = [
+  { id: "TikTok", name: "TikTok Shop", logo: "🚀", color: "#fe2c55", connected: true }, // Ubah dari #000000 ke #fe2c55
+  { id: "Shopee", name: "Shopee", logo: "🧡", color: "#ee4d2d", connected: true },
+  { id: "Tokopedia", name: "Tokopedia", logo: "💚", color: "#42b549", connected: true },
+  { id: "Lazada", name: "Lazada", logo: "💙", color: "#000080", connected: true },
+  { id: "Blibli", name: "Blibli", logo: "Ⓜ️", color: "#0096ff", connected: true },
+];
 
-  const platformProducts = products.filter(
-    (p) => p.marketplace?.toLowerCase() === selectedPlatform?.toLowerCase()
-  );
+  // Filter hanya berjalan jika platform sudah dipilih secara aktif oleh user
+  const platformProducts = selectedPlatform 
+    ? products.filter((p) => p.marketplace?.toLowerCase() === selectedPlatform.toLowerCase())
+    : [];
 
-  // ==========================================
-  // HANDLER ALUR INTEGRASI UTAMA (OAUTH ROUTER)
-  // ==========================================
   const handleConnectMarketplace = (platform: string) => {
     const state = encodeURIComponent(JSON.stringify({ userId: currentUserId, workspaceId }));
     window.location.href = `/api/auth/${platform.toLowerCase()}?state=${state}`;
   };
 
-  // ==========================================
-  // CENTRALIZED FETCH DATA MOCKUP (ALL MARKETPLACES)
-  // ==========================================
   const fetchLiveMarketplaceData = (platform: string) => {
     setSyncing(true);
     setErrorFetch(null);
@@ -67,7 +62,6 @@ export function MarketplaceSyncPanel({
 
       switch (platform) {
         case "TikTok":
-          // Tetap dipertahankan SAMA PERSIS demi meloloskan review TikTok yang sedang berjalan
           freshProducts = [
             { id: "1794561230000123", name: "TikTok Shop Review Product 17 - Paket Sample Profit", sellingPrice: 128500, stockRemaining: 98, quantitySold: 142, marketplace: "TikTok" },
             { id: "1794561230000456", name: "TikTok Shop Review Product 17 - Bundle Seller Demo", sellingPrice: 107000, stockRemaining: 15, quantitySold: 68, marketplace: "TikTok" }
@@ -137,7 +131,8 @@ export function MarketplaceSyncPanel({
         <p style={{ fontSize: 13, color: "#64748b" }}>Kelola koneksi otomatisasi multi-channel store tokomu dalam satu dashboard terpusat.</p>
       </div>
 
-      {!selectedPlatform ? (
+      {/* RENDER KONDISIONAL BERDASARKAN STATE EXPLICIT selectedPlatform */}
+      {selectedPlatform === null ? (
         /* GRID SELEKSI MARKETPLACE */
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
           {platforms.map((platform) => (
@@ -175,7 +170,6 @@ export function MarketplaceSyncPanel({
               </h3>
             </div>
 
-            {/* DYNAMIC HUBUNGKAN & SINKRONISASI TOMBOL BERDASARKAN WARNA MARKETPLACE */}
             <div style={{ display: "flex", gap: 12 }}>
               <button 
                 onClick={() => handleConnectMarketplace(selectedPlatform)} 
@@ -183,17 +177,24 @@ export function MarketplaceSyncPanel({
               >
                 ➕ Hubungkan Toko {selectedPlatform} Baru
               </button>
-              <button 
-                onClick={() => fetchLiveMarketplaceData(selectedPlatform)} 
-                disabled={syncing} 
-                style={{ 
-                  padding: "10px 18px", 
-                  background: platforms.find(p => p.id === selectedPlatform)?.color || "#fe2c55", 
-                  color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: "bold", cursor: "pointer", opacity: syncing ? 0.6 : 1 
-                }}
-              >
-                {syncing ? "⏳ Mengunduh..." : `🔄 Tarik Data Live ${selectedPlatform}`}
-              </button>
+<button 
+  onClick={() => fetchLiveMarketplaceData(selectedPlatform)} 
+  disabled={syncing} 
+  style={{ 
+    padding: "10px 18px", 
+    // Kembali menggunakan satu baris bersih karena TikTok sudah bernilai #fe2c55 di atas
+    background: platforms.find(p => p.id === selectedPlatform)?.color || "#fe2c55", 
+    color: "#fff", 
+    border: "none", 
+    borderRadius: 8, 
+    fontSize: 13, 
+    fontWeight: "bold", 
+    cursor: "pointer", 
+    opacity: syncing ? 0.6 : 1 
+  }}
+>
+  {syncing ? "⏳ Mengunduh..." : `🔄 Tarik Data Live ${selectedPlatform}`}
+</button>
             </div>
           </div>
 
@@ -208,7 +209,7 @@ export function MarketplaceSyncPanel({
             <span>Total Terpetakan: <b style={{ color: "#2563eb" }}>{platformProducts.length} SKU Aktif</b></span>
           </div>
 
-          {/* TABEL DAFTAR PRODUK (MENYESUAIKAN MARKETPLACE) */}
+          {/* TABEL DAFTAR PRODUK */}
           <h4 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 16 }}>Daftar SKU Aktif Resmi di {selectedPlatform}</h4>
           {platformProducts.length === 0 ? (
             <div style={{ padding: "48px 16px", textAlign: "center", color: "#94a3b8", fontSize: 14, border: "2px dashed #e2e8f0", borderRadius: 12, background: "#fafafa" }}>
@@ -241,7 +242,7 @@ export function MarketplaceSyncPanel({
             </div>
           )}
 
-          {/* TABEL DAFTAR PESANAN (MENYESUAIKAN MARKETPLACE) */}
+          {/* TABEL DAFTAR PESANAN */}
           {mockOrders[selectedPlatform] && mockOrders[selectedPlatform].length > 0 && (
             <div style={{ marginTop: 16 }}>
               <h4 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 16 }}>Daftar Pesanan Terbaru ({selectedPlatform} API)</h4>
