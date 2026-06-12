@@ -164,7 +164,7 @@ const sendMessage = useCallback(async () => {
     // 2. Tambahkan efek status "⚡ Sedang Mengetik" agar pengguna tahu AI sedang bekerja
     setChatMessages((prev) => [...prev, { role: "assistant", text: "⚡ AI sedang menganalisis data tokomu..." }]);
 
-   try {
+    try {
       // 🔑 TEMPELKAN KODE KUNCI AIzaSy YANG BARU ANDA SALIN DI BAWAH INI
       const GEMINI_API_KEY = "MASUKKAN_KODE_AIzaSy_ANDA_DI_SINI"; 
 
@@ -196,9 +196,9 @@ const sendMessage = useCallback(async () => {
                 ]
               }
             ]
-          }) // <-- TUTUP JSON.stringify DI SINI
-        } // <-- TUTUP OBJEK FETCH DI SINI
-      ); // <-- TUTUP FUNGSI FETCH DI SINI
+          }) // <-- JAWABAN: Kurung kurawal & penutup JSON.stringify harus pas di sini!
+        } // <-- Penutup objek konfigurasi fetch
+      ); // <-- Penutup fungsi fetch utama
 
       const json = await response.json();
       
