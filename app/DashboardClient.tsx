@@ -564,8 +564,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-          </div> // <-- PENUTUP CONTAINER KOTAK OVERVIEW (DIRESTORE)
-        )} // <-- PENUTUP KONDISI LOGIKA TAB OVERVIEW (DIRESTORE)
+          </div> 
+        )}
 
         {activeTab === "integrasi" && (
           <MarketplaceSyncPanel syncing={syncing} setSyncing={setSyncing} lastSync={lastSync} setLastSync={setLastSync} products={products} setProducts={setProducts} currentUserId={currentUserId} workspaceId={workspaceId} selectedStoreId={selectedStoreId} />
