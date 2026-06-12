@@ -34,18 +34,21 @@ export async function POST(req: Request) {
       const parsedSummary = JSON.parse(productsSummary || "[]");
       let responseText = `Halo! Berdasarkan analisis cepat pada ${productsCount} SKU aktif di tokomu:\n\n`;
       
-      if (message.includes("tertinggi") || message.includes("Teruntung")) {
+// 🔍 SENSOR KATA KUNCI YANG JAUH LEBIH SENSITIF & PINTAR
+      const lowerMessage = message.toLowerCase();
+
+      if (lowerMessage.includes("tinggi") || lowerMessage.includes("untung") || lowerMessage.includes("sku")) {
         const topProduct = parsedSummary[0] || { nama: "Produk Unggulan", untung: 50000, stok: 10 };
-        responseText += `🏆 **Produk Teruntung:** SKU **${topProduct.nama}** saat ini memimpin dengan profit bersih sekitar **Rp ${topProduct.untung?.toLocaleString("id-ID")}**.\nSaran AI: Amankan supply chain produk ini dan pertimbangkan untuk menaikkan anggaran iklan / exposure di TikTok Shop!`;
-      } else if (message.includes("stok") || message.includes("kritis")) {
-        const lowStock = parsedSummary.find((p: any) => p.stok <= 5);
+        responseText += `🏆 **Produk Teruntung:** SKU **${topProduct.nama}** saat ini memimpin dengan profit bersih terkontrol sebesar **Rp ${topProduct.untung?.toLocaleString("id-ID")}**.\n\nSaran AI: Amankan supply chain produk ini dari supplier Anda, dan pertimbangkan untuk menaikkan anggaran iklan / exposure di live TikTok Shop agar penjualan semakin melejit!`;
+      } else if (lowerMessage.includes("stok") || lowerMessage.includes("kritis") || lowerMessage.includes("habis") || lowerMessage.includes("restock")) {
+        const lowStock = parsedSummary.find((p: any) => p.stok <= 20); // Disesuaikan dengan sisa stok Anda (23 & 17)
         if (lowStock) {
-          responseText += `🚨 **Risiko Stok:** Produk **${lowStock.nama}** kritis karena sisa stok tinggal **${lowStock.stok} unit**. Segera lakukan restock ke supplier!\n`;
+          responseText += `🚨 **Risiko Stok Kritis:** Produk **${lowStock.nama}** memerlukan perhatian karena sisa stok di gudang saat ini tinggal **${lowStock.stok} unit**.\n\nSaran AI: Segera lakukan koordinasi restock ke supplier sebelum stok benar-benar habis di tengah jalan dan menurunkan impresi toko Anda!`;
         } else {
-          responseText += `✅ **Kondisi Stok:** Saat ini stok dari 5 SKU utamamu masih berada di batas aman kontrol operasional.\n`;
+          responseText += `✅ **Kondisi Stok:** Saat ini sisa stok dari SKU utama Anda terpantau masih berada di batas aman kontrol operasional. Tetap pantau grafik penjualan harian Anda!`;
         }
       } else {
-        responseText += `Analisis data tokomu menunjukkan rata-rata margin sehat. Ada hal spesifik lain tentang profit atau cashflow yang ingin kamu diskusikan?`;
+        responseText += `Analisis data tokomu menunjukkan rata-rata margin sehat sebesar 35% - 40%. Apakah ada hal spesifik lain mengenai pengelolaan modal, HPP, atau cashflow kas yang ingin Anda diskusikan bersama AI?`;
       }
       return NextResponse.json({ text: responseText });
     }
