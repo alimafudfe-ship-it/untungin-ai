@@ -431,9 +431,18 @@ export default function DashboardPage() {
         {activeTab === "overview" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
-            {/* 🧠 AI COO DECISION */}
-            {decisions.length > 0 && (
-              <div style={{ background: "#0f172a", color: "#fff", borderRadius: 12, padding: 16 }}>
+{/* 🧠 AI COO DECISION */}
+{decisions.length > 0 && (
+  <div 
+    onClick={handleGoAI} // Otomatis pindah tab ke Insight AI saat diklik
+    style={{ background: "#0f172a", color: "#fff", borderRadius: 12, padding: 16, cursor: "pointer", transition: "transform 0.2s", }}
+    onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.01)"}
+    onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+  >
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <h3 style={{ fontWeight: 700, marginBottom: 8 }}>🧠 AI COO - Keputusan Hari Ini</h3>
+      <span style={{ fontSize: 11, background: "#1e293b", padding: "4px 8px", borderRadius: 6, color: "#38bdf8" }}>Buka Detail AI →</span>
+    </div>
                 <h3 style={{ fontWeight: 700, marginBottom: 8 }}>
                   🧠 AI COO - Keputusan Hari Ini
                 </h3>
@@ -464,8 +473,12 @@ export default function DashboardPage() {
                   🔥 Insight Bisnis Hari Ini
                 </h3>
 
-                <p style={{ margin: "4px 0" }}>💰 Profit: {aiMetrics.total_profit?.toLocaleString()}</p>
-                <p style={{ margin: "4px 0" }}>📈 Revenue: {aiMetrics.total_revenue?.toLocaleString()}</p>
+<p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>
+  💰 <b>Profit Hari Ini:</b> Rp {aiMetrics.total_profit ? aiMetrics.total_profit.toLocaleString("id-ID") : "0"}
+</p>
+<p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>
+  📈 <b>Omzet Hari Ini:</b> Rp {aiMetrics.total_revenue ? aiMetrics.total_revenue.toLocaleString("id-ID") : "0"}
+</p>
                 <p style={{ margin: "4px 0" }}>📊 Margin: {(aiMetrics.avg_margin * 100).toFixed(1)}%</p>
 
                 {aiMetrics.insights_flags?.has_loss && (
@@ -499,8 +512,9 @@ export default function DashboardPage() {
               onGoProducts={handleGoProducts}
               onGoAI={handleGoAI}
               onGoBilling={handleGoBilling}
+              onLangClick={() => alert("Fitur Multi-Bahasa (Inggris, Mandarin, Melayu) sedang dipersiapkan untuk sinkronisasi pasar Cross-Border Tokopedia-TikTok International!")}
             />
-
+           
             {/* 🤝 AFFILIATE ANALYSIS */}
             {affiliateData && selectedProduct && (
               <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
