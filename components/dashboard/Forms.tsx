@@ -3,15 +3,47 @@
 import React from "react";
 import { cardStyle } from "@/components/dashboard/ui";
 
+// ==========================================
+// INTERFACES & TYPES DEFINITION
+// ==========================================
+export interface ProductFormState {
+  productName: string;
+  costPrice: string;
+  sellingPrice: string;
+  stockInitial: string;
+  quantitySold: string;
+  otherCost: string;
+  marketplace: string;
+}
+
+export interface ExpenseFormState {
+  label: string;
+  category: string;
+  amount: string;
+  date: string;
+  notes: string;
+}
+
 interface ProductFormProps {
-  form: any;
+  form: ProductFormState;
   loading: boolean;
   products: any[];
-  onChange: (nextForm: any) => void;
+  onChange: (nextForm: ProductFormState) => void;
   onSubmit: (e: React.FormEvent) => void;
   onFinish: () => void;
 }
 
+interface ExpensePanelProps {
+  expenses: any[];
+  form: ExpenseFormState;
+  metrics: any;
+  onChange: (nextExpense: ExpenseFormState) => void;
+  onSubmit: (e: React.FormEvent) => void;
+}
+
+// ==========================================
+// 1. KOMPONEN PRODUCT FORM (PREMIUM LOOK)
+// ==========================================
 export function ProductForm({
   form,
   loading,
@@ -21,16 +53,16 @@ export function ProductForm({
   onFinish
 }: ProductFormProps) {
   
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof ProductFormState, value: string) => {
     onChange({ ...form, [field]: value });
   };
 
-  // Filter list untuk produk yang sudah tersimpan agar terlihat rapi
-  const savedProducts = products.filter(p => p.marketplace?.toLowerCase() === form.marketplace?.toLowerCase());
+  const savedProducts = products.filter(
+    (p) => p.marketplace?.toLowerCase() === form.marketplace?.toLowerCase()
+  );
 
   return (
     <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
-      
       {/* CARD 1: INFORMASI UTAMA & MARKETPLACE */}
       <div style={{ ...cardStyle, padding: 24, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
@@ -39,7 +71,6 @@ export function ProductForm({
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          {/* PILIH MARKETPLACE */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Marketplace Saluran</label>
             <select
@@ -53,7 +84,6 @@ export function ProductForm({
             </select>
           </div>
 
-          {/* NAMA PRODUK */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nama Lengkap SKU Produk</label>
             <input
@@ -66,7 +96,6 @@ export function ProductForm({
           </div>
         </div>
 
-        {/* LIST PRODUK TERSIMPAN (POPOVER STYLE YANG RAPI) */}
         {savedProducts.length > 0 && (
           <div style={{ marginTop: 20, background: "#f8fafc", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: 10 }}>
@@ -90,7 +119,7 @@ export function ProductForm({
         )}
       </div>
 
-      {/* CARD 2: STRUKTUR HARGA & STOK (GRID LAYOUT) */}
+      {/* CARD 2: STRUKTUR HARGA & STOK */}
       <div style={{ ...cardStyle, padding: 24, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
           <span style={{ fontSize: 18 }}>💰</span>
@@ -98,7 +127,6 @@ export function ProductForm({
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          {/* HARGA MODAL */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Harga Modal HPP (per unit)</label>
             <div style={{ position: "relative" }}>
@@ -113,7 +141,6 @@ export function ProductForm({
             </div>
           </div>
 
-          {/* HARGA JUAL */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Harga Jual Resmi</label>
             <div style={{ position: "relative" }}>
@@ -128,7 +155,6 @@ export function ProductForm({
             </div>
           </div>
 
-          {/* STOK AWAL */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Volume Stok Awal</label>
             <input
@@ -140,7 +166,6 @@ export function ProductForm({
             />
           </div>
 
-          {/* QUANTITY TERJUAL */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Total Terjual (Live)</label>
             <input
@@ -152,7 +177,6 @@ export function ProductForm({
             />
           </div>
 
-          {/* BIAYA LAINNYA */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2" }}>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Biaya Operasional / Biaya Lainnya</label>
             <div style={{ position: "relative" }}>
@@ -169,24 +193,84 @@ export function ProductForm({
         </div>
       </div>
 
-      {/* FOOTER TOMBOL AKSI UTAMA */}
       <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 8 }}>
         <button
           type="button"
           onClick={onFinish}
-          style={{ padding: "12px 24px", background: "#ffffff", border: "1px solid #cbd5e1", color: "#475569", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+          style={{ padding: "12px 24px", background: "#ffffff", border: "1px solid #cbd5e1", color: "#475569", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
         >
           Kembali ke Overview
         </button>
         <button
           type="submit"
           disabled={loading}
-          style={{ padding: "12px 28px", background: "#00b14f", color: "#ffffff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(0, 177, 79, 0.2)", transition: "all 0.2s" }}
+          style={{ padding: "12px 28px", background: "#00b14f", color: "#ffffff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(0, 177, 79, 0.2)" }}
         >
           {loading ? "Menyimpan..." : "💾 Simpan & Sinkronisasikan SKU"}
         </button>
       </div>
-
     </form>
+  );
+}
+
+// ==========================================
+// 2. KOMPONEN EXPENSE PANEL (KEMBALI DI-EXPORT)
+// ==========================================
+export function ExpensePanel({
+  expenses,
+  form,
+  metrics,
+  onChange,
+  onSubmit
+}: ExpensePanelProps) {
+  
+  const handleInputChange = (field: keyof ExpenseFormState, value: string) => {
+    onChange({ ...form, [field]: value });
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
+      <div style={{ ...cardStyle, padding: 24, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 16 }}>💰 Log Arus Kas & Pengeluaran Toko</h3>
+        <form onSubmit={onSubmit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>Nama Pengeluaran</label>
+            <input 
+              type="text" 
+              value={form.label} 
+              onChange={(e) => handleInputChange("label", e.target.value)} 
+              placeholder="Contoh: Biaya Ads TikTok atau Gaji Karyawan" 
+              style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #cbd5e1" }} 
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>Kategori</label>
+            <select 
+              value={form.category} 
+              onChange={(e) => handleInputChange("category", e.target.value)} 
+              style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #cbd5e1" }}
+            >
+              <option value="Ops">Operasional</option>
+              <option value="Marketing">Pemasaran / Ads</option>
+              <option value="Salary">Gaji</option>
+              <option value="Other">Lain-lain</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2" }}>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>Nominal Biaya (Rp)</label>
+            <input 
+              type="number" 
+              value={form.amount} 
+              onChange={(e) => handleInputChange("amount", e.target.value)} 
+              placeholder="0" 
+              style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #cbd5e1" }} 
+            />
+          </div>
+          <button type="submit" style={{ gridColumn: "span 2", padding: "12px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer", marginTop: 8 }}>
+            ➕ Tambah Catatan Pengeluaran
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
