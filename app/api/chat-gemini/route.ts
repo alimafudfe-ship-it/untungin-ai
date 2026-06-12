@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const { message, productsCount, productsSummary } = await req.json();
-
-    // 🔑 Taruh kunci aman Anda di server backend, aman dari intipan browser!
     const GEMINI_API_KEY = "AQ.Ab8RN6KA9u9qLtxetAeGSTbsJa_adt8xpC97l3c0Y3d6tdmBrQ";
 
     const response = await fetch(
@@ -27,9 +25,22 @@ export async function POST(req: Request) {
     );
 
     const json = await response.json();
-    return NextResponse.json(json);
-  } catch (error) {
+
+    // 🔍 SISTEM PEMBACA TEXT SUPER KEBAL (Mencegah Error Struktur JSON Meleset)
+    let aiText = "";
+    if (json?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      aiText = json.candidates[0].content.parts[0].text;
+    } else if (json?.error?.message) {
+      // Jika Google menolak/error, tangkap alasan aslinya di sini
+      aiText = `🚨 Google API Error: ${json.error.message}`;
+    } else {
+      // Jika format JSON benar-benar aneh, cetak isi mentahnya agar bisa kita baca
+      aiText = `⚠️ Gagal membaca format balasan AI. Detail respons: ${JSON.stringify(json)}`;
+    }
+
+    return NextResponse.json({ text: aiText });
+  } catch (error: any) {
     console.error("Backend Gemini Error:", error);
-    return NextResponse.json({ error: "Gagal memproses data di server" }, { status: 500 });
+    return NextResponse.json({ text: `Aduh, gagal memproses data di server backend: ${error?.message}` }, { status: 500 });
   }
 }

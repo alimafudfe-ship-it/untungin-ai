@@ -146,8 +146,10 @@ const sendMessage = useCallback(async () => {
         })
       });
 
-      const json = await response.json();
-      const aiText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, AI gagal memproses jawaban. Coba tanyakan lagi ya.";
+     const json = await response.json();
+      
+      // Ambil teks yang sudah diolah dengan aman oleh server backend kita
+      const aiText = json?.text || "Maaf, AI gagal memproses jawaban. Coba tanyakan lagi ya.";
 
       setChatMessages((prev) => {
         const updated = [...prev];
