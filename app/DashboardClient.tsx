@@ -590,40 +590,98 @@ const sendMessage = useCallback(async () => {
               </div>
             )}
 
-            {/* 🤖 AI CHAT PANEL */}
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-              <h3 style={{ marginBottom: 12 }}>🤖 AI Business Advisor</h3>
-
-              <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #f1f5f9", padding: 8, borderRadius: 8, background: "#f8fafc", marginBottom: 12 }}>
-                {chatMessages.length === 0 && (
-                  <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", margin: "16px 0" }}>Belum ada obrolan. Tanyakan sesuatu tentang margin atau stok道を!</p>
-                )}
-                {chatMessages.map((m, i) => (
-                  <p key={i} style={{ fontSize: 13, margin: "6px 0" }}>
-                    <b>{m.role === "user" ? "You" : "AI"}:</b> {m.text}
-                  </p>
-                ))}
+{/* 🤖 AI CHAT PANEL (PRO UPGRADE: SMART BUSINESS ADVISOR) */}
+            <div style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 24 }}>🤖</span>
+                  <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>AI Business Advisor Co-Pilot</h3>
+                    <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 6, height: 6, background: "#16a34a", borderRadius: "50%", display: "inline-block" }}></span>
+                      Koneksi Data Kontekstual Aktif
+                    </span>
+                  </div>
+                </div>
+                <span style={{ fontSize: 11, background: "#f0fdf4", padding: "4px 10px", borderRadius: 20, color: "#16a34a", fontWeight: 700 }}>
+                  Mode: Analisis Gemini
+                </span>
               </div>
 
-              <div style={{ display: "flex", gap: 8 }}>
+              {/* JENDELA RIWAYAT CHAT BALON */}
+              <div style={{ maxHeight: 300, minHeight: 200, overflowY: "auto", border: "1px solid #e2e8f0", padding: 16, borderRadius: 12, background: "#fafafa", marginBottom: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                
+                {/* PESAN SAMBUTAN AWAL DEFAULT */}
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <div style={{ width: 28, height: 28, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: "bold" }}>AI</div>
+                  <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "10px 14px", borderRadius: "0px 12px 12px 12px", fontSize: 13, color: "#334155", maxWidth: "80%", lineHeight: "1.4" }}>
+                    Halo! Saya adalah **AI Advisor** tokomu. Saya sudah membaca ringkasan data dari **{products.length} SKU Produk** aktif.
+                    <br/><br/>
+                    Silakan tanyakan apa saja mengenai margin keuntungan atau risiko stok barang yang perlu segera kita restock!
+                  </div>
+                </div>
+
+                {/* LOOPING OBROLAN DINAMIS */}
+                {chatMessages.map((m, i) => {
+                  const isUser = m.role === "user";
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", justifyContent: isUser ? "flex-end" : "flex-start" }}>
+                      {!isUser && (
+                        <div style={{ width: 28, height: 28, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: "bold" }}>AI</div>
+                      )}
+                      <div style={{ 
+                        background: isUser ? "#00b14f" : "#ffffff", 
+                        color: isUser ? "#ffffff" : "#334155", 
+                        border: isUser ? "none" : "1px solid #e2e8f0", 
+                        padding: "10px 14px", 
+                        borderRadius: isUser ? "12px 0px 12px 12px" : "0px 12px 12px 12px", 
+                        fontSize: 13, 
+                        maxWidth: "80%",
+                        lineHeight: "1.4",
+                        whiteSpace: "pre-line"
+                      }}>
+                        {m.text}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* TOMBOL SHORTCUT PANDUAN CEPAT */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                <button 
+                  type="button"
+                  onClick={() => setChatInput("Produk mana yang memiliki keuntungan bersih paling tinggi?")}
+                  style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 11, color: "#475569", cursor: "pointer", fontWeight: 500 }}
+                >
+                  📊 Cek SKU Teruntung
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setChatInput("Apakah ada stok barang yang kritis dan mau habis?")}
+                  style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 11, color: "#475569", cursor: "pointer", fontWeight: 500 }}
+                >
+                  🚨 Analisis Risiko Stok
+                </button>
+              </div>
+
+              {/* KOLOM INPUT CHAT */}
+              <div style={{ display: "flex", gap: 10 }}>
                 <input
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
-                  placeholder="Ketik pesan analisis di sini..."
-                  style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14 }}
+                  placeholder="Tanyakan analisis profit, rekomendasi HPP, atau strategi harga..."
+                  style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 13, background: "#ffffff", outline: "none" }}
                 />
                 <button 
                   onClick={sendMessage}
-                  style={{ padding: "10px 20px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}
+                  style={{ padding: "12px 24px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}
                 >
-                  Kirim
+                  Kirim Obrolan
                 </button>
               </div>
             </div>
-
-          </div>
-        )}
 
         {activeTab === "integrasi" && (
           <MarketplaceSyncPanel syncing={syncing} setSyncing={setSyncing} lastSync={lastSync} setLastSync={setLastSync} products={products} setProducts={setProducts} currentUserId={currentUserId} workspaceId={workspaceId} selectedStoreId={selectedStoreId} />
