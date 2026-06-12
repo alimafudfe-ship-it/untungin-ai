@@ -12,7 +12,7 @@ import { AppShell } from "@/components/dashboard/AppShell";
 import { cardStyle } from "@/components/dashboard/ui";
 import { ExpensePanel, ExpenseFormState, ProductForm, ProductFormState } from "@/components/dashboard/Forms";
 import { ProductTable } from "@/components/dashboard/ProductTable";
-// ✅ BENAR: Karena kedua komponen di AdvancedPanels menggunakan Named Export ('export function')
+// ✅ Named Export Components
 import { AIRecommendationPanel, MarketplaceSyncPanel } from "@/components/dashboard/AdvancedPanels";
 import { ReportsPanel } from "@/components/dashboard/ReportsPanel";
 import { ExecutiveDashboard } from "@/components/dashboard/ExecutiveDashboard";
@@ -85,29 +85,13 @@ export default function DashboardPage() {
     return sortedProducts;
   }, [selectedFilter, sortedProducts]);
 
-  // ====================================================================
-  // FUNGSI NAVIGASI INTER-PANEL (CENTRALIZED HANDLERS)
-  // ====================================================================
-  const handleGoMarketplace = useCallback(() => {
-    setActiveTab("integrasi");
-  }, []);
+  // Centralized Navigation Handlers
+  const handleGoMarketplace = useCallback(() => { setActiveTab("integrasi"); }, []);
+  const handleGoProducts = useCallback(() => { setActiveTab("produk"); }, []);
+  const handleGoAI = useCallback(() => { setActiveTab("insight-ai"); }, []);
+  const handleGoBilling = useCallback(() => { setSelectedPlan("lifetime"); setShowUpgradeModal(true); }, []);
 
-  const handleGoProducts = useCallback(() => {
-    setActiveTab("produk");
-  }, []);
-
-  const handleGoAI = useCallback(() => {
-    setActiveTab("insight-ai");
-  }, []);
-
-  const handleGoBilling = useCallback(() => {
-    setSelectedPlan("lifetime");
-    setShowUpgradeModal(true);
-  }, []);
-
-  // ====================================================================
-  // FUNGSI RISET PASAR - PURE REAL-TIME TIKTOK SHOP API CONNECTED
-  // ====================================================================
+  // TikTok Scraper Handler
   const handleDashboardScrape = useCallback(async (keywordInput: string) => {
     const cleanKeyword = keywordInput.trim();
     if (!cleanKeyword) return;
@@ -118,22 +102,14 @@ export default function DashboardPage() {
     try {
       const response = await fetch(`/api/market-intelligence/search?keyword=${encodeURIComponent(cleanKeyword)}&_t=${Date.now()}`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        }
+        headers: { "Content-Type": "application/json" }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP Error! Status: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
       const result = await response.json();
       
       if (result && result.products) {
-        setMarketData({
-          products: Array.isArray(result.products) ? result.products : [],
-          keyword: result.keyword || cleanKeyword
-        }); 
+        setMarketData({ products: Array.isArray(result.products) ? result.products : [], keyword: result.keyword || cleanKeyword }); 
       } else if (Array.isArray(result)) {
         setMarketData({ products: result, keyword: cleanKeyword });
       } else if (result && result.data) {
@@ -141,7 +117,6 @@ export default function DashboardPage() {
       } else {
         setMarketData({ products: [], keyword: cleanKeyword });
       }
-
     } catch (err) {
       console.error("Gagal melakukan riset pasar real-time:", err);
       alert("Gagal mengambil data real-time. Pastikan endpoint API internal dan koneksi internet Anda normal.");
@@ -150,10 +125,8 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // ====================================================================
-  // FUNGSI AI CHAT BUSINESS ADVISOR (PERBAIKAN ERROR "NOT DEFINED")
-  // ====================================================================
-const sendMessage = useCallback(async () => {
+  // Gemini Live Chat Handler
+  const sendMessage = useCallback(async () => {
     const cleanInput = chatInput.trim();
     if (!cleanInput) return;
 
@@ -168,9 +141,7 @@ const sendMessage = useCallback(async () => {
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: "POST",
-          headers: { 
-            "Content-Type": "application/json" 
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [
               {
@@ -193,7 +164,6 @@ const sendMessage = useCallback(async () => {
         updated[updated.length - 1] = { role: "assistant", text: aiText };
         return updated;
       });
-
     } catch (error) {
       console.error("Gemini API Error:", error);
       setChatMessages((prev) => {
@@ -311,16 +281,13 @@ const sendMessage = useCallback(async () => {
         setLoadingAiMetrics(true);
         const res = await fetch(`/api/metrics?user_id=${currentUserId}`);
         const json = await res.json();
-        if (json.success) {
-          setAiMetrics(json.data);
-        }
+        if (json.success) setAiMetrics(json.data);
       } catch (err) {
         console.error("AI Metrics error:", err);
       } finally {
         setLoadingAiMetrics(false);
       }
     }
-
     loadAiMetrics();
   }, [currentUserId, products, isDemoMode]);  
 
@@ -332,33 +299,23 @@ const sendMessage = useCallback(async () => {
 
   useEffect(() => {
     if (!selectedProduct) return;
-
     async function loadAffiliates() {
       try {
         const res = await fetch(`/api/affiliates?product_id=${selectedProduct.id}`);
         const json = await res.json();
-        if (json.success) {
-          setAffiliateData(json.data);
-        }
-      } catch (err) {
-        console.error("Affiliate load error:", err);
-      }
+        if (json.success) setAffiliateData(json.data);
+      } catch (err) { console.error("Affiliate load error:", err); }
     }
-
     loadAffiliates();
   }, [selectedProduct]);
 
   useEffect(() => {
     if (!currentUserId) return;
-
     async function loadDecisions() {
       const res = await fetch(`/api/ai/decision?user_id=${currentUserId}`);
       const json = await res.json();
-      if (json.success) {
-        setDecisions(json.data);
-      }
+      if (json.success) setDecisions(json.data);
     }
-
     loadDecisions();
   }, [currentUserId, products]);
 
@@ -466,18 +423,18 @@ const sendMessage = useCallback(async () => {
         {activeTab === "overview" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
-{/* 🧠 AI COO DECISION */}
-{decisions.length > 0 && (
-  <div 
-    onClick={handleGoAI} // Otomatis pindah tab ke Insight AI saat diklik
-    style={{ background: "#0f172a", color: "#fff", borderRadius: 12, padding: 16, cursor: "pointer", transition: "transform 0.2s", }}
-    onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.01)"}
-    onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
-  >
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <h3 style={{ fontWeight: 700, marginBottom: 8 }}>🧠 AI COO - Keputusan Hari Ini</h3>
-      <span style={{ fontSize: 11, background: "#1e293b", padding: "4px 8px", borderRadius: 6, color: "#38bdf8" }}>Buka Detail AI →</span>
-    </div>
+            {/* 🧠 AI COO DECISION */}
+            {decisions.length > 0 && (
+              <div 
+                onClick={handleGoAI}
+                style={{ background: "#0f172a", color: "#fff", borderRadius: 12, padding: 16, cursor: "pointer", transition: "transform 0.2s" }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.01)"}
+                onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ fontWeight: 700, marginBottom: 8 }}>🧠 AI COO - Keputusan Hari Ini</h3>
+                  <span style={{ fontSize: 11, background: "#1e293b", padding: "4px 8px", borderRadius: 6, color: "#38bdf8" }}>Buka Detail AI →</span>
+                </div>
 
                 {decisions.map((d, i) => (
                   <div key={i} style={{ marginTop: 10, borderBottom: i < decisions.length - 1 ? "1px solid #334155" : "none", paddingBottom: 10 }}>
@@ -487,12 +444,8 @@ const sendMessage = useCallback(async () => {
                       {d.type === "scale" && "🚀"}{" "}
                       <b>{d.product}</b>
                     </p>
-                    <p style={{ fontSize: 13, opacity: 0.8, margin: "4px 0" }}>
-                      {d.reason}
-                    </p>
-                    <p style={{ fontSize: 13, color: "#38bdf8", margin: "4px 0" }}>
-                      👉 {d.action}
-                    </p>
+                    <p style={{ fontSize: 13, opacity: 0.8, margin: "4px 0" }}>{d.reason}</p>
+                    <p style={{ fontSize: 13, color: "#38bdf8", margin: "4px 0" }}>👉 {d.action}</p>
                   </div>
                 ))}
               </div>
@@ -501,29 +454,25 @@ const sendMessage = useCallback(async () => {
             {/* 🔥 AI METRICS */}
             {aiMetrics && (
               <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-                  🔥 Insight Bisnis Hari Ini
-                </h3>
-
-<p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>
-  💰 <b>Profit Hari Ini:</b> Rp {aiMetrics.total_profit ? aiMetrics.total_profit.toLocaleString("id-ID") : "0"}
-</p>
-<p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>
-  📈 <b>Omzet Hari Ini:</b> Rp {aiMetrics.total_revenue ? aiMetrics.total_revenue.toLocaleString("id-ID") : "0"}
-</p>
+                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🔥 Insight Bisnis Hari Ini</h3>
+                <p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>
+                  💰 <b>Profit Hari Ini:</b> Rp {aiMetrics.total_profit ? aiMetrics.total_profit.toLocaleString("id-ID") : "0"}
+                </p>
+                <p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>
+                  📈 <b>Omzet Hari Ini:</b> Rp {aiMetrics.total_revenue ? aiMetrics.total_revenue.toLocaleString("id-ID") : "0"}
+                </p>
                 <p style={{ margin: "4px 0" }}>📊 Margin: {(aiMetrics.avg_margin * 100).toFixed(1)}%</p>
 
                 {aiMetrics.insights_flags?.has_loss && (
                   <p style={{ color: "#dc2626", fontWeight: 600, margin: "8px 0 4px 0" }}>❌ Ada produk merugi</p>
                 )}
-
                 {aiMetrics.insights_flags?.has_dead_stock && (
                   <p style={{ color: "#ea580c", fontWeight: 600, margin: "4px 0" }}>📦 Ada dead stock</p>
                 )}
               </div>
             )}
 
-            {/* 📊 DASHBOARD EXECUTIVE WITH INTER-PANEL HANDLERS CONNECTED */}
+            {/* 📊 EXECUTIVE DASHBOARD */}
             <ExecutiveDashboard 
               products={products} 
               expenses={expenses} 
@@ -544,35 +493,28 @@ const sendMessage = useCallback(async () => {
               onGoProducts={handleGoProducts}
               onGoAI={handleGoAI}
               onGoBilling={handleGoBilling}
-              onLangClick={() => alert("Fitur Multi-Bahasa (Inggris, Mandarin, Melayu) sedang dipersiapkan untuk sinkronisasi pasar Cross-Border Tokopedia-TikTok International!")}
+              onLangClick={() => alert("Fitur Multi-Bahasa sedang dipersiapkan untuk sinkronisasi pasar Cross-Border!")}
             />
-           
+             
             {/* 🤝 AFFILIATE ANALYSIS */}
             {affiliateData && selectedProduct && (
               <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
                 <h3 style={{ marginBottom: 12 }}>🤝 Affiliate - {selectedProduct.name}</h3>
-
                 {affiliateData.affiliates?.map((a: any) => (
                   <div key={a.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, margin: "4px 0" }}>
                     <span>{a.name}</span>
                     <span>{a.score?.toFixed(1)}</span>
                   </div>
                 ))}
-
-                <p style={{ margin: "8px 0 4px 0" }}>
-                  🔥 Top: {affiliateData.insights?.top_affiliate?.name || "-"}
-                </p>
-                <p style={{ margin: "4px 0" }}>
-                  ❌ Worst: {affiliateData.insights?.worst_affiliate?.name || "-"}
-                </p>
-
+                <p style={{ margin: "8px 0 4px 0" }}>🔥 Top: {affiliateData.insights?.top_affiliate?.name || "-"}</p>
+                <p style={{ margin: "4px 0" }}>❌ Worst: {affiliateData.insights?.worst_affiliate?.name || "-"}</p>
                 {affiliateData.recommendations?.map((r: string, i: number) => (
                   <p key={i} style={{ color: "#2563eb", margin: "4px 0" }}>{r}</p>
                 ))}
               </div>
             )}
 
-            {/* 🤖 AI CHAT PANEL (PRO UPGRADE: SMART BUSINESS ADVISOR) */}
+            {/* 🤖 AI CHAT PANEL */}
             <div style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -585,15 +527,10 @@ const sendMessage = useCallback(async () => {
                     </span>
                   </div>
                 </div>
-                <span style={{ fontSize: 11, background: "#f0fdf4", padding: "4px 10px", borderRadius: 20, color: "#16a34a", fontWeight: 700 }}>
-                  Mode: Analisis Gemini
-                </span>
+                <span style={{ fontSize: 11, background: "#f0fdf4", padding: "4px 10px", borderRadius: 20, color: "#16a34a", fontWeight: 700 }}>Mode: Analisis Gemini</span>
               </div>
 
-              {/* JENDELA RIWAYAT CHAT */}
               <div style={{ maxHeight: 300, minHeight: 200, overflowY: "auto", border: "1px solid #e2e8f0", padding: 16, borderRadius: 12, background: "#fafafa", marginBottom: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-                
-                {/* PESAN SAMBUTAN AWAL */}
                 <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <div style={{ width: 28, height: 28, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: "bold" }}>AI</div>
                   <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "10px 14px", borderRadius: "0px 12px 12px 12px", fontSize: 13, color: "#334155", maxWidth: "80%", lineHeight: "1.4" }}>
@@ -603,25 +540,12 @@ const sendMessage = useCallback(async () => {
                   </div>
                 </div>
 
-                {/* LOOPING OBROLAN DINAMIS */}
                 {chatMessages.map((m, i) => {
                   const isUser = m.role === "user";
                   return (
                     <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", justifyContent: isUser ? "flex-end" : "flex-start" }}>
-                      {!isUser && (
-                        <div style={{ width: 28, height: 28, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: "bold" }}>AI</div>
-                      )}
-                      <div style={{ 
-                        background: isUser ? "#00b14f" : "#ffffff", 
-                        color: isUser ? "#ffffff" : "#334155", 
-                        border: isUser ? "none" : "1px solid #e2e8f0", 
-                        padding: "10px 14px", 
-                        borderRadius: isUser ? "12px 0px 12px 12px" : "0px 12px 12px 12px", 
-                        fontSize: 13, 
-                        maxWidth: "80%",
-                        lineHeight: "1.4",
-                        whiteSpace: "pre-line"
-                      }}>
+                      {!isUser && <div style={{ width: 28, height: 28, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: "bold" }}>AI</div>}
+                      <div style={{ background: isUser ? "#00b14f" : "#ffffff", color: isUser ? "#ffffff" : "#334155", border: isUser ? "none" : "1px solid #e2e8f0", padding: "10px 14px", borderRadius: isUser ? "12px 0px 12px 12px" : "0px 12px 12px 12px", fontSize: 13, maxWidth: "80%", lineHeight: "1.4", whiteSpace: "pre-line" }}>
                         {m.text}
                       </div>
                     </div>
@@ -629,58 +553,26 @@ const sendMessage = useCallback(async () => {
                 })}
               </div>
 
-              {/* TOMBOL PANDUAN CEPAT SHORTCUT */}
               <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                <button 
-                  type="button"
-                  onClick={() => setChatInput("Produk mana yang memiliki keuntungan bersih paling tinggi?")}
-                  style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 11, color: "#475569", cursor: "pointer", fontWeight: 500 }}
-                >
-                  📊 Cek SKU Teruntung
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setChatInput("Apakah ada stok barang yang kritis dan mau habis?")}
-                  style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 11, color: "#475569", cursor: "pointer", fontWeight: 500 }}
-                >
-                  🚨 Analisis Risiko Stok
-                </button>
+                <button type="button" onClick={() => setChatInput("Produk mana yang memiliki keuntungan bersih paling tinggi?")} style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 11, color: "#475569", cursor: "pointer", fontWeight: 500 }}>📊 Cek SKU Teruntung</button>
+                <button type="button" onClick={() => setChatInput("Apakah ada stok barang yang kritis dan mau habis?")} style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 11, color: "#475569", cursor: "pointer", fontWeight: 500 }}>🚨 Analisis Risiko Stok</button>
               </div>
 
-              {/* KOLOM INPUT CHAT */}
               <div style={{ display: "flex", gap: 10 }}>
-                <input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
-                  placeholder="Tanyakan analisis profit, rekomendasi HPP, atau strategi harga..."
-                  style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 13, background: "#ffffff", outline: "none" }}
-                />
-                <button 
-                  onClick={sendMessage}
-                  style={{ padding: "12px 24px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-                >
-                  Kirim Obrolan
-                </button>
+                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }} placeholder="Tanyakan analisis profit, rekomendasi HPP, atau strategi harga..." style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 13, background: "#ffffff", outline: "none" }} />
+                <button onClick={sendMessage} style={{ padding: "12px 24px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Kirim Obrolan</button>
               </div>
             </div>
+
+          </div> // <-- PENUTUP CONTAINER KOTAK OVERVIEW (DIRESTORE)
+        )} // <-- PENUTUP KONDISI LOGIKA TAB OVERVIEW (DIRESTORE)
 
         {activeTab === "integrasi" && (
           <MarketplaceSyncPanel syncing={syncing} setSyncing={setSyncing} lastSync={lastSync} setLastSync={setLastSync} products={products} setProducts={setProducts} currentUserId={currentUserId} workspaceId={workspaceId} selectedStoreId={selectedStoreId} />
         )}
 
         {activeTab === "market-intel" && (
-          <MarketIntelligenceSuite 
-            marketData={
-              marketData && marketData.products 
-                ? marketData 
-                : Array.isArray(marketData) 
-                  ? { products: marketData } 
-                  : { products: [] }
-            } 
-            onSearch={handleDashboardScrape} 
-            loading={loading} 
-          />
+          <MarketIntelligenceSuite marketData={marketData && marketData.products ? marketData : Array.isArray(marketData) ? { products: marketData } : { products: [] }} onSearch={handleDashboardScrape} loading={loading} />
         )}
 
         {activeTab === "insight-ai" && (
@@ -693,32 +585,14 @@ const sendMessage = useCallback(async () => {
 
         {activeTab === "produk" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <ProductForm 
-              form={form} 
-              loading={loading} 
-              products={products || []} 
-              onChange={(nextForm) => setForm(nextForm)} 
-              onSubmit={async (e) => {
-                e.preventDefault();
-                alert("Simpan produk dijalankan.");
-              }} 
-              onFinish={async () => {
-                setActiveTab("overview");
-              }} 
-            />
+            <ProductForm form={form} loading={loading} products={products || []} onChange={(nextForm) => setForm(nextForm)} onSubmit={async (e) => { e.preventDefault(); alert("Simpan produk dijalankan."); }} onFinish={async () => { setActiveTab("overview"); }} />
             <ProductTable products={filteredProducts} onDelete={deleteProduct} />
           </div>
         )}
 
         {activeTab === "cashflow" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <ExpensePanel 
-              expenses={expenses} 
-              form={expenseForm} 
-              metrics={metrics as any} 
-              onChange={(nextExpense) => setExpenseForm(nextExpense)} 
-              onSubmit={async (e) => { e.preventDefault(); }} 
-            />
+            <ExpensePanel expenses={expenses} form={expenseForm} metrics={metrics as any} onChange={(nextExpense) => setExpenseForm(nextExpense)} onSubmit={async (e) => { e.preventDefault(); }} />
           </div>
         )}
       </main>
