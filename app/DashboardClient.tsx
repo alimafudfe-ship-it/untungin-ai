@@ -166,7 +166,7 @@ const sendMessage = useCallback(async () => {
 
     try {
       // 🔑 TEMPELKAN KODE KUNCI AIzaSy YANG BARU ANDA SALIN DI BAWAH INI
-      const GEMINI_API_KEY = "MASUKKAN_KODE_AIzaSy_ANDA_DI_SINI"; 
+      const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY; 
 
       // 3. Panggil API resmi Gemini menggunakan fetch bawaan browser
       const response = await fetch(
@@ -590,7 +590,7 @@ const sendMessage = useCallback(async () => {
               </div>
             )}
 
-{/* 🤖 AI CHAT PANEL (PRO UPGRADE: SMART BUSINESS ADVISOR) */}
+            {/* 🤖 AI CHAT PANEL (PRO UPGRADE: SMART BUSINESS ADVISOR) */}
             <div style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -608,10 +608,10 @@ const sendMessage = useCallback(async () => {
                 </span>
               </div>
 
-              {/* JENDELA RIWAYAT CHAT BALON */}
+              {/* JENDELA RIWAYAT CHAT */}
               <div style={{ maxHeight: 300, minHeight: 200, overflowY: "auto", border: "1px solid #e2e8f0", padding: 16, borderRadius: 12, background: "#fafafa", marginBottom: 16, display: "flex", flexDirection: "column", gap: 12 }}>
                 
-                {/* PESAN SAMBUTAN AWAL DEFAULT */}
+                {/* PESAN SAMBUTAN AWAL */}
                 <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <div style={{ width: 28, height: 28, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: "bold" }}>AI</div>
                   <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "10px 14px", borderRadius: "0px 12px 12px 12px", fontSize: 13, color: "#334155", maxWidth: "80%", lineHeight: "1.4" }}>
@@ -647,7 +647,7 @@ const sendMessage = useCallback(async () => {
                 })}
               </div>
 
-              {/* TOMBOL SHORTCUT PANDUAN CEPAT */}
+              {/* TOMBOL PANDUAN CEPAT SHORTCUT */}
               <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                 <button 
                   type="button"
