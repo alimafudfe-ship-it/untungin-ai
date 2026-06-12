@@ -157,18 +157,13 @@ const sendMessage = useCallback(async () => {
     const cleanInput = chatInput.trim();
     if (!cleanInput) return;
 
-    // 1. Masukkan chat user ke dalam balon chat secara instan
     setChatMessages((prev) => [...prev, { role: "user", text: cleanInput }]);
     setChatInput("");
-
-    // 2. Tambahkan efek status "⚡ Sedang Mengetik" agar pengguna tahu AI sedang bekerja
     setChatMessages((prev) => [...prev, { role: "assistant", text: "⚡ AI sedang menganalisis data tokomu..." }]);
 
     try {
-      // 🔑 TEMPELKAN KODE KUNCI AIzaSy YANG BARU ANDA SALIN DI BAWAH INI
-      const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY; 
+      const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
-      // 3. Panggil API resmi Gemini menggunakan fetch bawaan browser
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
@@ -181,31 +176,18 @@ const sendMessage = useCallback(async () => {
               {
                 parts: [
                   {
-                    text: `
-                      Anda adalah AI Business Advisor profesional untuk aplikasi SaaS Untungin.ai.
-                      Tugas Anda adalah membantu user (seller/pedagang online) menganalisis performa toko mereka.
-                      
-                      Berikut adalah data riil toko pengguna saat ini:
-                      - Jumlah Produk aktif: ${products.length} SKU
-                      - Ringkasan Profitabilitas: ${JSON.stringify(products.slice(0, 5).map(p => ({ nama: p.name, untung: p.profit, stok: p.stockRemaining })))}
-                      
-                      Jawablah pertanyaan user di bawah ini secara ringkas, solutif, menggunakan Bahasa Indonesia yang ramah, dan berikan saran bisnis yang tajam:
-                      "${cleanInput}"
-                    `
+                    text: `Anda adalah AI Business Advisor profesional untuk aplikasi SaaS Untungin.ai. Tugas Anda adalah membantu user menganalisis performa toko mereka.\n\nBerikut adalah data riil toko pengguna saat ini:\n- Jumlah Produk aktif: ${products.length} SKU\n- Ringkasan Profitabilitas: ${JSON.stringify(products.slice(0, 5).map(p => ({ nama: p.name, untung: p.profit, stok: p.stockRemaining })))}\n\nJawablah pertanyaan user di bawah ini secara ringkas, solutif, menggunakan Bahasa Indonesia yang ramah, dan berikan saran bisnis yang tajam:\n"${cleanInput}"`
                   }
                 ]
               }
             ]
-          }) // <-- JAWABAN: Kurung kurawal & penutup JSON.stringify harus pas di sini!
-        } // <-- Penutup objek konfigurasi fetch
-      ); // <-- Penutup fungsi fetch utama
+          })
+        }
+      );
 
       const json = await response.json();
-      
-      // Ambil teks jawaban asli dari struktur Google Gemini
       const aiText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, AI gagal memproses jawaban. Coba tanyakan lagi ya.";
 
-      // 4. Perbarui status mengetik tadi dengan jawaban asli dari Gemini
       setChatMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = { role: "assistant", text: aiText };
