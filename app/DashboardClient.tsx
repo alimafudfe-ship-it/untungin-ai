@@ -443,9 +443,6 @@ export default function DashboardPage() {
       <h3 style={{ fontWeight: 700, marginBottom: 8 }}>🧠 AI COO - Keputusan Hari Ini</h3>
       <span style={{ fontSize: 11, background: "#1e293b", padding: "4px 8px", borderRadius: 6, color: "#38bdf8" }}>Buka Detail AI →</span>
     </div>
-                <h3 style={{ fontWeight: 700, marginBottom: 8 }}>
-                  🧠 AI COO - Keputusan Hari Ini
-                </h3>
 
                 {decisions.map((d, i) => (
                   <div key={i} style={{ marginTop: 10, borderBottom: i < decisions.length - 1 ? "1px solid #334155" : "none", paddingBottom: 10 }}>
