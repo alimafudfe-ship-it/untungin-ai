@@ -153,21 +153,74 @@ export default function DashboardPage() {
   // ====================================================================
   // FUNGSI AI CHAT BUSINESS ADVISOR (PERBAIKAN ERROR "NOT DEFINED")
   // ====================================================================
-  const sendMessage = useCallback(() => {
+const sendMessage = useCallback(async () => {
     const cleanInput = chatInput.trim();
     if (!cleanInput) return;
 
+    // 1. Masukkan chat user ke dalam balon chat secara instan
     setChatMessages((prev) => [...prev, { role: "user", text: cleanInput }]);
     setChatInput("");
 
-    // Simulasi respons AI advisor
-    setTimeout(() => {
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "Terima kasih atas pertanyaannya. Tim AI Untungin sedang mengolah data finansial tokomu untuk memberikan rekomendasi operasional terbaik." }
-      ]);
-    }, 1000);
-  }, [chatInput]);
+    // 2. Tambahkan efek status "⚡ Sedang Mengetik" agar pengguna tahu AI sedang bekerja
+    setChatMessages((prev) => [...prev, { role: "assistant", text: "⚡ AI sedang menganalisis data tokomu..." }]);
+
+   try {
+      // 🔑 TEMPELKAN KODE KUNCI AIzaSy YANG BARU ANDA SALIN DI BAWAH INI
+      const GEMINI_API_KEY = "MASUKKAN_KODE_AIzaSy_ANDA_DI_SINI"; 
+
+      // 3. Panggil API resmi Gemini menggunakan fetch bawaan browser
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json" 
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `
+                      Anda adalah AI Business Advisor profesional untuk aplikasi SaaS Untungin.ai.
+                      Tugas Anda adalah membantu user (seller/pedagang online) menganalisis performa toko mereka.
+                      
+                      Berikut adalah data riil toko pengguna saat ini:
+                      - Jumlah Produk aktif: ${products.length} SKU
+                      - Ringkasan Profitabilitas: ${JSON.stringify(products.slice(0, 5).map(p => ({ nama: p.name, untung: p.profit, stok: p.stockRemaining })))}
+                      
+                      Jawablah pertanyaan user di bawah ini secara ringkas, solutif, menggunakan Bahasa Indonesia yang ramah, dan berikan saran bisnis yang tajam:
+                      "${cleanInput}"
+                    `
+                  }
+                ]
+              }
+            ]
+          }) // <-- TUTUP JSON.stringify DI SINI
+        } // <-- TUTUP OBJEK FETCH DI SINI
+      ); // <-- TUTUP FUNGSI FETCH DI SINI
+
+      const json = await response.json();
+      
+      // Ambil teks jawaban asli dari struktur Google Gemini
+      const aiText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, AI gagal memproses jawaban. Coba tanyakan lagi ya.";
+
+      // 4. Perbarui status mengetik tadi dengan jawaban asli dari Gemini
+      setChatMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: "assistant", text: aiText };
+        return updated;
+      });
+
+    } catch (error) {
+      console.error("Gemini API Error:", error);
+      setChatMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: "assistant", text: "Aduh, koneksi ke server AI terputus. Pastikan internet Anda aktif dan coba lagi." };
+        return updated;
+      });
+    }
+  }, [chatInput, products]);
   
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER !== "midtrans") return;
