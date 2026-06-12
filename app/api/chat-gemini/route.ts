@@ -45,16 +45,21 @@ export async function POST(req: Request) {
 }
 
 // 🧠 SKRIP ANALISIS PINTAR (Hanya jalan jika server Google sedang sibuk)
+// 🧠 SKRIP ANALISIS PINTAR (Perbaikan Urutan Data Riil Toko)
 function useSmartFallback(message: string, productsCount: number, productsSummary: string) {
   const parsedSummary = JSON.parse(productsSummary || "[]");
   const lowerMessage = message.toLowerCase();
   let responseText = `Halo! Berdasarkan analisis data pada ${productsCount} SKU aktif di tokomu:\n\n`;
   
   if (lowerMessage.includes("tinggi") || lowerMessage.includes("untung") || lowerMessage.includes("sku")) {
-    const topProduct = parsedSummary[0] || { nama: "Produk Unggulan", untung: 64500 };
-    responseText += `🏆 **Produk Teruntung:** SKU **${topProduct.nama}** saat ini memimpin dengan keuntungan bersih tertinggi sebesar **Rp ${topProduct.untung?.toLocaleString("id-ID")}** per unit!\n\nSaran Operasional: Naikkan alokasi iklan digital / exposure live untuk produk ini, karena margin keuntungannya sangat tebal dan potensial untuk di-scale up!`;
+    // 🔥 Cari produk dengan profit tertinggi secara otomatis dari array data
+    const topProduct = parsedSummary.reduce((prev: any, current: any) => (prev.untung > current.untung) ? prev : current, parsedSummary[0] || { nama: "Produk Unggulan", untung: 64500 });
+    
+    responseText += `🏆 **Produk Teruntung:** SKU **${topProduct.nama}** saat ini memimpin dengan keuntungan bersih tertinggi sebesar **Rp ${topProduct.untung?.toLocaleString("id-ID")}** per unit!\n\nSaran Operasional: Naikkan alokasi iklan digital / exposure live khusus untuk SKU ini, karena margin keuntungannya sangat tebal dan potensial untuk di-scale up secara maksimal!`;
   } else if (lowerMessage.includes("stok") || lowerMessage.includes("kritis") || lowerMessage.includes("habis")) {
-    const lowStock = parsedSummary.find((p: any) => p.stok <= 20) || { nama: "Bundle Seller Demo", stok: 17 };
+    // 🚨 Cari produk dengan sisa stok paling sedikit
+    const lowStock = parsedSummary.reduce((prev: any, current: any) => (prev.stok < current.stok) ? prev : current, parsedSummary[0] || { nama: "Produk", stok: 17 });
+    
     responseText += `🚨 **Risiko Stok Kritis:** Produk **${lowStock.nama}** memerlukan perhatian segera karena sisa stok di gudang tinggal **${lowStock.stok} unit** lagi.\n\nSaran Operasional: Segera order ulang ke supplier sebelum kehabisan stok di tengah tingginya permintaan pasar TikTok Shop!`;
   } else {
     responseText += `Toko Untungin.ai Anda berjalan dengan rata-rata margin yang sangat sehat (di atas 30%). Apakah ada strategi HPP atau pengelolaan cashflow kas lain yang ingin Anda bedah?`;
