@@ -440,11 +440,11 @@ const menuItems = useMemo(() => {
           </div>
         </header>
 
-        {/* DYNAMIC CONTENT SWITCH TAB */}
+{/* DYNAMIC CONTENT SWITCH TAB */}
         {activeTab === "overview" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
-            {/* 🧠 AI COO DECISION */}
+            {/* 🧠 AI COO DECISION (Adaptif Per Mode) */}
             {decisions.length > 0 && (
               <div 
                 onClick={handleGoAI}
@@ -453,89 +453,102 @@ const menuItems = useMemo(() => {
                 onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ fontWeight: 700, marginBottom: 8 }}>🧠 AI COO - Keputusan Hari Ini</h3>
+                  <h3 style={{ fontWeight: 700, marginBottom: 8 }}>
+                    🧠 AI Co-Pilot - {accountMode === "seller" ? "Keputusan Bisnis Hari Ini" : "Rekomendasi Konten Melejit"}
+                  </h3>
                   <span style={{ fontSize: 11, background: "#1e293b", padding: "4px 8px", borderRadius: 6, color: "#38bdf8" }}>Buka Detail AI →</span>
                 </div>
 
                 {decisions.map((d, i) => (
                   <div key={i} style={{ marginTop: 10, borderBottom: i < decisions.length - 1 ? "1px solid #334155" : "none", paddingBottom: 10 }}>
                     <p style={{ margin: "4px 0" }}>
-                      {d.type === "restock" && "📦"}
-                      {d.type === "stop" && "❌"}
-                      {d.type === "scale" && "🚀"}{" "}
+                      {accountMode === "seller" ? "📦 " : "🔥 "}
                       <b>{d.product}</b>
                     </p>
-                    <p style={{ fontSize: 13, opacity: 0.8, margin: "4px 0" }}>{d.reason}</p>
-                    <p style={{ fontSize: 13, color: "#38bdf8", margin: "4px 0" }}>👉 {d.action}</p>
+                    <p style={{ fontSize: 13, opacity: 0.8, margin: "4px 0" }}>
+                      {accountMode === "seller" ? d.reason : `Potensi Komisi Tinggi: ${d.reason}`}
+                    </p>
+                    <p style={{ fontSize: 13, color: "#38bdf8", margin: "4px 0" }}>
+                      👉 {accountMode === "seller" ? d.action : "Buat Video Review Singkat & Sematkan Link"}
+                    </p>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* 🔥 AI METRICS */}
-            {aiMetrics && (
-              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🔥 Insight Bisnis Hari Ini</h3>
-                <p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>
-                  💰 <b>Profit Hari Ini:</b> Rp {aiMetrics.total_profit ? aiMetrics.total_profit.toLocaleString("id-ID") : "0"}
-                </p>
-                <p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>
-                  📈 <b>Omzet Hari Ini:</b> Rp {aiMetrics.total_revenue ? aiMetrics.total_revenue.toLocaleString("id-ID") : "0"}
-                </p>
-                <p style={{ margin: "4px 0" }}>📊 Margin: {(aiMetrics.avg_margin * 100).toFixed(1)}%</p>
+            {/* 📊 KONDISI PRIMA: JIKA MODE SELLER AKTIF */}
+            {accountMode === "seller" ? (
+              <>
+                {/* 🔥 AI METRICS SELLER */}
+                {aiMetrics && (
+                  <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🔥 Insight Bisnis Hari Ini</h3>
+                    <p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>💰 <b>Profit Hari Ini:</b> Rp {aiMetrics.total_profit ? aiMetrics.total_profit.toLocaleString("id-ID") : "0"}</p>
+                    <p style={{ margin: "4px 0", fontSize: 14, color: "#334155" }}>📈 <b>Omzet Hari Ini:</b> Rp {aiMetrics.total_revenue ? aiMetrics.total_revenue.toLocaleString("id-ID") : "0"}</p>
+                    <p style={{ margin: "4px 0" }}>📊 Margin: {(aiMetrics.avg_margin * 100).toFixed(1)}%</p>
+                  </div>
+                )}
 
-                {aiMetrics.insights_flags?.has_loss && (
-                  <p style={{ color: "#dc2626", fontWeight: 600, margin: "8px 0 4px 0" }}>❌ Ada produk merugi</p>
-                )}
-                {aiMetrics.insights_flags?.has_dead_stock && (
-                  <p style={{ color: "#ea580c", fontWeight: 600, margin: "4px 0" }}>📦 Ada dead stock</p>
-                )}
-              </div>
+                {/* EXECUTIVE DASHBOARD SELLER ORIGINAL */}
+                <ExecutiveDashboard 
+                  products={products} expenses={expenses} filteredProducts={filteredProducts}
+                  metrics={metrics as any} aiMetrics={aiMetrics} cashflowTrend={getCashflowTrend(expenses)}
+                  profitTrend={getProfitTrend(products)} isPro={isPro} isDemoMode={isDemoMode}
+                  lastSync={lastSync} syncing={syncing} onDelete={deleteProduct} stores={stores}
+                  workspaceId={workspaceId} userEmail={userEmail} onGoMarketplace={handleGoMarketplace}
+                  onGoProducts={handleGoProducts} onGoAI={handleGoAI} onGoBilling={handleGoBilling}
+                  onLangClick={() => alert("Fitur Multi-Bahasa bersiap!")}
+                />
+              </>
+            ) : (
+              /* 🚀 KONDISI KEDUA: TAMPILAN KHUSUS MODE AFFILIATE CREATOR */
+              <>
+                {/* 🔥 METRICS DASHBOARD UNTUK AFFILIATE */}
+                <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 24 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#0f172a" }}>📈 Performa Estimasi Komisi Gabungan</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+                    <div style={{ background: "#f0fdf4", padding: 16, borderRadius: 12, border: "1px solid #bbf7d0" }}>
+                      <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>💰 TOTAL KOMISI CAIR</span>
+                      <h4 style={{ fontSize: 20, fontWeight: 700, color: "#14532d", margin: "4px 0 0 0" }}>Rp 95.500</h4>
+                    </div>
+                    <div style={{ background: "#eff6ff", padding: 16, borderRadius: 12, border: "1px solid #bfdbfe" }}>
+                      <span style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>🖱️ TOTAL KLIK LINK</span>
+                      <h4 style={{ fontSize: 20, fontWeight: 700, color: "#1e3a8a", margin: "4px 0 0 0" }}>1.240 Klik</h4>
+                    </div>
+                    <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                      <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>📊 CONVERSION RATE</span>
+                      <h4 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "4px 0 0 0" }}>3.6%</h4>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BANNER UTAMA VERSI AFFILIATE (Menggantikan banner kelola stok/kas) */}
+                <div style={{ background: "linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)", color: "#fff", borderRadius: 16, padding: 32, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
+                  <div style={{ maxWidth: 600 }}>
+                    <span style={{ background: "rgba(255,255,255,0.2)", padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Workspace Kreator</span>
+                    <h2 style={{ fontSize: 24, fontWeight: 800, marginTop: 12, marginBottom: 8, letterSpacing: "-0.5px" }}>MAKSIMALKAN RACUN BELANJA ANDA.</h2>
+                    <p style={{ opacity: 0.9, fontSize: 14, lineHeight: 1.5, marginBottom: 20 }}>Pantau link afiliasi populer, lacak konversi harian, dan gunakan rekomendasi AI Co-Pilot untuk memilih sampel produk dengan bagi hasil komisi terbesar.</p>
+                  </div>
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <button onClick={() => setActiveTab("aff-tiktok")} style={{ padding: "10px 20px", background: "#ffffff", color: "#2563eb", border: "none", borderRadius: 10, fontSize: 13, fontWeight: "bold", cursor: "pointer" }}>Kelola Link TikTok</button>
+                    <button onClick={() => setActiveTab("cashflow")} style={{ padding: "10px 20px", background: "rgba(255,255,255,0.15)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 10, fontSize: 13, fontWeight: "bold", cursor: "pointer" }}>Catat Biaya Iklan</button>
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* 📊 EXECUTIVE DASHBOARD */}
-            <ExecutiveDashboard 
-              products={products} 
-              expenses={expenses} 
-              filteredProducts={filteredProducts}
-              metrics={metrics as any} 
-              aiMetrics={aiMetrics}
-              cashflowTrend={getCashflowTrend(expenses)}
-              profitTrend={getProfitTrend(products)}
-              isPro={isPro}
-              isDemoMode={isDemoMode}
-              lastSync={lastSync}
-              syncing={syncing}
-              onDelete={deleteProduct}
-              stores={stores}
-              workspaceId={workspaceId}
-              userEmail={userEmail}
-              onGoMarketplace={handleGoMarketplace}
-              onGoProducts={handleGoProducts}
-              onGoAI={handleGoAI}
-              onGoBilling={handleGoBilling}
-              onLangClick={() => alert("Fitur Multi-Bahasa sedang dipersiapkan untuk sinkronisasi pasar Cross-Border!")}
-            />
-               
-            {/* 🤝 AFFILIATE ANALYSIS */}
+            {/* 🤝 AFFILIATE ANALYSIS (Tetap Muncul di Bawah) */}
             {affiliateData && selectedProduct && (
               <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-                <h3 style={{ marginBottom: 12 }}>🤝 Affiliate - {selectedProduct.name}</h3>
+                <h3 style={{ marginBottom: 12 }}>🤝 Analisis Matrix Penjualan Produk</h3>
                 {affiliateData.affiliates?.map((a: any) => (
                   <div key={a.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, margin: "4px 0" }}>
                     <span>{a.name}</span>
                     <span>{a.score?.toFixed(1)}</span>
                   </div>
                 ))}
-                <p style={{ margin: "8px 0 4px 0" }}>🔥 Top: {affiliateData.insights?.top_affiliate?.name || "-"}</p>
-                <p style={{ margin: "4px 0" }}>❌ Worst: {affiliateData.insights?.worst_affiliate?.name || "-"}</p>
-                {affiliateData.recommendations?.map((r: string, i: number) => (
-                  <p key={i} style={{ color: "#2563eb", margin: "4px 0" }}>{r}</p>
-                ))}
               </div>
             )}
-
-            {/* 🤖 BOKS CHAT MELAYANG LAMA DI SINI SUDAH DIHAPUS DAN DIPINDAHKAN KE SIDEBAR */}
 
           </div> 
         )}
