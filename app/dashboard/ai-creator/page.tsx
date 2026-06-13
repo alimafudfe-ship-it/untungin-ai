@@ -29,21 +29,35 @@ export default function AICreatorPage() {
   const [audioUrl, setAudioUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleGenerateScript = async () => {
+const handleGenerateScript = async () => {
     if (!productName) return alert("Masukkan nama produk terlebih dahulu!");
     setLoading(true);
     setScript("");
     setAudioUrl("");
 
     try {
-      // 1. Ambil API Key Gemini langsung dari Client Environment
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      // Panggil rute baru yang bersih di sisi server backend
+      const res = await fetch("/api/creatorscript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productName, niche }),
+      });
       
-      if (!apiKey) {
-        alert("Eror: Variabel NEXT_PUBLIC_GEMINI_API_KEY belum terdeteksi oleh browser Vercel!");
-        setLoading(false);
-        return;
+      const result = await res.json();
+      
+      if (res.ok && result.success) {
+        setScript(result.text);
+        if (result.audioUrl) setAudioUrl(result.audioUrl);
+      } else {
+        alert("Gagal generate skrip: " + (result.error || "Terjadi kesalahan server internal."));
       }
+    } catch (err: any) {
+      console.error(err);
+      alert("Terjadi kesalahan koneksi server.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
       const prompt = `
         Anda adalah seorang kreator konten TikTok dan spesialis Copywriter Afiliasi E-commerce papan atas di Indonesia.
