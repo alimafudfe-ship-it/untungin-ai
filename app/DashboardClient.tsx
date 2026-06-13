@@ -613,7 +613,12 @@ const menuItems = useMemo(() => {
         )}
 
         {activeTab === "laporan" && (
-          <ReportsPanel products={products} expenses={expenses} metrics={metrics as any} />
+          <ReportsPanel 
+            products={products} 
+            expenses={expenses} 
+            metrics={metrics as any} 
+            accountMode={accountMode} // 👈 🌟 TAMBAHKAN BARIS INI
+          />
         )}
 
         {activeTab === "produk" && (
