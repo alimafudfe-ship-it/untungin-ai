@@ -650,15 +650,59 @@ const menuItems = useMemo(() => {
           </div>
         )}
 
-        {activeTab === "aff-generic" && (
-          <div style={{ ...cardStyle, background: "#ffffff", padding: 32, borderRadius: 16, border: "1px solid #e2e8f0" }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>🔗 Multi-Platform Affiliate Matrix</h2>
-            <p style={{ color: "#64748b", fontSize: 14 }}>Pencatatan data komisi dari Tokopedia Affiliate, Lazada, Blibli, maupun tautan mandiri lainnya.</p>
-            <div style={{ marginTop: 24, padding: 40, border: "2px dashed #e2e8f0", borderRadius: 12, textAlign: "center", color: "#94a3b8" }}>
-              [ Modul Input Manual / CSV Ekspor Komisi Multi-Channel ]
+{activeTab === "aff-generic" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {/* Header Tab */}
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", display: "flex", alignItems: "center", gap: 10 }}>
+                🔗 Multi-Platform Affiliate Matrix
+              </h2>
+              <p style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}>
+                Pantau dan hubungkan integrasi API e-commerce Anda di bawah ini.
+              </p>
+            </div>
+
+            {/* Grid Platform */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+              
+              {/* 1. KARTU TIKTOK SHOP & TOKOPEDIA */}
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h4 style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>TikTok Shop / Tokopedia</h4>
+                  <span style={{ fontSize: 12, background: "#fef3c7", color: "#d97706", padding: "4px 8px", borderRadius: 6, fontWeight: 500 }}>
+                    ⏳ Menunggu Review
+                  </span>
+                </div>
+                <p style={{ fontSize: 13, color: "#64748b", margin: "12px 0 20px 0", lineHeight: "1.5" }}>
+                  Integrasi satu pintu pasca-merger. App Key dan App Secret sudah terhubung ke server Vercel.
+                </p>
+                <button style={{ width: "100%", background: "#f1f5f9", color: "#64748b", border: "none", padding: "10px", borderRadius: 8, fontWeight: 500, cursor: "not-allowed" }} disabled>
+                  Menunggu Verifikasi TikTok...
+                </button>
+              </div>
+
+              {/* 2. KARTU LAZADA */}
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h4 style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Lazada Open Platform</h4>
+                  <span style={{ fontSize: 12, background: "#f1f5f9", color: "#64748b", padding: "4px 8px", borderRadius: 6, fontWeight: 500 }}>
+                    📭 Belum Terhubung
+                  </span>
+                </div>
+                <p style={{ fontSize: 13, color: "#64748b", margin: "12px 0 20px 0", lineHeight: "1.5" }}>
+                  Hubungkan aplikasi Anda menggunakan badan hukum CV Pustakalima untuk melacak performa komisi Lazada.
+                </p>
+                <button 
+                  onClick={() => window.open("https://open.lazada.com", "_blank")}
+                  style={{ width: "100%", background: "#0055ff", color: "#fff", border: "none", padding: "10px", borderRadius: 8, fontWeight: 500, cursor: "pointer" }}
+                >
+                  Lanjutkan Pendaftaran
+                </button>
+              </div>
+
             </div>
           </div>
-        )}       
+        )}
       </main>
     </div>
   );
