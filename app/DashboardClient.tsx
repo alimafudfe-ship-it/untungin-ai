@@ -444,8 +444,8 @@ const menuItems = useMemo(() => {
         {activeTab === "overview" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
-            {/* 🧠 AI COO DECISION (Adaptif Per Mode) */}
-            {decisions.length > 0 && (
+            {/* 🧠 DIUPDATE: KOTAK HITAM AI CO-PILOT HANYA MUNCUL DI MODE SELLER */}
+            {accountMode === "seller" && decisions.length > 0 && (
               <div 
                 onClick={handleGoAI}
                 style={{ background: "#0f172a", color: "#fff", borderRadius: 12, padding: 16, cursor: "pointer", transition: "transform 0.2s" }}
@@ -454,29 +454,23 @@ const menuItems = useMemo(() => {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h3 style={{ fontWeight: 700, marginBottom: 8 }}>
-                    🧠 AI Co-Pilot - {accountMode === "seller" ? "Keputusan Bisnis Hari Ini" : "Rekomendasi Konten Melejit"}
+                    🧠 AI Co-Pilot - Keputusan Bisnis Hari Ini
                   </h3>
                   <span style={{ fontSize: 11, background: "#1e293b", padding: "4px 8px", borderRadius: 6, color: "#38bdf8" }}>Buka Detail AI →</span>
                 </div>
 
                 {decisions.map((d, i) => (
                   <div key={i} style={{ marginTop: 10, borderBottom: i < decisions.length - 1 ? "1px solid #334155" : "none", paddingBottom: 10 }}>
-                    <p style={{ margin: "4px 0" }}>
-                      {accountMode === "seller" ? "📦 " : "🔥 "}
-                      <b>{d.product}</b>
-                    </p>
-                    <p style={{ fontSize: 13, opacity: 0.8, margin: "4px 0" }}>
-                      {accountMode === "seller" ? d.reason : `Potensi Komisi Tinggi: ${d.reason}`}
-                    </p>
-                    <p style={{ fontSize: 13, color: "#38bdf8", margin: "4px 0" }}>
-                      👉 {accountMode === "seller" ? d.action : "Buat Video Review Singkat & Sematkan Link"}
-                    </p>
+                    <p style={{ margin: "4px 0" }}>📦 <b>{d.product}</b></p>
+                    <p style={{ fontSize: 13, opacity: 0.8, margin: "4px 0" }}>{d.reason}</p>
+                    <p style={{ fontSize: 13, color: "#38bdf8", margin: "4px 0" }}>👉 {d.action}</p>
                   </div>
                 ))}
               </div>
             )}
 
             {/* 📊 KONDISI PRIMA: JIKA MODE SELLER AKTIF */}
+                {/* Isi dashboard seller tetap aman di bawah sini... */}
             {accountMode === "seller" ? (
               <>
                 {/* 🔥 AI METRICS SELLER */}
