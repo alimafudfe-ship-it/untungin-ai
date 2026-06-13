@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-// 🎨 GAYA DESAIN LOKAL (PENGGANTI IMPORT YANG EROR)
+// 🎨 GAYA DESAIN LOKAL
 const cardStyle = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
@@ -36,24 +36,62 @@ export default function AICreatorPage() {
     setAudioUrl("");
 
     try {
-      const res = await fetch("/api/ai-generator", {
+      // 1. Ambil API Key Gemini langsung dari Client Environment
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        alert("Eror: Variabel NEXT_PUBLIC_GEMINI_API_KEY belum terdeteksi oleh browser Vercel!");
+        setLoading(false);
+        return;
+      }
+
+      const prompt = `
+        Anda adalah seorang kreator konten TikTok dan spesialis Copywriter Afiliasi E-commerce papan atas di Indonesia.
+        Buatkan naskah video komersial berdurasi 30-45 detik yang sangat persuasif untuk menjual produk ini: "${productName}".
+        Gaya penyampaian video wajib menggunakan tipe: "${niche}".
+        
+        Format struktur output wajib memiliki pembagian yang jelas seperti ini:
+        [HOOK - Detik 0-5] (Bagian pembuka yang bikin mata penonton stop scroll)
+        [PROBLEM/STORY] (Masalah nyata atau cerita yang dialami sehari-hari)
+        [SOLUTION & BENEFIT] (Keunggulan mutlak produk ini dibanding yang lain)
+        [CALL TO ACTION] (Ajakan mendesak untuk klik keranjang kuning sekarang juga sebelum kehabisan diskon)
+
+        Gunakan bahasa Indonesia kasual, gaul, interaktif, dan hindari kata-kata kaku. Tuliskan teks narasinya saja tanpa tambahan instruksi kamera.
+      `;
+
+      // 2. 🔥 BYPASS TOTAL BACKEND: Langsung tembak Google AI Studio dengan rute REST v1 stable
+      const googleUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+      const res = await fetch(googleUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productName, niche }),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
       });
+
       const result = await res.json();
       
-      if (result.success) {
-        setScript(result.text);
-        if (result.audioUrl) setAudioUrl(result.audioUrl);
-      } else {
-        alert("Gagal generate skrip: " + result.error);
+      if (!res.ok) {
+        throw new Error(result?.error?.message || "Ditolak oleh Server Google.");
       }
-    } catch (err) {
+
+      // 3. Ekstrak data teks dari struktur respons resmi Google AI Studio
+      const textOutput = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (textOutput) {
+        setScript(textOutput);
+        // Simulasi audio tetap aman
+        setAudioUrl("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+      } else {
+        alert("Gagal memuat struktur teks dari respons Google.");
+      }
+
+    } catch (err: any) {
       console.error(err);
-      alert("Terjadi kesalahan koneksi server.");
+      alert("Gagal generate skrip: " + err.message);
     } finally {
-      setLoading(false);
+      loading && setLoading(false);
     }
   };
 
@@ -90,15 +128,17 @@ export default function AICreatorPage() {
 
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "#475569" }}>Gaya Penyampaian Video</label>
-            <select 
-              value={niche} 
-              onChange={(e) => setNiche(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", boxSizing: "border-box" }}
-            >
-              <option value="Unboxing / Review">📦 Unboxing / Review Jujur</option>
-              <option value="Soft Selling / Storytelling">📖 Cerita / Keluh Kesah (Soft Sell)</option>
-              <option value="Hard Selling / Promo">🔥 Bombastis / Diskon Kilat (Hard Sell)</option>
-            </select>
+            <section style={{ display: "block" }}>
+              <select 
+                value={niche} 
+                onChange={(e) => setNiche(e.target.value)}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", boxSizing: "border-box" }}
+              >
+                <option value="Unboxing / Review">📦 Unboxing / Review Jujur</option>
+                <option value="Soft Selling / Storytelling">📖 Cerita / Keluh Kesah (Soft Sell)</option>
+                <option value="Hard Selling / Promo">🔥 Bombastis / Diskon Kilat (Hard Sell)</option>
+              </select>
+            </section>
           </div>
 
           <button 
