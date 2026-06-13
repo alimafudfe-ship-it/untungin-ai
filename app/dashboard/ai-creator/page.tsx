@@ -1,7 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, cardStyle, ctaButtonStyle, ghostButtonStyle } from "../ui";
+
+// 🎨 GAYA DESAIN LOKAL (PENGGANTI IMPORT YANG EROR)
+const cardStyle = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: 16,
+  padding: 24,
+  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)"
+};
+
+const ctaButtonStyle = {
+  background: "#0f172a",
+  color: "#ffffff",
+  border: "none",
+  padding: "10px 16px",
+  borderRadius: 8,
+  fontWeight: 600,
+  cursor: "pointer",
+  transition: "background 0.2s"
+};
 
 export default function AICreatorPage() {
   const [productName, setProductName] = useState("");
@@ -17,7 +36,6 @@ export default function AICreatorPage() {
     setAudioUrl("");
 
     try {
-      // 1. Panggil API backend untuk generate skrip teks via Gemini
       const res = await fetch("/api/ai-generator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -27,7 +45,6 @@ export default function AICreatorPage() {
       
       if (result.success) {
         setScript(result.text);
-        // Jika file audio MP3 berhasil dibuat oleh sistem TTS, simpan URL-nya
         if (result.audioUrl) setAudioUrl(result.audioUrl);
       } else {
         alert("Gagal generate skrip: " + result.error);
@@ -43,9 +60,11 @@ export default function AICreatorPage() {
   return (
     <div style={{ display: "grid", gap: 20, padding: 4 }}>
       {/* Header */}
-      <section style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0" }}>
-        <Badge label="AI Co-Pilot Kreator" tone="success" />
-        <h2 style={{ margin: "10px 0 4px", fontWeight: 700 }}>Amunisi Video Konten Melejit</h2>
+      <section style={cardStyle}>
+        <span style={{ fontSize: 12, background: "#dcfce7", color: "#15803d", padding: "4px 8px", borderRadius: 6, fontWeight: 600 }}>
+          AI Co-Pilot Kreator
+        </span>
+        <h2 style={{ margin: "10px 0 4px", fontWeight: 700, color: "#0f172a" }}>Amunisi Video Konten Melejit</h2>
         <p style={{ color: "#64748b", margin: 0, fontSize: 14 }}>
           Ketik produk Anda, biarkan AI menyusun naskah video TikTok komersial sekaligus menghasilkan narasi suara otomatis.
         </p>
@@ -55,8 +74,8 @@ export default function AICreatorPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 20, alignItems: "start" }}>
         
         {/* Kolom Kiri: Input */}
-        <div style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0", display: "grid", gap: 16 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>🎯 Detail Produk</h3>
+        <div style={{ ...cardStyle, display: "grid", gap: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#0f172a" }}>🎯 Detail Produk</h3>
           
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "#475569" }}>Nama Produk Affiliate</label>
@@ -65,7 +84,7 @@ export default function AICreatorPage() {
               placeholder="Misal: Sandal Camou Premium Men Black"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14 }}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" }}
             />
           </div>
 
@@ -74,7 +93,7 @@ export default function AICreatorPage() {
             <select 
               value={niche} 
               onChange={(e) => setNiche(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff" }}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", boxSizing: "border-box" }}
             >
               <option value="Unboxing / Review">📦 Unboxing / Review Jujur</option>
               <option value="Soft Selling / Storytelling">📖 Cerita / Keluh Kesah (Soft Sell)</option>
@@ -92,8 +111,8 @@ export default function AICreatorPage() {
         </div>
 
         {/* Kolom Kanan: Hasil */}
-        <div style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0", display: "grid", gap: 16 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>📝 Naskah & Hasil Voice-Over</h3>
+        <div style={{ ...cardStyle, display: "grid", gap: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#0f172a" }}>📝 Naskah & Hasil Voice-Over</h3>
           
           {script ? (
             <>
