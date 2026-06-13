@@ -19,6 +19,7 @@ import { MarketIntelligenceSuite } from "@/components/dashboard/MarketIntelligen
 import { getCashflowTrend, getProfitTrend } from "@/lib/dashboard/analytics";
 import { parseNumber, getErrorMessage } from "@/lib/dashboard/format";
 import { listWorkspaceStores, getOrCreateDefaultWorkspace, type Store } from "@/lib/saas/workspace";
+import AICreatorPage from "@/components/dashboard/AICreatorPanel";
 
 declare global {
   interface Window {
@@ -638,6 +639,10 @@ const menuItems = useMemo(() => {
           </div>
         )}
 
+        {activeTab === "insight-ai" && (
+          <AICreatorPage />
+        )}
+
  {/* ✅ PLATFORM ROUTER CHANNELS FOR AFFILIATE */}
         {activeTab === "aff-tiktok" && (
           <div style={{ ...cardStyle, background: "#ffffff", padding: 32, borderRadius: 16, border: "1px solid #e2e8f0" }}>
@@ -659,7 +664,7 @@ const menuItems = useMemo(() => {
           </div>
         )}
 
-{activeTab === "aff-generic" && (
+        {activeTab === "aff-generic" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Header Tab */}
             <div>
