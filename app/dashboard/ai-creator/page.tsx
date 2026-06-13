@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, cardStyle, ctaButtonStyle, ghostButtonStyle } from "@/app/dashboard/ui";
+import { Badge, cardStyle, ctaButtonStyle, ghostButtonStyle } from "../ui";
 
 export default function AICreatorPage() {
   const [productName, setProductName] = useState("");
