@@ -556,9 +556,10 @@ const menuItems = useMemo(() => {
           <MarketIntelligenceSuite marketData={marketData && marketData.products ? marketData : Array.isArray(marketData) ? { products: marketData } : { products: [] }} onSearch={handleDashboardScrape} loading={loading} />
         )}
 
-        {/* 🧠 INTERFACE CHAT INTERAKTIF FULL-SCREEN BARU */}
+{/* 🧠 INTERFACE CHAT INTERAKTIF FULL-SCREEN & AI CREATOR WORKSPACE */}
         {activeTab === "insight-ai" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {/* 1. KOTAK OBROLAN AI ADVISOR */}
             <div style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 32, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, borderBottom: "1px solid #f1f5f9", paddingBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -580,7 +581,7 @@ const menuItems = useMemo(() => {
                   <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "14px 18px", borderRadius: "0px 16px 16px 16px", fontSize: 14, color: "#334155", maxWidth: "75%", lineHeight: "1.5" }}>
                     Halo Ali! Saya adalah **AI Advisor Co-Pilot** tokomu. Saya telah menganalisis performa dari **{products.length} SKU Produk** aktif di database.
                     <br/><br/>
-                    Ruang kerja ini sekarang lebih luas. Silakan tanyakan analisis profitabilitas mendalam, rekomendasi penyesuaian HPP, strategi bundling produk, atau riset pasar eksternal!
+                    Ruang kerja ini sekarang lebih luas. Silakan tanyakan analisis profitbaarheid mendalam, rekomendasi penyesuaian HPP, strategi bundling produk, atau riset pasar eksternal!
                   </div>
                 </div>
 
@@ -609,12 +610,12 @@ const menuItems = useMemo(() => {
               </div>
             </div>
 
+            {/* 2. 🌟 NEW: WORKSPACE ASISTEN SKRIP VIDEO & VOICE-OVER (Bebas Tabrakan) */}
+            <AICreatorPage />
+
+            {/* 3. REKOMENDASI PANEL BAWAAN */}
             <AIRecommendationPanel products={products} expenses={expenses} metrics={metrics as any} />
           </div>
-        )}
-
-        {activeTab === "insight-ai" && (
-          <AICreatorPage />
         )}
 
         {activeTab === "laporan" && (
@@ -639,9 +640,6 @@ const menuItems = useMemo(() => {
           </div>
         )}
 
-        {activeTab === "insight-ai" && (
-          <AICreatorPage />
-        )}
 
  {/* ✅ PLATFORM ROUTER CHANNELS FOR AFFILIATE */}
         {activeTab === "aff-tiktok" && (
