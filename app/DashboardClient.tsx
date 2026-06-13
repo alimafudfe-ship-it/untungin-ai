@@ -584,9 +584,11 @@ const menuItems = useMemo(() => {
                 <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                   <div style={{ width: 32, height: 32, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: "bold" }}>AI</div>
                   <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "14px 18px", borderRadius: "0px 16px 16px 16px", fontSize: 14, color: "#334155", maxWidth: "75%", lineHeight: "1.5" }}>
-                    Halo Ali! Saya adalah **AI Advisor Co-Pilot** tokomu. Saya telah menganalisis performa dari **{products.length} SKU Produk** aktif di database.
+                    Halo Ali! Saya adalah **AI Advisor Co-Pilot** {accountMode === "seller" ? "tokomu" : "kreatormu"}. Saya telah menganalisis performa dari database aktif di akunmu.
                     <br/><br/>
-                    Ruang kerja ini sekarang lebih luas. Silakan tanyakan analisis profitbaarheid mendalam, rekomendasi penyesuaian HPP, strategi bundling produk, atau riset pasar eksternal!
+                    {accountMode === "seller" 
+                      ? "Silakan tanyakan analisis profitabilitas mendalam, rekomendasi penyesuaian HPP, strategi bundling produk, atau riset pasar eksternal!"
+                      : "Silakan tanyakan strategi pengoptimalan konten affiliate, riset produk komisi tinggi, atau trik meningkatkan conversion rate!"}
                   </div>
                 </div>
 
@@ -603,10 +605,21 @@ const menuItems = useMemo(() => {
                 })}
               </div>
 
+              {/* 📊 DINAMIS: PILIHAN TOMBOL CEPAT BERUBAH SESUAI MODE AKUN */}
               <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-                <button type="button" onClick={() => setChatInput("Produk mana yang memiliki keuntungan bersih paling tinggi?")} style={{ padding: "8px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600 }}>📊 Cek SKU Teruntung</button>
-                <button type="button" onClick={() => setChatInput("Apakah ada stok barang yang kritis dan mau habis?")} style={{ padding: "8px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600 }}>🚨 Analisis Risiko Stok</button>
-                <button type="button" onClick={() => setChatInput("produk cetak kertas yang trennya stabil apa?")} style={{ padding: "8px 16px", background: "#e0f2fe", border: "1px solid #bae6fd", borderRadius: 20, fontSize: 12, color: "#0369a1", cursor: "pointer", fontWeight: 600 }}>📦 Tren Bisnis Percetakan</button>
+                {accountMode === "seller" ? (
+                  <>
+                    <button type="button" onClick={() => setChatInput("Produk mana yang memiliki keuntungan bersih paling tinggi?")} style={{ padding: "8px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600 }}>📊 Cek SKU Teruntung</button>
+                    <button type="button" onClick={() => setChatInput("Apakah ada stok barang yang kritis dan mau habis?")} style={{ padding: "8px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600 }}>🚨 Analisis Risiko Stok</button>
+                    <button type="button" onClick={() => setChatInput("Bagaimana strategi menaikkan margin omzet toko saya bulan ini?")} style={{ padding: "8px 16px", background: "#e0f2fe", border: "1px solid #bae6fd", borderRadius: 20, fontSize: 12, color: "#0369a1", cursor: "pointer", fontWeight: 600 }}>📈 Strategi Margin Toko</button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => setChatInput("Toko mana yang sedang memberikan komisi affiliate paling besar?")} style={{ padding: "8px 16px", background: "#fdf2f8", border: "1px solid #fbcfe8", borderRadius: 20, fontSize: 12, color: "#9d174d", cursor: "pointer", fontWeight: 600 }}>🔥 Cari Komisi Terbesar</button>
+                    <button type="button" onClick={() => setChatInput("Bagaimana cara mengoptimalkan tautan keranjang kuning agar kliknya tinggi?")} style={{ padding: "8px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600 }}>🎯 Optimasi Klik Tautan</button>
+                    <button type="button" onClick={() => setChatInput("Buatkan ide konten video TikTok unboxing yang cepat viral")} style={{ padding: "8px 16px", background: "#e0f2fe", border: "1px solid #bae6fd", borderRadius: 20, fontSize: 12, color: "#0369a1", cursor: "pointer", fontWeight: 600 }}>📦 Ide Video Viral</button>
+                  </>
+                )}
               </div>
 
               <div style={{ display: "flex", gap: 12 }}>
@@ -615,11 +628,13 @@ const menuItems = useMemo(() => {
               </div>
             </div>
 
-            {/* 2. 🌟 NEW: WORKSPACE ASISTEN SKRIP VIDEO & VOICE-OVER (Bebas Tabrakan) */}
+            {/* 2. NEW: WORKSPACE ASISTEN SKRIP VIDEO & VOICE-OVER */}
             <AICreatorPage />
 
-            {/* 3. REKOMENDASI PANEL BAWAAN */}
-            <AIRecommendationPanel products={products} expenses={expenses} metrics={metrics as any} />
+            {/* 3. 🛡️ REKOMENDASI PANEL BAWAAN (KHUSUS MODE SELLER) */}
+            {accountMode === "seller" && (
+              <AIRecommendationPanel products={products} expenses={expenses} metrics={metrics as any} />
+            )}
           </div>
         )}
 
