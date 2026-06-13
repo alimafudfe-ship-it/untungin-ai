@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ success: false, error: "API Key tidak terbaca oleh server Vercel!" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "API Key tidak ditemukan di environment variable Vercel!" }, { status: 500 });
     }
 
     const prompt = `
@@ -27,12 +27,16 @@ export async function POST(req: Request) {
       Gunakan bahasa Indonesia kasual, gaul, interaktif, dan hindari kata-kata kaku. Tuliskan teks narasinya saja tanpa tambahan instruksi kamera.
     `;
 
-    // 🚀 BYPASS SDK: Langsung tembak URL endpoint REST resmi dengan nempel berekor API Key
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // 🚀 PERBAIKAN ENDPOINT: Gunakan v1 stable dan model gemini-2.5-flash
+    const url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent";
 
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        // 🔥 KUNCI UTAMA: Masukkan API Key di Header untuk memotong deteksi eror OAuth2
+        "x-goog-api-key": apiKey 
+      },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }]
       })
