@@ -612,6 +612,10 @@ const menuItems = useMemo(() => {
           </div>
         )}
 
+        {activeTab === "insight-ai" && (
+          <AICreatorPage />
+        )}
+
         {activeTab === "laporan" && (
           <ReportsPanel 
             products={products} 
