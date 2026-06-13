@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
-// Pastikan NEXT_PUBLIC_GEMINI_API_KEY sudah terdaftar di Vercel/Env lokal Anda
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
+// 🛠️ PERBAIKAN: Gunakan konfigurasi objek yang lebih eksplisit untuk API Key standard
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "" 
+});
 
 export async function POST(req: Request) {
+  // Sisa kode di bawahnya tetap sama...
   try {
     const { productName, niche } = await req.json();
 
