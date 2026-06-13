@@ -12,7 +12,6 @@ import { AppShell } from "@/components/dashboard/AppShell";
 import { cardStyle } from "@/components/dashboard/ui";
 import { ExpensePanel, ExpenseFormState, ProductForm, ProductFormState } from "@/components/dashboard/Forms";
 import { ProductTable } from "@/components/dashboard/ProductTable";
-// ✅ Named Export Components
 import { AIRecommendationPanel, MarketplaceSyncPanel } from "@/components/dashboard/AdvancedPanels";
 import { ReportsPanel } from "@/components/dashboard/ReportsPanel";
 import { ExecutiveDashboard } from "@/components/dashboard/ExecutiveDashboard";
@@ -125,8 +124,8 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Gemini Live Chat Handler
-const sendMessage = useCallback(async () => {
+  // Gemini Live Chat Handler (Ditenagai oleh Groq Llama 3.3)
+  const sendMessage = useCallback(async () => {
     const cleanInput = chatInput.trim();
     if (!cleanInput) return;
 
@@ -135,7 +134,6 @@ const sendMessage = useCallback(async () => {
     setChatMessages((prev) => [...prev, { role: "assistant", text: "⚡ AI sedang menganalisis data tokomu..." }]);
 
     try {
-      // Panggil API Route internal buatan kita di server, bukan langsung ke Google
       const response = await fetch("/api/chat-gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,9 +144,7 @@ const sendMessage = useCallback(async () => {
         })
       });
 
-     const json = await response.json();
-      
-      // Ambil teks yang sudah diolah dengan aman oleh server backend kita
+      const json = await response.json();
       const aiText = json?.text || "Maaf, AI gagal memproses jawaban. Coba tanyakan lagi ya.";
 
       setChatMessages((prev) => {
@@ -328,11 +324,12 @@ const sendMessage = useCallback(async () => {
     setProducts((prev) => prev.filter((item) => item.id !== id));
   }
 
+  // 🚀 Diupdate: Menu Utama AI Co-Pilot Naik Kelas Menjadi Fitur Unggulan Utama
   const menuItems = [
     { key: "overview", label: "Dashboard", sublabel: "Ringkasan bisnis", section: "main" },
+    { key: "insight-ai", label: "🧠 AI Co-Pilot", sublabel: "Asisten Cerdas Anda", section: "main" },
     { key: "integrasi", label: "Integrasi", sublabel: "Connect & import", section: "main" },
     { key: "market-intel", label: "Market Intel", sublabel: "Produk, toko, kreator", section: "main" },
-    { key: "insight-ai", label: "Insight AI", sublabel: "Rekomendasi", section: "main" },
     { key: "laporan", label: "Laporan", sublabel: "PDF & CSV", section: "main" },
     { key: "produk", label: "Produk", sublabel: "HPP & margin", section: "old" },
     { key: "cashflow", label: "Cashflow", sublabel: "Masuk / keluar", section: "old" },
@@ -488,7 +485,7 @@ const sendMessage = useCallback(async () => {
               onGoBilling={handleGoBilling}
               onLangClick={() => alert("Fitur Multi-Bahasa sedang dipersiapkan untuk sinkronisasi pasar Cross-Border!")}
             />
-             
+               
             {/* 🤝 AFFILIATE ANALYSIS */}
             {affiliateData && selectedProduct && (
               <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
@@ -507,55 +504,7 @@ const sendMessage = useCallback(async () => {
               </div>
             )}
 
-            {/* 🤖 AI CHAT PANEL */}
-            <div style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 24 }}>🤖</span>
-                  <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>AI Business Advisor Co-Pilot</h3>
-                    <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ width: 6, height: 6, background: "#16a34a", borderRadius: "50%", display: "inline-block" }}></span>
-                      Koneksi Data Kontekstual Aktif
-                    </span>
-                  </div>
-                </div>
-                <span style={{ fontSize: 11, background: "#f0fdf4", padding: "4px 10px", borderRadius: 20, color: "#16a34a", fontWeight: 700 }}>Mode: Analisis Gemini</span>
-              </div>
-
-              <div style={{ maxHeight: 300, minHeight: 200, overflowY: "auto", border: "1px solid #e2e8f0", padding: 16, borderRadius: 12, background: "#fafafa", marginBottom: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                  <div style={{ width: 28, height: 28, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: "bold" }}>AI</div>
-                  <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "10px 14px", borderRadius: "0px 12px 12px 12px", fontSize: 13, color: "#334155", maxWidth: "80%", lineHeight: "1.4" }}>
-                    Halo! Saya adalah **AI Advisor** tokomu. Saya sudah membaca ringkasan data dari **{products.length} SKU Produk** aktif.
-                    <br/><br/>
-                    Silakan tanyakan apa saja mengenai margin keuntungan atau risiko stok barang yang perlu segera kita restock!
-                  </div>
-                </div>
-
-                {chatMessages.map((m, i) => {
-                  const isUser = m.role === "user";
-                  return (
-                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", justifyContent: isUser ? "flex-end" : "flex-start" }}>
-                      {!isUser && <div style={{ width: 28, height: 28, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: "bold" }}>AI</div>}
-                      <div style={{ background: isUser ? "#00b14f" : "#ffffff", color: isUser ? "#ffffff" : "#334155", border: isUser ? "none" : "1px solid #e2e8f0", padding: "10px 14px", borderRadius: isUser ? "12px 0px 12px 12px" : "0px 12px 12px 12px", fontSize: 13, maxWidth: "80%", lineHeight: "1.4", whiteSpace: "pre-line" }}>
-                        {m.text}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                <button type="button" onClick={() => setChatInput("Produk mana yang memiliki keuntungan bersih paling tinggi?")} style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 11, color: "#475569", cursor: "pointer", fontWeight: 500 }}>📊 Cek SKU Teruntung</button>
-                <button type="button" onClick={() => setChatInput("Apakah ada stok barang yang kritis dan mau habis?")} style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 11, color: "#475569", cursor: "pointer", fontWeight: 500 }}>🚨 Analisis Risiko Stok</button>
-              </div>
-
-              <div style={{ display: "flex", gap: 10 }}>
-                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }} placeholder="Tanyakan analisis profit, rekomendasi HPP, atau strategi harga..." style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 13, background: "#ffffff", outline: "none" }} />
-                <button onClick={sendMessage} style={{ padding: "12px 24px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Kirim Obrolan</button>
-              </div>
-            </div>
+            {/* 🤖 BOKS CHAT MELAYANG LAMA DI SINI SUDAH DIHAPUS DAN DIPINDAHKAN KE SIDEBAR */}
 
           </div> 
         )}
@@ -568,8 +517,61 @@ const sendMessage = useCallback(async () => {
           <MarketIntelligenceSuite marketData={marketData && marketData.products ? marketData : Array.isArray(marketData) ? { products: marketData } : { products: [] }} onSearch={handleDashboardScrape} loading={loading} />
         )}
 
+        {/* 🧠 INTERFACE CHAT INTERAKTIF FULL-SCREEN BARU */}
         {activeTab === "insight-ai" && (
-          <AIRecommendationPanel products={products} expenses={expenses} metrics={metrics as any} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div style={{ ...cardStyle, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 32, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, borderBottom: "1px solid #f1f5f9", paddingBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 32 }}>🧠</span>
+                  <div>
+                    <h3 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: 0 }}>AI Business Advisor Co-Pilot</h3>
+                    <span style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                      <span style={{ width: 8, height: 8, background: "#16a34a", borderRadius: "50%", display: "inline-block" }}></span>
+                      Koneksi Data Kontekstual Toko Aktif (Mode: Llama 3.3)
+                    </span>
+                  </div>
+                </div>
+                <span style={{ fontSize: 12, background: "#f0fdf4", padding: "6px 14px", borderRadius: 20, color: "#16a34a", fontWeight: 700 }}>Fitur Unggulan PRO</span>
+              </div>
+
+              <div style={{ height: 450, overflowY: "auto", border: "1px solid #e2e8f0", padding: 24, borderRadius: 12, background: "#fafafa", marginBottom: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <div style={{ width: 32, height: 32, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: "bold" }}>AI</div>
+                  <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "14px 18px", borderRadius: "0px 16px 16px 16px", fontSize: 14, color: "#334155", maxWidth: "75%", lineHeight: "1.5" }}>
+                    Halo Ali! Saya adalah **AI Advisor Co-Pilot** tokomu. Saya telah menganalisis performa dari **{products.length} SKU Produk** aktif di database.
+                    <br/><br/>
+                    Ruang kerja ini sekarang lebih luas. Silakan tanyakan analisis profitabilitas mendalam, rekomendasi penyesuaian HPP, strategi bundling produk, atau riset pasar eksternal!
+                  </div>
+                </div>
+
+                {chatMessages.map((m, i) => {
+                  const isUser = m.role === "user";
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", justifyContent: isUser ? "flex-end" : "flex-start" }}>
+                      {!isUser && <div style={{ width: 32, height: 32, background: "#00b14f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: "bold" }}>AI</div>}
+                      <div style={{ background: isUser ? "#00b14f" : "#ffffff", color: isUser ? "#ffffff" : "#334155", border: isUser ? "none" : "1px solid #e2e8f0", padding: "14px 18px", borderRadius: isUser ? "16px 0px 16px 16px" : "0px 16px 16px 16px", fontSize: 14, maxWidth: "75%", lineHeight: "1.5", whiteSpace: "pre-line" }}>
+                        {m.text}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+                <button type="button" onClick={() => setChatInput("Produk mana yang memiliki keuntungan bersih paling tinggi?")} style={{ padding: "8px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600 }}>📊 Cek SKU Teruntung</button>
+                <button type="button" onClick={() => setChatInput("Apakah ada stok barang yang kritis dan mau habis?")} style={{ padding: "8px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600 }}>🚨 Analisis Risiko Stok</button>
+                <button type="button" onClick={() => setChatInput("produk cetak kertas yang trennya stabil apa?")} style={{ padding: "8px 16px", background: "#e0f2fe", border: "1px solid #bae6fd", borderRadius: 20, fontSize: 12, color: "#0369a1", cursor: "pointer", fontWeight: 600 }}>📦 Tren Bisnis Percetakan</button>
+              </div>
+
+              <div style={{ display: "flex", gap: 12 }}>
+                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }} placeholder="Tanyakan analisis profit, rekomendasi HPP, strategi harga, atau tren pasar global..." style={{ flex: 1, padding: "14px 20px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, background: "#ffffff", outline: "none" }} />
+                <button onClick={sendMessage} style={{ padding: "14px 32px", background: "#00b14f", color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Kirim Analisis</button>
+              </div>
+            </div>
+
+            <AIRecommendationPanel products={products} expenses={expenses} metrics={metrics as any} />
+          </div>
         )}
 
         {activeTab === "laporan" && (
