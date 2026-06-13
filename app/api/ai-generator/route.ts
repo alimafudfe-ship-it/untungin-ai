@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ success: false, error: "API Key tidak ditemukan di environment variable Vercel!" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "API Key tidak terbaca oleh server Vercel!" }, { status: 500 });
     }
 
     const prompt = `
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       Gunakan bahasa Indonesia kasual, gaul, interaktif, dan hindari kata-kata kaku. Tuliskan teks narasinya saja tanpa tambahan instruksi kamera.
     `;
 
-    // 🔥 BYPASS SDK: Langsung tembak endpoint REST API Gemini resmi menggunakan fetch standard
+    // 🚀 BYPASS SDK: Langsung tembak URL endpoint REST resmi dengan nempel berekor API Key
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -40,15 +40,13 @@ export async function POST(req: Request) {
 
     const data = await response.json();
 
-    // Jika Google merespons dengan eror di level HTTP
     if (!response.ok) {
       return NextResponse.json({ 
         success: false, 
-        error: data?.error?.message || "Gagal berkomunikasi dengan Google API." 
+        error: data?.error?.message || "Google API menolak permintaan akses." 
       }, { status: response.status });
     }
 
-    // Ambil hasil teks dari struktur JSON standard Google
     const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Gagal menyusun naskah.";
     const mockAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
 
