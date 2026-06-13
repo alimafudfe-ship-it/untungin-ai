@@ -71,6 +71,7 @@ export default function DashboardPage() {
   const [stockMove, setStockMove] = useState({ productId: "", type: "in" as StockMoveType, qty: "", note: "" });
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(initialExpenseForm);
   const [form, setForm] = useState<ProductFormState>(initialProductForm);
+  const [accountMode, setAccountMode] = useState<"seller" | "affiliate">("seller");
 
   const isPro = isProfilePro(profile);
   const metrics = useMemo(() => getDashboardMetrics(products, expenses), [products, expenses]);
@@ -325,15 +326,29 @@ export default function DashboardPage() {
   }
 
   // 🚀 Diupdate: Menu Utama AI Co-Pilot Naik Kelas Menjadi Fitur Unggulan Utama
-  const menuItems = [
-    { key: "overview", label: "Dashboard", sublabel: "Ringkasan bisnis", section: "main" },
-    { key: "insight-ai", label: "🧠 AI Co-Pilot", sublabel: "Asisten Cerdas Anda", section: "main" },
-    { key: "integrasi", label: "Integrasi", sublabel: "Connect & import", section: "main" },
-    { key: "market-intel", label: "Market Intel", sublabel: "Produk, toko, kreator", section: "main" },
-    { key: "laporan", label: "Laporan", sublabel: "PDF & CSV", section: "main" },
-    { key: "produk", label: "Produk", sublabel: "HPP & margin", section: "old" },
-    { key: "cashflow", label: "Cashflow", sublabel: "Masuk / keluar", section: "old" },
-  ];
+const menuItems = useMemo(() => {
+    if (accountMode === "seller") {
+      return [
+        { key: "overview", label: "Dashboard Seller", sublabel: "Ringkasan bisnis toko", section: "main" },
+        { key: "insight-ai", label: "🧠 AI Co-Pilot", sublabel: "Asisten Cerdas Anda", section: "main" },
+        { key: "integrasi", label: "Integrasi Toko", sublabel: "TikTok Shop Partner, dll", section: "main" },
+        { key: "market-intel", label: "Market Intel", sublabel: "Produk & Kompetitor", section: "main" },
+        { key: "laporan", label: "Laporan Toko", sublabel: "PDF & CSV Keuntungan", section: "main" },
+        { key: "produk", label: "Produk & HPP", sublabel: "Manajemen Gudang", section: "old" },
+        { key: "cashflow", label: "Cashflow Toko", sublabel: "Operasional Toko", section: "old" },
+      ];
+    } else {
+      return [
+        { key: "overview", label: "Dashboard Affiliate", sublabel: "Total gabungan komisi", section: "main" },
+        { key: "insight-ai", label: "🧠 AI Co-Pilot", sublabel: "Strategi Konten & Cuan", section: "main" },
+        { key: "aff-tiktok", label: "🎵 TikTok Affiliate", sublabel: "Sampel & Keranjang Kuning", section: "main" },
+        { key: "aff-shopee", label: "🟠 Shopee Affiliate", sublabel: "Koleksi Link & Racun Shopee", section: "main" },
+        { key: "aff-generic", label: "🔗 Platform Lainnya", sublabel: "Tokopedia, Lazada, dll", section: "main" },
+        { key: "laporan", label: "Laporan Komisi", sublabel: "Rekap Pencairan Dana", section: "old" },
+        { key: "cashflow", label: "Biaya Konten", sublabel: "Modal Sampel & Iklan", section: "old" },
+      ];
+    }
+  }, [accountMode]);
 
   if (pageLoading) {
     return (
@@ -355,6 +370,22 @@ export default function DashboardPage() {
               <span style={{ fontSize: 11, color: "#64748b", display: "block" }}>Sistem Operasi Seller</span>
             </div>
           </div>
+        </div>
+
+{/* ✅ TAMBAHKAN BUTTON TOGGLE AKUN PREMIUM DI SINI */}
+        <div style={{ background: "#f1f5f9", padding: 4, borderRadius: 10, display: "flex", gap: 2, marginBottom: 20 }}>
+          <button 
+            onClick={() => { setAccountMode("seller"); setActiveTab("overview"); }}
+            style={{ flex: 1, padding: "8px 4px", fontSize: 12, fontWeight: "bold", border: "none", borderRadius: 8, cursor: "pointer", background: accountMode === "seller" ? "#ffffff" : "transparent", color: accountMode === "seller" ? "#0f172a" : "#64748b", boxShadow: accountMode === "seller" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.2s" }}
+          >
+            🏪 Mode Seller
+          </button>
+          <button 
+            onClick={() => { setAccountMode("affiliate"); setActiveTab("overview"); }}
+            style={{ flex: 1, padding: "8px 4px", fontSize: 12, fontWeight: "bold", border: "none", borderRadius: 8, cursor: "pointer", background: accountMode === "affiliate" ? "#ffffff" : "transparent", color: accountMode === "affiliate" ? "#0f172a" : "#64748b", boxShadow: accountMode === "affiliate" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.2s" }}
+          >
+            🚀 Affiliate
+          </button>
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -590,6 +621,37 @@ export default function DashboardPage() {
             <ExpensePanel expenses={expenses} form={expenseForm} metrics={metrics as any} onChange={(nextExpense) => setExpenseForm(nextExpense)} onSubmit={async (e) => { e.preventDefault(); }} />
           </div>
         )}
+
+ {/* ✅ PLATFORM ROUTER CHANNELS FOR AFFILIATE */}
+        {activeTab === "aff-tiktok" && (
+          <div style={{ ...cardStyle, background: "#ffffff", padding: 32, borderRadius: 16, border: "1px solid #e2e8f0" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>🎵 TikTok Affiliate Workspace</h2>
+            <p style={{ color: "#64748b", fontSize: 14 }}>Manajemen sampel produk gratis, tautan keranjang kuning, dan pelacakan komisi kilat via TikTok Shop Partner Center Anda.</p>
+            <div style={{ marginTop: 24, padding: 40, border: "2px dashed #e2e8f0", borderRadius: 12, textAlign: "center", color: "#94a3b8" }}>
+              [ Data Komisi Riil TikTok Affiliate Sedang Sinkron Menggunakan API Analytics ]
+            </div>
+          </div>
+        )}
+
+        {activeTab === "aff-shopee" && (
+          <div style={{ ...cardStyle, background: "#ffffff", padding: 32, borderRadius: 16, border: "1px solid #e2e8f0" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>🟠 Shopee Affiliate Workspace</h2>
+            <p style={{ color: "#64748b", fontSize: 14 }}>Kelola database link khusus racun Shopee, kustomisasi custom-link bio media sosial, dan kalkulasi rasio klik produk.</p>
+            <div style={{ marginTop: 24, padding: 40, border: "2px dashed #e2e8f0", borderRadius: 12, textAlign: "center", color: "#94a3b8" }}>
+              [ Laporan Riwayat Konversi Klik Shopee Share Anda ]
+            </div>
+          </div>
+        )}
+
+        {activeTab === "aff-generic" && (
+          <div style={{ ...cardStyle, background: "#ffffff", padding: 32, borderRadius: 16, border: "1px solid #e2e8f0" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>🔗 Multi-Platform Affiliate Matrix</h2>
+            <p style={{ color: "#64748b", fontSize: 14 }}>Pencatatan data komisi dari Tokopedia Affiliate, Lazada, Blibli, maupun tautan mandiri lainnya.</p>
+            <div style={{ marginTop: 24, padding: 40, border: "2px dashed #e2e8f0", borderRadius: 12, textAlign: "center", color: "#94a3b8" }}>
+              [ Modul Input Manual / CSV Ekspor Komisi Multi-Channel ]
+            </div>
+          </div>
+        )}       
       </main>
     </div>
   );
