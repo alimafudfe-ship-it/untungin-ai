@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         "Authorization": `Bearer ${GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192", // Model papan atas yang sangat pintar menganalisis data bisnis
+        model: "llama-3.1-70b-versatile", // Model papan atas yang sangat pintar menganalisis data bisnis
         messages: [
           {
             role: "system",
