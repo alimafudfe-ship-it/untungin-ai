@@ -496,7 +496,7 @@ const menuItems = useMemo(() => {
                 />
               </>
             ) : (
-              /* 🚀 KONDISI KEDUA: TAMPILAN KHUSUS MODE AFFILIATE CREATOR */
+/* 🚀 KONDISI KEDUA: TAMPILAN KHUSUS MODE AFFILIATE CREATOR */
               <>
                 {/* 🔥 METRICS DASHBOARD UNTUK AFFILIATE */}
                 <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 24 }}>
@@ -528,6 +528,11 @@ const menuItems = useMemo(() => {
                     <button onClick={() => setActiveTab("aff-tiktok")} style={{ padding: "10px 20px", background: "#ffffff", color: "#2563eb", border: "none", borderRadius: 10, fontSize: 13, fontWeight: "bold", cursor: "pointer" }}>Kelola Link TikTok</button>
                     <button onClick={() => setActiveTab("cashflow")} style={{ padding: "10px 20px", background: "rgba(255,255,255,0.15)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 10, fontSize: 13, fontWeight: "bold", cursor: "pointer" }}>Catat Biaya Iklan</button>
                   </div>
+                </div>
+
+                {/* 🧠 🌟 SEKALIGUS MUNCULKAN ALAT CREATOR AI DI MAIN DASHBOARD AFFILIATE */}
+                <div style={{ marginTop: 24 }}>
+                  <AICreatorPage />
                 </div>
               </>
             )}
