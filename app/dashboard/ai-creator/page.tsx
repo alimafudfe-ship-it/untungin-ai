@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+// 🎨 GAYA DESAIN KONSISTEN DASHBOARD UNTUNGIN
 const cardStyle = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
@@ -28,7 +29,7 @@ export default function AICreatorPage() {
   const [audioUrl, setAudioUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 🔥 SINKRONISASI ASYNC: Memastikan fungsi pembungkus ditandai async dengan benar
+  // 🛠️ FIX NYATA: Penegasan fungsi mutlak harus 'async'
   const handleGenerateScript = async () => {
     if (!productName.trim()) {
       alert("Masukkan nama produk terlebih dahulu!");
@@ -40,7 +41,7 @@ export default function AICreatorPage() {
     setAudioUrl("");
 
     try {
-      // Menembak rute backend baru yang terisolasi dari cache Vercel
+      // Mengarahkan request ke rute backend bersih terisolasi
       const res = await fetch("/api/creatorscript", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,11 +54,11 @@ export default function AICreatorPage() {
         setScript(result.text);
         if (result.audioUrl) setAudioUrl(result.audioUrl);
       } else {
-        alert("Gagal generate skrip: " + (result.error || "Terjadi kesalahan server internal."));
+        alert("Gagal generate skrip: " + (result.error || "Terjadi masalah internal server."));
       }
     } catch (err: any) {
-      console.error("Eror koneksi:", err);
-      alert("Terjadi kesalahan koneksi menuju server.");
+      console.error("Koneksi gagal:", err);
+      alert("Terjadi kesalahan koneksi menuju server api.");
     } finally {
       setLoading(false);
     }
@@ -65,7 +66,7 @@ export default function AICreatorPage() {
 
   return (
     <div style={{ display: "grid", gap: 20, padding: 4 }}>
-      {/* Header */}
+      {/* Header Panel */}
       <section style={cardStyle}>
         <span style={{ fontSize: 12, background: "#dcfce7", color: "#15803d", padding: "4px 8px", borderRadius: 6, fontWeight: 600 }}>
           AI Co-Pilot Kreator
@@ -76,10 +77,10 @@ export default function AICreatorPage() {
         </p>
       </section>
 
-      {/* Main Content Split */}
+      {/* Main Content Layout */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 20, alignItems: "start" }}>
         
-        {/* Kolom Kiri: Input */}
+        {/* Input Form Box */}
         <div style={{ ...cardStyle, display: "grid", gap: 16 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#0f172a" }}>🎯 Detail Produk</h3>
           
@@ -117,7 +118,7 @@ export default function AICreatorPage() {
           </button>
         </div>
 
-        {/* Kolom Kanan: Hasil */}
+        {/* Output Result Box */}
         <div style={{ ...cardStyle, display: "grid", gap: 16 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#0f172a" }}>📝 Naskah & Hasil Voice-Over</h3>
           
