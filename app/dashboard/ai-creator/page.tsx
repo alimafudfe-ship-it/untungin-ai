@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-// 🎨 GAYA DESAIN LOKAL
 const cardStyle = {
   background: "#ffffff",
   border: "1px solid #e2e8f0",
@@ -29,14 +28,19 @@ export default function AICreatorPage() {
   const [audioUrl, setAudioUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
-const handleGenerateScript = async () => {
-    if (!productName) return alert("Masukkan nama produk terlebih dahulu!");
+  // 🔥 SINKRONISASI ASYNC: Memastikan fungsi pembungkus ditandai async dengan benar
+  const handleGenerateScript = async () => {
+    if (!productName.trim()) {
+      alert("Masukkan nama produk terlebih dahulu!");
+      return;
+    }
+    
     setLoading(true);
     setScript("");
     setAudioUrl("");
 
     try {
-      // Panggil rute baru yang bersih di sisi server backend
+      // Menembak rute backend baru yang terisolasi dari cache Vercel
       const res = await fetch("/api/creatorscript", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -52,60 +56,10 @@ const handleGenerateScript = async () => {
         alert("Gagal generate skrip: " + (result.error || "Terjadi kesalahan server internal."));
       }
     } catch (err: any) {
-      console.error(err);
-      alert("Terjadi kesalahan koneksi server.");
+      console.error("Eror koneksi:", err);
+      alert("Terjadi kesalahan koneksi menuju server.");
     } finally {
       setLoading(false);
-    }
-  };
-
-      const prompt = `
-        Anda adalah seorang kreator konten TikTok dan spesialis Copywriter Afiliasi E-commerce papan atas di Indonesia.
-        Buatkan naskah video komersial berdurasi 30-45 detik yang sangat persuasif untuk menjual produk ini: "${productName}".
-        Gaya penyampaian video wajib menggunakan tipe: "${niche}".
-        
-        Format struktur output wajib memiliki pembagian yang jelas seperti ini:
-        [HOOK - Detik 0-5] (Bagian pembuka yang bikin mata penonton stop scroll)
-        [PROBLEM/STORY] (Masalah nyata atau cerita yang dialami sehari-hari)
-        [SOLUTION & BENEFIT] (Keunggulan mutlak produk ini dibanding yang lain)
-        [CALL TO ACTION] (Ajakan mendesak untuk klik keranjang kuning sekarang juga sebelum kehabisan diskon)
-
-        Gunakan bahasa Indonesia kasual, gaul, interaktif, dan hindari kata-kata kaku. Tuliskan teks narasinya saja tanpa tambahan instruksi kamera.
-      `;
-
-      // 2. 🔥 BYPASS TOTAL BACKEND: Langsung tembak Google AI Studio dengan rute REST v1 stable
-      const googleUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-      const res = await fetch(googleUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-
-      const result = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(result?.error?.message || "Ditolak oleh Server Google.");
-      }
-
-      // 3. Ekstrak data teks dari struktur respons resmi Google AI Studio
-      const textOutput = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (textOutput) {
-        setScript(textOutput);
-        // Simulasi audio tetap aman
-        setAudioUrl("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
-      } else {
-        alert("Gagal memuat struktur teks dari respons Google.");
-      }
-
-    } catch (err: any) {
-      console.error(err);
-      alert("Gagal generate skrip: " + err.message);
-    } finally {
-      loading && setLoading(false);
     }
   };
 
@@ -142,20 +96,19 @@ const handleGenerateScript = async () => {
 
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "#475569" }}>Gaya Penyampaian Video</label>
-            <section style={{ display: "block" }}>
-              <select 
-                value={niche} 
-                onChange={(e) => setNiche(e.target.value)}
-                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", boxSizing: "border-box" }}
-              >
-                <option value="Unboxing / Review">📦 Unboxing / Review Jujur</option>
-                <option value="Soft Selling / Storytelling">📖 Cerita / Keluh Kesah (Soft Sell)</option>
-                <option value="Hard Selling / Promo">🔥 Bombastis / Diskon Kilat (Hard Sell)</option>
-              </select>
-            </section>
+            <select 
+              value={niche} 
+              onChange={(e) => setNiche(e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", boxSizing: "border-box" }}
+            >
+              <option value="Unboxing / Review">📦 Unboxing / Review Jujur</option>
+              <option value="Soft Selling / Storytelling">📖 Cerita / Keluh Kesah (Soft Sell)</option>
+              <option value="Hard Selling / Promo">🔥 Bombastis / Diskon Kilat (Hard Sell)</option>
+            </select>
           </div>
 
           <button 
+            type="button"
             onClick={handleGenerateScript} 
             disabled={loading}
             style={{ ...ctaButtonStyle, width: "100%", padding: "12px", marginTop: 8, background: loading ? "#94a3b8" : "#0f172a", cursor: loading ? "not-allowed" : "pointer" }}
@@ -170,7 +123,6 @@ const handleGenerateScript = async () => {
           
           {script ? (
             <>
-              {/* Hasil Audio */}
               {audioUrl && (
                 <div style={{ background: "#f8fafc", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}>
                   <p style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: 500, color: "#0f172a" }}>🎧 Hasil Suara Narasi (Voice-Over MP3):</p>
@@ -178,7 +130,6 @@ const handleGenerateScript = async () => {
                 </div>
               )}
 
-              {/* Hasil Teks */}
               <div style={{ background: "#0f172a", color: "#f8fafc", padding: 16, borderRadius: 8, fontFamily: "monospace", fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.6, maxHeight: "350px", overflowY: "auto" }}>
                 {script}
               </div>
