@@ -4,7 +4,6 @@ export async function POST(req: Request) {
   try {
     const { productName, niche } = await req.json();
 
-    // Gunakan variabel server-side tanpa NEXT_PUBLIC agar tidak bocor ke browser
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     
     if (!apiKey) {
@@ -25,16 +24,20 @@ export async function POST(req: Request) {
       Gunakan bahasa Indonesia kasual, gaul, interaktif, dan hindari kata-kata kaku. Tuliskan teks narasinya saja tanpa tambahan instruksi kamera.
     `;
 
-    // Amankan request lewat jalur server-to-server v1 stable
     const googleUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(googleUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
+        contents: [
+          {
+            role: "user", // 👈 Menambahkan penegasan role agar Google mengenalnya sebagai input pengguna
+            parts: [{ text: prompt }]
+          }
+        ]
       }),
-      cache: "no-store" // Paksa server untuk selalu meminta data baru tanpa cache vended Vercel
+      cache: "no-store" 
     });
 
     const data = await response.json();
