@@ -4,7 +4,8 @@ export async function POST(req: Request) {
   try {
     const { productName, niche } = await req.json();
 
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    // 🛠️ AMAN: Menggunakan Environment Variable murni Sisi Server (Tanpa NEXT_PUBLIC_)
+    const apiKey = process.env.GEMINI_API_KEY;
     
     if (!apiKey) {
       return NextResponse.json({ success: false, error: "API Key di server Vercel kosong!" }, { status: 500 });
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         contents: [
           {
-            role: "user", // 👈 Menambahkan penegasan role agar Google mengenalnya sebagai input pengguna
+            role: "user",
             parts: [{ text: prompt }]
           }
         ]
