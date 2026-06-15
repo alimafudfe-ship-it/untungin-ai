@@ -25,11 +25,17 @@ export async function POST(req: Request) {
       Gunakan bahasa Indonesia kasual, gaul, interaktif, dan hindari kata-kata kaku. Tuliskan teks narasinya saja tanpa tambahan instruksi kamera.
     `;
 
-    const googleUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+// 1. URL Bersih tanpa parameter '?key=' di ujungnya
+    const googleUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent`;
 
+    // 2. Kirim request dengan Header Autentikasi yang tepat
     const response = await fetch(googleUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        // 🔥 PERBAIKAN MUTLAK: Kunci berawalan 'AQ.' wajib dikirim via header X-Goog-Api-Key
+        "X-Goog-Api-Key": apiKey 
+      },
       body: JSON.stringify({
         contents: [
           {
