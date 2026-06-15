@@ -18,6 +18,6 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
     
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.redirect(new URL("/dashboard/integrasi-toko", req.url));
   }
 }
