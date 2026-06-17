@@ -57,6 +57,29 @@ export function ProductForm({
     onChange({ ...form, [field]: value });
   };
 
+  // =========================================================
+  // LOGIKA INTEGRASI OTORISASI TIKTOK SHOP
+  // =========================================================
+const handleTikTokConnect = () => {
+    const appKey = process.env.NEXT_PUBLIC_TIKTOK_APP_KEY || "6k9tqhh1i366s";
+    const redirectUri = encodeURIComponent("http://localhost:3000/api/auth/tiktok/callback"); 
+    
+    // MEMBUAT DATA STATE BERBENTUK STRINK JOSN SESUAI KEBUTUHAN BACKEND
+    const stateObj = {
+      random: Math.random().toString(36).substring(7),
+      workspaceId: "default_workspace" // Ganti dengan variabel ID nyata dari sistem kamu jika ada
+    };
+    
+    const state = encodeURIComponent(JSON.stringify(stateObj));
+
+    // Simpan di localStorage untuk kebutuhan validasi di sisi client jika diperlukan
+    localStorage.setItem("tiktok_auth_state", state);
+
+    const authUrl = `https://auth.tiktok-shops.com/oauth/authorize?app_key=${appKey}&state=${state}&redirect_uri=${redirectUri}`;
+    
+    window.location.href = authUrl;
+  };
+  
   const savedProducts = products.filter(
     (p) => p.marketplace?.toLowerCase() === form.marketplace?.toLowerCase()
   );
@@ -82,6 +105,34 @@ export function ProductForm({
               <option value="Shopee">🧡 Shopee</option>
               <option value="Tokopedia">💚 Tokopedia</option>
             </select>
+
+            {/* TOMBOL OTORISASI: Hanya tampil kondisional jika memilih TikTok Shop */}
+            {form.marketplace === "TikTok" && (
+              <button
+                type="button"
+                onClick={handleTikTokConnect}
+                style={{
+                  marginTop: 10,
+                  padding: "11px 14px",
+                  background: "#000000",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  transition: "background 0.2s"
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "#222222"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "#000000"}
+              >
+                ⚡ Otorisasikan Akun TikTok Shop Kamu
+              </button>
+            )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
