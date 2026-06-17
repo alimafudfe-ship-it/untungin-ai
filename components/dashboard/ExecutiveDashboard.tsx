@@ -73,16 +73,16 @@ const EXEC_COPY: Record<Locale, {
     opsControl: "Ruang kawalan operasi", dailySellerControl: "Kawalan harian seller", liveBoard: "Papan langsung", autoAction: "Tindakan automatik", nextSuggestion: "Cadangan seterusnya", openAiCenter: "Buka pusat keputusan AI",
     marginAnomaly: "Anomali margin", restockRisk: "Risiko restock", operatingCash: "Tunai operasi", noNegativeMargin: "Tiada margin negatif aktif.", checkCostFees: "Semak kos, voucher, dan fi admin.", controlled: "Terkawal", priority: "Prioriti", stockSafe: "Stok utama masih selamat untuk dijual.", positive: "Positif", deficit: "Defisit", leakEstimate: "Anggaran bocor", noDailyCostPressure: "Belum ada tekanan belanja harian.",
     validateOrder: "Sahkan pesanan", orderRecorded: "unit jualan direkod", updateStock: "Kemas kini stok", unitsAvailable: "unit tersedia merentas produk", reviewProfit: "Semak profit", avgMargin: "margin purata", takeAction: "Ambil tindakan",
-    quickRestockPlan: "Buat pelan restock cepat", pushBestMargin: "Dorong produk margin terbaik", secureSku: "Amankan SKU yang mula menipis sebelum kempen seterusnya.", useTopProfit: "Gunakan produk profit tertinggi untuk iklan dan bundling.", fixLossPrice: "Baiki harga rugi", keepDataRhythm: "Jaga ritma input data", adjustPrice: "Laraskan harga jual atau kurangkan promosi yang menekan margin.", recordDaily: "Catat pesanan dan belanja harian agar insight kekal tepat.",
+    quickRestockPlan: "Buat pelan restock cepat", pushBestMargin: "Dorong produk margin terbaik", secureSku: "Amankan SKU yang mula menipis sebelum kempen seterusnya.", useTopProfit: "Gunakan produk profit tertinggi untuk iklan dan bundling.", fixLossPrice: "Baiki harga rugi", keepDataRhythm: "Jaga ritme input data", adjustPrice: "Laraskan harga jual atau kurangkan promosi yang menekan margin.", recordDaily: "Catat pesanan dan belanja harian agar insight kekal tepat.",
     businessSummary: "Ringkasan bisnes", revenue: "Jualan", unitsSold: "unit terjual", grossProfit: "Profit kasar", avgMarginText: "margin purata", inventoryValue: "Nilai inventori", unitsAvailableShort: "unit tersedia", proReadiness: "Kesiapan PRO", proActive: "Aktif", proActiveText: "AI CFO, laporan, dan fitur ruang kerja sudah aktif.", proReadyText: "Lengkapkan import data, aktifkan alur kerja utama, lalu upgrade bila sedia berkembang.",
     onboardingStatus: "Onboarding & status", operationalReadiness: "Kesiapan operasi", done: "Selesai", notYet: "Belum", connectData: "Hubungkan data", activatePro: "Aktifkan PRO", addCoreProducts: "Tambah sekurang-kurangnya 3 produk utama", recordCashflow: "Catat aliran tunai atau belanja operasi", syncMarketplace: "Selaraskan marketplace atau import CSV", activateAiReport: "Aktifkan laporan AI rutin / PRO",
     productProfit: "Profit produk", criticalStock: "Stok kritikal", riskScore: "Skor risiko", dailyLeak: "Anggaran bocor", cashflowTrend: "Tren aliran tunai", inflowOutflow: "Tunai masuk vs keluar", cashIn: "Tunai masuk", cashOut: "Tunai keluar", profitTrend: "Tren profit", profit7Days: "Anggaran profit 7 hari", skuPerformance: "Prestasi SKU", priorityProducts: "Produk prioriti", manageProducts: "Urus produk",
-    bestNextAction: "Tindakan terbaik seterusnya", aiDetail: "Butiran AI", reviewLowMargin: "Semak SKU margin rendah", lossDetected: "produk rugi dikesan. Semak kos, voucher, fi admin, dan harga jual.", seeProducts: "Lihat produk", secureFastStock: "Amankan stok cepat habis", criticalSkuText: "SKU perlu restock atau dipantau agar tidak kehilangan jualan.", stock: "Stok", sendWeeklyReport: "Hantar laporan mingguan", exportReportText: "Eksport PDF/CSV untuk pemilik, rakan niaga, atau arkib operasi.", reports: "Laporan", recentActivity: "Aktiviti terbaru", dataStatus: "Status data", bestProducts: "Produk terbaik", noRanking: "Tambah produk atau import CSV untuk melihat ranking profit.", growthSetup: "Setup berkembang", setupTitle: "Naik taraf daripada catatan manual ke alur kerja SaaS", setupText: "Hubungkan data marketplace, aktifkan AI CFO, dan jadikan laporan automatik sebagai ritma operasi harian.", integrations: "Integrasi", managePlan: "Urus pelan", viewPro: "Lihat PRO",
+    bestNextAction: "Tindakan terbaik seterusnya", aiDetail: "Butiran AI", reviewLowMargin: "Semak SKU margin rendah", lossDetected: "produk rugi dikesan. Semak kos, voucher, fi admin, dan harga jual.", seeProducts: "Lihat produk", secureFastStock: "Amankan stok cepat habis", criticalSkuText: "SKU perlu restock atau dipantau agar tidak kehilangan jualan.", stock: "Stok", sendWeeklyReport: "Hantar laporan mingguan", exportReportText: "Eksport PDF/CSV untuk pemilik, rakan niaga, atau arkib operasi.", reports: "Laporan", recentActivity: "Aktiviti terbaru", dataStatus: "Status data", bestProducts: "Produk terbaik", noRanking: "Tambah produk atau import CSV untuk melihat ranking profit.", growthSetup: "Setup berkembang", setupTitle: "Naik taraf daripada catatan manual ke alur kerja SaaS", setupText: "Hubungkan data marketplace, aktifkan AI CFO, dan jadikan laporan automatik sebagai ritme operasi harian.", integrations: "Integrasi", managePlan: "Urus pelan", viewPro: "Lihat PRO",
     globalBadge: "Kesiapan SaaS global", globalTitle: "Sedia menjadi seller OS antarabangsa", globalDescription: "Untungin.ai kini diposisikan sebagai pusat kawalan multi-bahasa untuk seller marketplace: profit, inventori, aliran tunai, ramalan, laporan, dan pelan tindakan AI dalam satu ruang kerja.", expansionReadiness: "Kesiapan ekspansi", scaleReady: "Sedia skala", buildPhase: "Fasa bina", viewReports: "Lihat laporan"
   }
 };
 
-type Props = {
+type ExecutiveDashboardProps = {
   products: Product[];
   metrics: DashboardMetrics;
   filteredProducts: Product[];
@@ -159,13 +159,26 @@ export function ExecutiveDashboard({
   const locale = useDashboardLocale();
   const t = EXEC_COPY[locale];
 
+  // LOGIKA MANIFESTASI REDIRECT UTK INTEGRASI APLIKASI PUBLIK TIKTOK SHOP
+  const handleTikTokConnectRedirect = () => {
+    const appKey = "6k9tqhh1i366s"; 
+    const redirectUri = encodeURIComponent("https://untungin-ai-pmd1.vercel.app/api/auth/tiktok/callback"); 
+    const stateObj = {
+      random: Math.random().toString(36).substring(7),
+      workspaceId: "default_workspace"
+    };
+    const state = encodeURIComponent(JSON.stringify(stateObj));
+    const authUrl = `https://auth.tiktok-shops.com/oauth/authorize?app_key=${appKey}&state=${state}&redirect_uri=${redirectUri}`;
+    
+    // Paksa Alur Browser Menuju Platform Otorisasi Hitam TikTok Tanpa Intervensi Tokopedia
+    window.location.href = authUrl;
+  };
+
   const criticalProducts = useMemo(() => products.filter((item) => (item.stockRemaining || 0) <= 5 || (item.stockRemaining || 0) <= (item.stockInitial || 0) * 0.15), [products]);
   const criticalPreview = useMemo(() => criticalProducts.slice(0, 4), [criticalProducts]);
   const lossProducts = useMemo(() => products.filter((item) => (item.profit || 0) < 0), [products]);
-  const lossPreview = useMemo(() => lossProducts.slice(0, 4), [lossProducts]);
 
   const safeRiskScore = metrics?.riskScore || 0;
-  const riskTone = getRiskTone(safeRiskScore);
   const operatingScore = Math.max(0, Math.min(100, 100 - safeRiskScore));
   const lastSyncText = lastSync ? new Date(lastSync).toLocaleString(localeTag(locale), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : t.notSynced;
   const planLabel = isDemoMode ? t.demoWorkspace : isPro ? t.proWorkspace : t.freeWorkspace;
@@ -318,8 +331,10 @@ export function ExecutiveDashboard({
               <h1 className="hero-title">{t.heroTitle}</h1>
               <p className="hero-subtitle">{t.heroSubtitle}</p>
               <div className="command-actions">
-                {/* BUTTON DIGANTI: DARI TAMBAH PRODUK MENJADI SINKRON TOKO */}
-                <button type="button" onClick={onGoMarketplace} style={ctaButtonStyle}>{t.addProduct}</button>
+                {/* SOLUSI DI SINI: klik tombol "Sinkron Toko" langsung memicu handleTikTokConnectRedirect */}
+                <button type="button" onClick={handleTikTokConnectRedirect} style={ctaButtonStyle}>
+                  {t.addProduct}
+                </button>
                 <button type="button" onClick={onAddCashflow} style={ghostButtonStyle}>{t.addCashflow}</button>
                 <label style={{ ...ghostButtonStyle, display: "inline-flex", alignItems: "center", cursor: syncing ? "not-allowed" : "pointer" }}>
                   {syncing ? t.importing : t.importCSV}
