@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     const TIKTOK_APP_KEY = process.env.NEXT_PUBLIC_TIKTOK_APP_KEY || "6k9tqhh1i366s"; 
     const TIKTOK_APP_SECRET = process.env.TIKTOK_APP_SECRET || "b0edb9990afd61f40c7d704f6e7cdaa0bcdd5809";
 
-    const tokenUrl = "https://open-api.tiktok-shops.com/api/v2/token/get"; 
+    const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get"; 
     
     const searchValues = {
       app_key: TIKTOK_APP_KEY,
