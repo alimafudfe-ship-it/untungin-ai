@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const REDIRECT_URI = "https://untungin-ai-pmd1.vercel.app/api/auth/tiktok/callback";
 
     // Menggunakan domain resmi yang benar (auth.tiktok-shops.com)
-    const tiktokAuthUrl = new URL("https://auth.tiktok-shops.com/oauth/authorize");
+    const tiktokAuthUrl = new URL("https://services.tiktokshop.com/open/authorize");
     tiktokAuthUrl.searchParams.append("app_key", TIKTOK_APP_KEY);
     tiktokAuthUrl.searchParams.append("redirect_uri", REDIRECT_URI);
     tiktokAuthUrl.searchParams.append("state", stateParams); 
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const REDIRECT_URI = "https://untungin-ai-pmd1.vercel.app/api/auth/tiktok/callback";
 
     // SUDAH DIPERBAIKI: Mengubah services menjadi shops agar tidak NXDOMAIN
-    const tiktokAuthUrl = new URL("https://auth.tiktok-shops.com/oauth/authorize");
+    const tiktokAuthUrl = new URL("https://services.tiktokshop.com/open/authorize");
     tiktokAuthUrl.searchParams.append("app_key", TIKTOK_APP_KEY);
     tiktokAuthUrl.searchParams.append("redirect_uri", REDIRECT_URI);
     tiktokAuthUrl.searchParams.append("state", stateParams); 
