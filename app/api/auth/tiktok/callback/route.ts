@@ -30,24 +30,26 @@ export async function GET(request: Request) {
     const TIKTOK_APP_KEY = process.env.NEXT_PUBLIC_TIKTOK_APP_KEY || "6k9tqhh1i366s"; 
     const TIKTOK_APP_SECRET = process.env.TIKTOK_APP_SECRET || "b0edb9990afd61f40c7d704f6e7cdaa0bcdd5809";
 
-    const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get"; 
+// 1. ENDPOINT RESMI UNTUK PUBLIC APP TIKTOK SHOP GLOBAL
+    const tokenUrl = "https://auth.tiktok-shops.com/api/v1/auth/token"; 
     
+    // 2. DATA PAYLOAD UNTUK PUBLIC APP OAUTH
     const searchValues = {
       app_key: TIKTOK_APP_KEY,
       app_secret: TIKTOK_APP_SECRET,
       auth_code: code,
-      grant_type: "authorization_code"
+      grant_type: "authorized_code" // PENTING: Untuk v1 nilainya "authorized_code", bukan "authorization_code"
     };
 
-    console.log("Menukarkan token via Node.js standar untuk Untungin.ai...");
+    console.log("Menukarkan token via Node.js standar untuk Aplikasi Publik Untungin.ai...");
     
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json", // DIUBAH: Menggunakan JSON murni untuk endpoint v1
         "Accept": "application/json",
       },
-      body: new URLSearchParams(searchValues).toString()
+      body: JSON.stringify(searchValues) // DIUBAH: Menggunakan JSON.stringify
     });
 
     const responseText = await tokenResponse.text();
