@@ -27,45 +27,42 @@ export async function GET(request: Request) {
       }
     }
 
-// 1. Ambil App Key secara dinamis dari URL Callback TikTok untuk mencegah hardcode salah
+// 1. Ambil App Key secara dinamis dari URL Callback TikTok
     const TIKTOK_APP_KEY = searchParams.get("app_key") || process.env.NEXT_PUBLIC_TIKTOK_APP_KEY || "6k9tqhh1i366s"; 
     const TIKTOK_APP_SECRET = process.env.TIKTOK_APP_SECRET || "b0edb9990afd61f40c7d704f6e7cdaa0bcdd5809";
 
-    // 2. Endpoint V2 Resmi TikTok Shop Partner Marketplace
-    const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get"; 
+    // 2. ENDPOINT UTAMA JITU (Standard Global API v2)
+    // Jika domain ini masih melempar 404, alternatif keduanya adalah: 
+    // https://open-api.tiktok.com/api/v2/token/get
+    const tokenUrl = "https://api.tiktokshop.com/api/v2/token/get"; 
     
-    // 3. Susun Payload dalam bentuk Object JSON murni sesuai standar API Partner v2
+    // 3. Payload JSON murni
     const payload = {
-      client_key: TIKTOK_APP_KEY,
-      client_secret: TIKTOK_APP_SECRET,
+      app_key: TIKTOK_APP_KEY,
+      app_secret: TIKTOK_APP_SECRET,
       auth_code: code,
       grant_type: "authorized_code"
     };
 
-    console.log("Mengeksekusi jabat tangan token v2 via POST JSON...");
-    console.log("Menggunakan Client Key:", TIKTOK_APP_KEY);
+    console.log("Mengeksekusi jabat tangan token v2 jitu ke:", tokenUrl);
     
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
       },
       body: JSON.stringify(payload),
       cache: "no-store"
     });
 
     const responseText = await tokenResponse.text();
-    console.log("STATUS HTTP TIKTOK V2:", tokenResponse.status);
-    console.log("RESPONS MENTAH TIKTOK V2:", responseText);
+    console.log("STATUS HTTP TIKTOK JITU:", tokenResponse.status);
+    console.log("RESPONS MENTAH TIKTOK JITU:", responseText);
 
     if (!tokenResponse.ok) {
       throw new Error(`Koneksi ditolak server TikTok v2 (HTTP ${tokenResponse.status}). Respons: ${responseText || 'Kosong'}`);
-    }
-
-    if (!responseText || responseText.trim() === "") {
-      throw new Error("Server TikTok mengembalikan respons hampa.");
     }
 
     let tokenData;
@@ -76,7 +73,6 @@ export async function GET(request: Request) {
     }
 
     // EVALUASI BUSINESS LOGIC ERROR DARI TIKTOK V2
-    // Biasanya skema v2 mengembalikan { "code": 0, "message": "success", "data": { "access_token": "..." } }
     if (tokenData.code !== 0 && tokenData.code !== undefined) {
       throw new Error(tokenData.message || `TikTok API Error (Code: ${tokenData.code})`);
     }
@@ -91,7 +87,7 @@ export async function GET(request: Request) {
       throw new Error(`Gagal mengekstrak access_token dari payload v2: ${JSON.stringify(tokenData)}`);
     }
 
-    console.log(`[SUKSES V2] Berhasil mengintegrasikan toko: ${sellerName} (${sellerId})`);
+    console.log(`[SUKSES] Berhasil mengintegrasikan toko: ${sellerName}`);
 
     // ==============================================================================
     // TODO: Jalankan fungsi mutasi database Supabase kamu di sini untuk menyimpan token
