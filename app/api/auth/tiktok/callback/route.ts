@@ -39,8 +39,8 @@ export async function GET(request: Request) {
     
     // 2. Susun query parameters untuk request GET
     const urlParams = new URLSearchParams();
-    urlParams.append("app_key", TIKTOK_APP_KEY);
-    urlParams.append("app_secret", TIKTOK_APP_SECRET);
+    urlParams.append("client_key", TIKTOK_APP_KEY);        // SEBELUMNYA: app_key
+    urlParams.append("client_secret", TIKTOK_APP_SECRET);  // SEBELUMNYA: app_secret
     urlParams.append("auth_code", code);
     urlParams.append("grant_type", "authorized_code"); // Tetap menggunakan authorized_code untuk v2 get
 
