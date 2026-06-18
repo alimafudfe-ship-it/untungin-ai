@@ -46,11 +46,16 @@ export async function GET(request: Request) {
 
     console.log("Mengeksekusi jabat tangan token ke:", tokenUrl);
     
-    const tokenResponse = await fetch(tokenUrl, {
+const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
+        "Accept": "application/json, text/plain, */*",
+        // MASUKKAN USER-AGENT PALSU AGAR TIDAK DIANGGAP BOT OLEH PUMBAA WAF
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 UntunginApp/1.0",
+        "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
+        "Origin": "https://auth.tiktok-shops.com",
+        "Referer": "https://auth.tiktok-shops.com/"
       },
       body: urlParams.toString(),
       cache: "no-store"
