@@ -32,16 +32,19 @@ export async function GET(request: Request) {
     const TIKTOK_APP_SECRET = process.env.TIKTOK_APP_SECRET || process.env.TIKTOK_SHOP_APP_SECRET || "b0edb9990afd61f40c7d704f6e7cdaa0bcdd5809";
 
     // ENDPOINT REKONSILIASI OAUTH V1 UTK PUBLIC SERVICE MARKET APP INDONESIA
+// 1. PASTIKAN ENDPOINT SESUAI DENGAN DOKUMENTASI TERBARU AKUN DEVELOPERMU
+    // Jika akunmu menggunakan API Baru (v2), ganti ke: https://auth.tiktokshop.com/api/v2/token
     const tokenUrl = "https://auth.tiktok-shops.com/api/v1/auth/token"; 
     
-    // Payload wajib menggunakan skema string murni x-www-form-urlencoded
     const urlParams = new URLSearchParams();
     urlParams.append("app_key", TIKTOK_APP_KEY);
     urlParams.append("app_secret", TIKTOK_APP_SECRET);
     urlParams.append("auth_code", code);
-    urlParams.append("grant_type", "authorized_code"); // PENTING: Jangan diubah menjadi authorization_code
+    
+    // UBAH KE STANDAR OAUTH2 JIKA VERSI V1 TIDAK MERESPONS
+    urlParams.append("grant_type", "authorized_code"); 
 
-    console.log("Mengeksekusi jabat tangan token via form-urlencoded...");
+    console.log("Mengeksekusi jabat tangan token ke:", tokenUrl);
     
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
@@ -54,21 +57,26 @@ export async function GET(request: Request) {
     });
 
     const responseText = await tokenResponse.text();
-    console.log("Respons otentikasi masuk dari TikTok:", responseText);
+    
+    // LIHAT LOG INI DI TERMINAL VSCODE / VERCEL LOGS KAMU!
+    console.log("STATUS HTTP TIKTOK:", tokenResponse.status);
+    console.log("RESPONS MENTAH TIKTOK:", responseText);
 
     if (!tokenResponse.ok) {
-      throw new Error(`Koneksi ditolak server TikTok (HTTP ${tokenResponse.status}). Respons: ${responseText || 'Kosong'}`);
+      throw new Error(`Koneksi ditolak server TikTok (HTTP ${tokenResponse.status}). Respons: ${responseText || 'Kosong/Blank'}`);
     }
 
     if (!responseText || responseText.trim() === "") {
-      throw new Error("Server TikTok mengembalikan respons hampa (Empty Response). Periksa kembali status App Secret di konsol pengembang.");
+      throw new Error("Server TikTok mengembalikan respons hampa (Empty Response). Kemungkinan App Secret salah atau akun diblokir Cloudflare.");
     }
 
     let tokenData;
     try {
       tokenData = JSON.parse(responseText);
     } catch (e) {
-      throw new Error(`Data bukan JSON valid. Respons teks mentah: ${responseText.substring(0, 300)}`);
+      // Menampilkan potongan respons mentah di layar agar kamu tahu persis apakah itu HTML error atau bukan
+      const safeText = responseText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      throw new Error(`Data bukan JSON valid. Respons teks mentah (${tokenResponse.status}): ${safeText.substring(0, 500)}`);
     }
 
     // EVALUASI BUSINESS LOGIC ERROR DARI TIKTOK
