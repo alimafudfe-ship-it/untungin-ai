@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const TIKTOK_APP_SECRET = process.env.TIKTOK_APP_SECRET || "b0edb9990afd61f40c7d704f6e7cdaa0bcdd5809";
 
     // 🛠️ DOMAIN UTAMA PALING STABIL (Solusi untuk mengatasi Fetch Failed)
-    const tokenUrl = "https://open-api.tiktok.com/api/v2/token/get"; 
+    const tokenUrl = "https://open-api.tiktokshop.com/api/v2/token/get";
     
     // Payload wajib berbentuk Objek JSON murni untuk API V2 Publik
     const payload = {
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UntunginApp/1.0"
+        // "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UntunginApp/1.0"
       },
       body: JSON.stringify(payload),
       cache: "no-store"
