@@ -5,7 +5,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const stateParams = searchParams.get("state") || "";
 
-    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k0m8n8r9dh8j";
+    const TIKTOK_APP_KEY = process.env.TIKTOK_SHOP_APP_KEY || "6k9tqhh1i366s";
     // 💡 MASUKKAN SERVICE ID DARI PARTNER CENTER KAMU DI SINI
     const TIKTOK_SERVICE_ID = process.env.TIKTOK_SHOP_SERVICE_ID || "MASUKKAN_SERVICE_ID_KAMU_DISINI"; 
     
