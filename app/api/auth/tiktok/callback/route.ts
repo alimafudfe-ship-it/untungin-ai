@@ -34,57 +34,52 @@ export async function GET(request: Request) {
     // ENDPOINT REKONSILIASI OAUTH V1 UTK PUBLIC SERVICE MARKET APP INDONESIA
 // 1. PASTIKAN ENDPOINT SESUAI DENGAN DOKUMENTASI TERBARU AKUN DEVELOPERMU
     // Jika akunmu menggunakan API Baru (v2), ganti ke: https://auth.tiktokshop.com/api/v2/token
-    const tokenUrl = "https://auth.tiktok-shops.com/api/v1/auth/token"; 
+// 1. UBAH KE ENDPOINT V2 RESMI TIKTOK SHOP (Metode GET)
+    const tokenUrl = "https://auth.tiktok-shops.com/api/v2/token/get"; 
     
+    // 2. Susun query parameters untuk request GET
     const urlParams = new URLSearchParams();
     urlParams.append("app_key", TIKTOK_APP_KEY);
     urlParams.append("app_secret", TIKTOK_APP_SECRET);
     urlParams.append("auth_code", code);
-    
-    // UBAH KE STANDAR OAUTH2 JIKA VERSI V1 TIDAK MERESPONS
-    urlParams.append("grant_type", "authorized_code"); 
+    urlParams.append("grant_type", "authorized_code"); // Tetap menggunakan authorized_code untuk v2 get
 
-    console.log("Mengeksekusi jabat tangan token ke:", tokenUrl);
+    // Gabungkan endpoint dengan query string
+    const finalUrl = `${tokenUrl}?${urlParams.toString()}`;
+
+    console.log("Mengeksekusi jabat tangan token v2 ke:", finalUrl);
     
-const tokenResponse = await fetch(tokenUrl, {
-      method: "POST",
+    // 3. Lakukan fetch menggunakan method GET
+    const tokenResponse = await fetch(finalUrl, {
+      method: "GET",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json, text/plain, */*",
-        // MASUKKAN USER-AGENT PALSU AGAR TIDAK DIANGGAP BOT OLEH PUMBAA WAF
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 UntunginApp/1.0",
-        "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
-        "Origin": "https://auth.tiktok-shops.com",
-        "Referer": "https://auth.tiktok-shops.com/"
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 UntunginApp/1.0"
       },
-      body: urlParams.toString(),
       cache: "no-store"
     });
 
     const responseText = await tokenResponse.text();
-    
-    // LIHAT LOG INI DI TERMINAL VSCODE / VERCEL LOGS KAMU!
     console.log("STATUS HTTP TIKTOK:", tokenResponse.status);
     console.log("RESPONS MENTAH TIKTOK:", responseText);
 
     if (!tokenResponse.ok) {
-      throw new Error(`Koneksi ditolak server TikTok (HTTP ${tokenResponse.status}). Respons: ${responseText || 'Kosong/Blank'}`);
+      throw new Error(`Koneksi ditolak server TikTok (HTTP ${tokenResponse.status}). Respons: ${responseText || 'Kosong'}`);
     }
 
     if (!responseText || responseText.trim() === "") {
-      throw new Error("Server TikTok mengembalikan respons hampa (Empty Response). Kemungkinan App Secret salah atau akun diblokir Cloudflare.");
+      throw new Error("Server TikTok mengembalikan respons hampa (Empty Response).");
     }
 
     let tokenData;
     try {
       tokenData = JSON.parse(responseText);
     } catch (e) {
-      // Menampilkan potongan respons mentah di layar agar kamu tahu persis apakah itu HTML error atau bukan
       const safeText = responseText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      throw new Error(`Data bukan JSON valid. Respons teks mentah (${tokenResponse.status}): ${safeText.substring(0, 500)}`);
+      throw new Error(`Data bukan JSON valid. Respons teks mentah (${tokenResponse.status}): ${safeText.substring(0, 300)}`);
     }
 
-    // EVALUASI BUSINESS LOGIC ERROR DARI TIKTOK
+    // EVALUASI BUSINESS LOGIC ERROR DARI TIKTOK (Skema respons v2 biasanya menggunakan field "code" atau "message")
     if (tokenData.code !== 0 && tokenData.code !== undefined) {
       throw new Error(tokenData.message || `TikTok API Error Internal (Code: ${tokenData.code})`);
     }
